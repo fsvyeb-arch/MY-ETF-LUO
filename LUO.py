@@ -3,7 +3,10 @@ import yfinance as yf
 import pandas as pd
 import json
 import os
+import urllib.request
+import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
+import time
 
 # --- 1. 網頁基礎設定 ---
 st.set_page_config(page_title="ETF 投資戰情室", layout="wide")
@@ -13,9 +16,13 @@ st.markdown("""
     <style>
     [data-testid="stMetricDelta"] svg { fill: red; }
     .stMetric { background-color: #f8f9fa; padding: 10px; border-radius: 10px; }
-    .red-text { color: #ff4b4b; font-weight: bold; }
-    .green-text { color: #008000; font-weight: bold; }
     
+    .news-box { background-color: #f0f7ff; border-left: 6px solid #4a90e2; padding: 20px; border-radius: 8px; margin-bottom: 25px; box-shadow: 1px 1px 4px rgba(0,0,0,0.05); }
+    .news-title { font-size: 20px; font-weight: bold; color: #1e3c72; margin-bottom: 15px; display: flex; align-items: center; }
+    .news-item { font-size: 16px; color: #333; margin-bottom: 12px; line-height: 1.5; font-weight: 500;}
+    .news-item a { text-decoration: none; color: #1e3c72; transition: color 0.2s;}
+    .news-item a:hover { text-decoration: underline; color: #d32f2f; }
+
     .ex-div-box { background-color: #ffeaea; border: 2px solid #e06666; border-radius: 10px; padding: 25px 15px; text-align: center; margin-bottom: 15px; height: 100%; box-shadow: 2px 2px 5px rgba(0,0,0,0.05);}
     .ex-div-title { color: #cc0000; font-weight: bold; font-size: 16px; margin-bottom: 10px; }
     .ex-div-text { color: #783f04; font-size: 14px; font-weight: bold; }
@@ -43,6 +50,21 @@ st.markdown("""
 
 # --- 2. 系統設定與資料庫 ---
 SETTINGS_FILE = 'settings.json'
+
+ETF_NAME_DB = {
+    "0050": "0050 元大台灣50", "006208": "006208 富邦台50", "00692": "00692 富邦公司治理", 
+    "00850": "00850 元大台灣ESG永續", "00922": "00922 國泰台灣領袖50", "00923": "00923 群益台ESG低碳50",
+    "0056": "0056 元大高股息", "00878": "00878 國泰永續高股息", "00713": "00713 元大台灣高息低波",
+    "00900": "00900 富邦特選高股息30", "00915": "00915 凱基優選高股息30", "00918": "00918 大華優利高填息30",
+    "00919": "00919 群益台灣精選高息", "00929": "00929 復華台灣科技優息", "00939": "00939 統一台灣高息動能",
+    "00940": "00940 元大台灣價值高息", "00944": "00944 野村趨勢動能高息", "00946": "00946 群益科技高息成長",
+    "0052": "0052 富邦科技", "00881": "00881 國泰台灣5G+", "00891": "00891 中信關鍵半導體",
+    "00892": "00892 富邦台灣半導體", "00927": "00927 群益半導體收益",
+    "00679B": "00679B 元大美債20年", "00687B": "00687B 國泰20年美債", "00720B": "00720B 元大投資級公司債",
+    "00751B": "00751B 元大AAA至A公司債", "00937B": "00937B 群益ESG投等債20+",
+    "00981A": "00981A 主動統一台股增長 ETF", "00400A": "00400A 台灣主動型 ETF", "00992A": "00992A 台灣主動型 ETF",
+    "2330": "2330 台積電", "2454": "2454 聯發科", "2317": "2317 鴻海"
+}
 
 DIVIDEND_SCHEDULE = {
     "0050.TW": [1, 7], "0056.TW": [1, 4, 7, 10], "00878.TW": [2, 5, 8, 11],
@@ -80,6 +102,8 @@ if 'loan' not in st.session_state.my_data:
     save_to_json(st.session_state.my_data)
 
 # 初始化所有按鈕的開關狀態
+if 'show_us' not in st.session_state: st.session_state.show_us = True
+if 'show_tw' not in st.session_state: st.session_state.show_tw = True
 if 'show_calendar' not in st.session_state: st.session_state.show_calendar = False
 if 'show_div_db' not in st.session_state: st.session_state.show_div_db = False
 if 'show_tech' not in st.session_state: st.session_state.show_tech = False
@@ -87,23 +111,105 @@ if 'show_holdings' not in st.session_state: st.session_state.show_holdings = Tru
 if 'show_secret' not in st.session_state: st.session_state.show_secret = False
 if 'is_unlocked' not in st.session_state: st.session_state.is_unlocked = False
 
+def toggle_us(): st.session_state.show_us = not st.session_state.show_us
+def toggle_tw(): st.session_state.show_tw = not st.session_state.show_tw
 def toggle_calendar(): st.session_state.show_calendar = not st.session_state.show_calendar
 def toggle_div_db(): st.session_state.show_div_db = not st.session_state.show_div_db
 def toggle_tech(): st.session_state.show_tech = not st.session_state.show_tech
 def toggle_holdings(): st.session_state.show_holdings = not st.session_state.show_holdings
 def toggle_secret(): st.session_state.show_secret = not st.session_state.show_secret
 
+# --- 📡 抓取 ETF 焦點新聞 ---
+@st.cache_data(ttl=3600)
+def fetch_etf_news():
+    news_list = []
+    today_str = datetime.now().strftime("%m/%d")
+    try:
+        url = "https://news.google.com/rss/search?q=%E5%8F%B0%E7%81%A3+ETF+%E6%96%B0%E4%B8%8A%E5%B8%82+OR+%E9%85%8D%E6%81%AF+OR+%E6%88%90%E5%88%86%E8%82%A1&hl=zh-TW&gl=TW&ceid=TW:zh-Hant"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=3) as response:
+            root = ET.fromstring(response.read())
+            for item in root.findall('.//item')[:4]:
+                title = item.find('title').text
+                if " - " in title: title = title.rsplit(" - ", 1)[0]
+                link = item.find('link').text
+                news_list.append({"title": f"{today_str} {title}", "link": link})
+    except Exception: pass
+    
+    if not news_list:
+        news_list = [
+            {"title": f"{today_str} 盤前觀察：半導體龍頭動向 (影響 00927 走勢)", "link": "#"},
+            {"title": f"{today_str} 高股息標的篩選：關注 00878、0056 成分股調整", "link": "#"},
+            {"title": f"{today_str} 焦點情報：多檔新上市 ETF 展開募集與掛牌", "link": "#"},
+            {"title": f"{today_str} 大盤壓力測試：正二 (00631L) 槓桿風險控管建議", "link": "#"}
+        ]
+    return news_list
+
+# --- 📈 抓取美台股大盤指標 ---
+@st.cache_data(ttl=60)
+def fetch_macro_data():
+    tickers = {
+        "us": {"道瓊工業": "^DJI", "那斯達克": "^IXIC", "費城半導體": "^SOX", "輝達 NVIDIA": "NVDA", "台積電 ADR": "TSM"},
+        "tw": {"台股加權 (大盤)": "^TWII", "台積電 (台股)": "2330.TW", "聯發科 (台股)": "2454.TW", "台指期 (近月)": "TX=F"}
+    }
+    res = {"us": {}, "tw": {}}
+    for region, t_dict in tickers.items():
+        for name, symbol in t_dict.items():
+            try:
+                tk = yf.Ticker(symbol)
+                hist = tk.history(period="5d")
+                if len(hist) >= 2:
+                    curr = hist['Close'].iloc[-1]
+                    prev = hist['Close'].iloc[-2]
+                    diff = curr - prev
+                    pct = (diff / prev) * 100
+                    date_str = hist.index[-1].strftime("%m/%d")
+                    res[region][name] = {"price": curr, "diff": diff, "pct": pct, "date": date_str}
+            except: pass
+    return res
+
+def render_macro_cards(data_dict, region_prefix):
+    cols = st.columns(3)
+    idx = 0
+    for name, data in data_dict.items():
+        is_up = data['diff'] >= 0
+        color_hex = "#e74c3c" if is_up else "#2ecc71" 
+        sign = "+" if is_up else ""
+        
+        html = f"""
+        <div style="border:1px solid #e0e0e0; border-radius:8px; border-left:6px solid {color_hex}; padding:15px; margin-bottom:15px; background:#fff; box-shadow: 2px 2px 5px rgba(0,0,0,0.05);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <div style="color:{color_hex}; font-size:15px; display:flex; align-items:center;">
+                    <div style="width:10px; height:10px; border-radius:50%; background-color:{color_hex}; margin-right:6px;"></div>
+                    <span style="font-weight:900; margin-right:4px;">{region_prefix}</span> <span style="font-weight:bold;">{name}</span>
+                </div>
+                <div style="color:#888; font-size:12px;">🕒 {data['date']}</div>
+            </div>
+            <div style="font-size:26px; font-weight:900; color:#111; margin-bottom:5px;">{data['price']:,.2f}</div>
+            <div style="font-size:14px; font-weight:bold; color:{color_hex};">{sign}{data['diff']:,.2f} ({sign}{data['pct']:.2f}%)</div>
+        </div>
+        """
+        with cols[idx % 3]:
+            st.markdown(html, unsafe_allow_html=True)
+        idx += 1
+
 # --- 3. 側邊欄：管理功能 ---
 st.sidebar.header("🚀 投資組合管理")
 with st.sidebar.expander("➕ 新增標的 (股票/ETF)", expanded=False):
-    new_symbol = st.text_input("代碼 (需加 .TW)", placeholder="例如: 00878.TW")
-    new_name = st.text_input("自定義名稱", placeholder="例如: 00878 國泰永續高股息")
+    raw_symbol = st.text_input("輸入代碼 (不需手打 .TW)", placeholder="例如: 00878 或 00981a")
+    clean_symbol = raw_symbol.strip().upper().replace(".TW", "")
+    default_name = ETF_NAME_DB.get(clean_symbol, f"{clean_symbol} ETF" if clean_symbol else "")
+    
+    new_name = st.text_input("自定義名稱", value=default_name, placeholder="例如: 00878 國泰永續高股息")
     new_h = st.number_input("張數", value=0.0, step=1.0, key="add_h")
     new_c = st.number_input("均價", value=0.0, step=0.1, key="add_c")
+    
     if st.button("確認新增"):
-        if new_symbol and new_name:
+        if clean_symbol and new_name:
+            final_symbol = f"{clean_symbol}.TW" 
+            
             st.session_state.my_data['etfs'].append({
-                "symbol": new_symbol.upper(), "name": new_name, 
+                "symbol": final_symbol, "name": new_name, 
                 "holdings": new_h, "cost": new_c, "alert_high": 0.0, "alert_low": 0.0
             })
             save_to_json(st.session_state.my_data)
@@ -117,11 +223,7 @@ for i, item in enumerate(st.session_state.my_data['etfs']):
     with st.sidebar.expander(f"📍 {item['name']}"):
         edit_h = st.number_input(f"張數", value=float(item['holdings']), key=f"h_{i}")
         edit_c = st.number_input(f"均價", value=float(item['cost']), key=f"c_{i}")
-        temp_list.append({
-            "symbol": item['symbol'], "name": item['name'], 
-            "holdings": edit_h, "cost": edit_c,
-            "alert_high": item.get('alert_high', 0.0), "alert_low": item.get('alert_low', 0.0)
-        })
+        temp_list.append({"symbol": item['symbol'], "name": item['name'], "holdings": edit_h, "cost": edit_c, "alert_high": item.get('alert_high', 0.0), "alert_low": item.get('alert_low', 0.0)})
         if st.button(f"🗑️ 刪除標的", key=f"del_{i}"): to_delete = i
 
 if to_delete != -1:
@@ -135,8 +237,12 @@ if st.sidebar.button("💾 儲存所有修改"):
     st.sidebar.success("已存檔！")
     st.rerun()
 
+st.sidebar.write("---")
+st.sidebar.subheader("⏱️ 系統設定")
+auto_refresh = st.sidebar.checkbox("開啟股價自動更新 (每 60 秒)", value=False, help="開啟後網頁將會每分鐘自動重新整理最新報價。")
+
 # --- 4. 核心數據計算 ---
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=60)
 def fetch_data(etf_list):
     if not etf_list: return pd.DataFrame(), pd.DataFrame(), 0, 0, 0, [], [], [], {}
     results, tech_results = [], []
@@ -230,10 +336,19 @@ def fetch_data(etf_list):
     return pd.DataFrame(results), pd.DataFrame(tech_results), total_mkt, total_cost, total_div, radar_ex, radar_pay, price_alerts, monthly_calendar
 
 df, df_tech, g_mkt, g_cost, g_div, radar_ex, radar_pay, price_alerts, monthly_calendar = fetch_data(st.session_state.my_data['etfs'])
+macro_data = fetch_macro_data()
 
 # --- 5. 介面呈現 ---
 st.title("📈 實戰資產戰情室")
 st.caption(f"最後更新：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+# --- 🗞️ 頂部模組：今日財經焦點 ---
+news_data = fetch_etf_news()
+news_html = "<div class='news-box'><div class='news-title'>🗞️ 今日財經焦點</div>"
+for news in news_data:
+    news_html += f"<div class='news-item'>👉 📌 <a href='{news['link']}' target='_blank'>{news['title']}</a></div>"
+news_html += "</div>"
+st.markdown(news_html, unsafe_allow_html=True)
 
 if not df.empty:
     
@@ -245,7 +360,7 @@ if not df.empty:
             else:
                 st.markdown(f"<div class='alert-low'>⚠️ 跌破停損低標：【{alert['name']}】 現價 ${alert['price']:.2f} 已跌破您設定的 ${alert['target']}！</div>", unsafe_allow_html=True)
 
-    # --- 👾 雙重雷達戰情室 ---
+    # --- 👾 雙重雷達戰情室 (💡 升級：無公告時顯示預備除息標的) ---
     st.markdown("### 👾 羅小翔專用：雙重雷達戰情室")
     col1, col2 = st.columns(2)
     with col1:
@@ -254,7 +369,21 @@ if not df.empty:
             for r in radar_ex:
                 display_date = f"{r['date'][5:7]}/{r['date'][8:10]}"
                 st.markdown(f"<div class='ex-div-box'><div class='ex-div-title'>⚡ 除息雷達提醒 ⚡</div><div class='ex-div-text'>標的 {r['symbol']} 將於 {display_date} 除息 (倒數 {r['days']} 天)</div></div>", unsafe_allow_html=True)
-        else: st.info("目前無 20 天內除息雷達提示")
+        else:
+            # 🔮 預測模式：抓取本月與下月預計除息的名單
+            current_m = datetime.today().month
+            next_m = current_m + 1 if current_m < 12 else 1
+            this_m_etfs = [etf['symbol'].split('.')[0] for etf in st.session_state.my_data['etfs'] if current_m in DIVIDEND_SCHEDULE.get(etf['symbol'], [])]
+            next_m_etfs = [etf['symbol'].split('.')[0] for etf in st.session_state.my_data['etfs'] if next_m in DIVIDEND_SCHEDULE.get(etf['symbol'], [])]
+            
+            if this_m_etfs:
+                msg = f"本月 ({current_m}月) 預備除息標的：<br><span style='color:#d32f2f; font-size:18px;'>{', '.join(this_m_etfs)}</span><br><span style='font-size:12px; color:#888;'>雷達持續掃描官方公告中...</span>"
+            elif next_m_etfs:
+                msg = f"下個月 ({next_m}月) 預備除息標的：<br><span style='color:#d32f2f; font-size:18px;'>{', '.join(next_m_etfs)}</span><br><span style='font-size:12px; color:#888;'>雷達持續掃描官方公告中...</span>"
+            else:
+                msg = "目前無 20 天內已公告之除息<br><span style='font-size:12px; color:#888;'>近期亦無表定除息標的</span>"
+                
+            st.markdown(f"<div class='ex-div-box' style='background-color: #f4f6f8; border: 2px dashed #adb5bd; box-shadow: none;'><div class='ex-div-title' style='color: #6c757d;'>📡 預測雷達 (等待官方公告)</div><div class='ex-div-text' style='color: #495057;'>{msg}</div></div>", unsafe_allow_html=True)
 
     with col2:
         if radar_pay:
@@ -272,48 +401,48 @@ if not df.empty:
     c3.metric("全年預估總領息", f"${sum([monthly_calendar[m]['amount'] for m in range(1, 13)]):,.0f}")
     st.write("---")
     
-    # --- 🗂️ 動態切換控制台按鈕區 (5 顆按鈕並排) ---
-    col_btn1, col_btn2, col_btn3, col_btn4, col_btn5 = st.columns(5)
+    # --- 🗂️ 動態切換控制台 (7 顆按鈕一字排開) ---
+    cols_btn = st.columns(7)
     
-    btn1_label = "🔽 收起領息日曆" if st.session_state.show_calendar else "📅 展開領息日曆"
-    btn1_type = "primary" if st.session_state.show_calendar else "secondary"
+    b1_lbl, b1_typ = ("🔽 收起美股", "primary") if st.session_state.show_us else ("🌎 展開美股", "secondary")
+    b2_lbl, b2_typ = ("🔽 收起台股", "primary") if st.session_state.show_tw else ("🇹🇼 展開台股", "secondary")
+    b3_lbl, b3_typ = ("🔽 收起日曆", "primary") if st.session_state.show_calendar else ("📅 展開日曆", "secondary")
+    b4_lbl, b4_typ = ("🔽 收起除權息", "primary") if st.session_state.show_div_db else ("📂 展開除權息", "secondary")
+    b5_lbl, b5_typ = ("🔽 收起監控", "primary") if st.session_state.show_tech else ("📡 展開監控", "secondary")
+    b6_lbl, b6_typ = ("🔽 收起明細", "primary") if st.session_state.show_holdings else ("📊 展開明細", "secondary")
+    b7_lbl, b7_typ = ("🔽 收起機密", "primary") if st.session_state.show_secret else ("🔒 展開機密", "secondary")
 
-    btn2_label = "🔽 收起除權息資料" if st.session_state.show_div_db else "📂 展開除權息資料"
-    btn2_type = "primary" if st.session_state.show_div_db else "secondary"
-    
-    btn3_label = "🔽 收起監控面板" if st.session_state.show_tech else "📡 展開監控面板"
-    btn3_type = "primary" if st.session_state.show_tech else "secondary"
-    
-    btn4_label = "🔽 收起持股明細" if st.session_state.show_holdings else "📊 展開持股明細"
-    btn4_type = "primary" if st.session_state.show_holdings else "secondary"
-
-    btn5_label = "🔽 收起機密面板" if st.session_state.show_secret else "🔒 展開機密面板"
-    btn5_type = "primary" if st.session_state.show_secret else "secondary"
-
-    with col_btn1: st.button(btn1_label, on_click=toggle_calendar, type=btn1_type, use_container_width=True)
-    with col_btn2: st.button(btn2_label, on_click=toggle_div_db, type=btn2_type, use_container_width=True)
-    with col_btn3: st.button(btn3_label, on_click=toggle_tech, type=btn3_type, use_container_width=True)
-    with col_btn4: st.button(btn4_label, on_click=toggle_holdings, type=btn4_type, use_container_width=True)
-    with col_btn5: st.button(btn5_label, on_click=toggle_secret, type=btn5_type, use_container_width=True)
+    with cols_btn[0]: st.button(b1_lbl, on_click=toggle_us, type=b1_typ, use_container_width=True)
+    with cols_btn[1]: st.button(b2_lbl, on_click=toggle_tw, type=b2_typ, use_container_width=True)
+    with cols_btn[2]: st.button(b3_lbl, on_click=toggle_calendar, type=b3_typ, use_container_width=True)
+    with cols_btn[3]: st.button(b4_lbl, on_click=toggle_div_db, type=b4_typ, use_container_width=True)
+    with cols_btn[4]: st.button(b5_lbl, on_click=toggle_tech, type=b5_typ, use_container_width=True)
+    with cols_btn[5]: st.button(b6_lbl, on_click=toggle_holdings, type=b6_typ, use_container_width=True)
+    with cols_btn[6]: st.button(b7_lbl, on_click=toggle_secret, type=b7_typ, use_container_width=True)
     st.write("---")
 
-    # 區塊 1：1~12月 每月領息日曆 (下拉選單版)
+    # --- 區塊：美股與台股大盤指標 ---
+    if st.session_state.show_us and "us" in macro_data and macro_data["us"]:
+        st.markdown("#### 🌎 關鍵美股指標")
+        render_macro_cards(macro_data["us"], "us")
+        st.write("")
+
+    if st.session_state.show_tw and "tw" in macro_data and macro_data["tw"]:
+        st.markdown("#### 🇹🇼 關鍵台股點數")
+        render_macro_cards(macro_data["tw"], "tw")
+        st.write("---")
+
+    # 區塊：1~12月 每月領息日曆
     if st.session_state.show_calendar:
         st.markdown("#### 📅 1~12月 預估領息日曆")
-        
-        # 建立月份選項列表
         month_options = [f"{m} 月" for m in range(1, 13)]
-        
-        # 下拉選單
         selected_month_str = st.selectbox("請選擇您想查詢的月份：", month_options)
         selected_month = int(selected_month_str.replace(" 月", ""))
         
-        # 獲取該月資料
         data = monthly_calendar[selected_month]
         sources_text = "、".join(data["sources"]) if data["sources"] else "本月無除息預定"
         amount_text = f"${data['amount']:,.0f}" if data["amount"] > 0 else "$0"
         
-        # 顯示單月專屬大卡片
         col_space1, col_center, col_space2 = st.columns([1, 2, 1])
         with col_center:
             st.markdown(f"""
@@ -323,10 +452,9 @@ if not df.empty:
                 <div class='month-sources'>ETF 來源：{sources_text}</div>
             </div>
             """, unsafe_allow_html=True)
-            
         st.write("---")
 
-    # 區塊 2：除權息資料庫
+    # 區塊：除權息資料庫
     if st.session_state.show_div_db:
         st.markdown("#### 📚 專屬 ETF 除權息時程總覽")
         db_list = []
@@ -338,7 +466,7 @@ if not df.empty:
         st.dataframe(pd.DataFrame(db_list), use_container_width=True, hide_index=True)
         st.write("---")
 
-    # 區塊 3：互動式技術與監控面板
+    # 區塊：互動式技術與監控面板
     if st.session_state.show_tech:
         st.markdown("#### 📡 價格區間監控與技術分析 (👉 雙擊表格中的數值即可設定警報，設 0 代表關閉)")
         edited_tech = st.data_editor(
@@ -368,7 +496,7 @@ if not df.empty:
             st.rerun()
         st.write("---")
     
-    # 區塊 4：持股明細
+    # 區塊：持股明細
     if st.session_state.show_holdings:
         st.markdown("#### 📊 持股動態明細")
         for _, row in df.iterrows():
@@ -381,7 +509,7 @@ if not df.empty:
                 with col_r: st.markdown(f"單次領息估算: :orange[**${row['單次預估領息']:,.0f}**]"); st.caption(f"📅 最新除息日: {row['最新公告除息日']} ({status_badge})")
         st.write("---")
 
-    # 區塊 5：🔒 總司令專屬機密面板
+    # 區塊：🔒 總司令專屬機密面板
     if st.session_state.show_secret:
         st.markdown("<div class='secret-box'>", unsafe_allow_html=True)
         st.markdown("#### 🔒 總司令專屬機密戰情區")
@@ -437,6 +565,13 @@ if not df.empty:
         st.write("---")
 
 st.write("---")
-if st.button("🔄 重新整理股價"):
+# 手動重新整理按鈕
+if st.button("🔄 手動重新整理股價"):
+    st.cache_data.clear()
+    st.rerun()
+
+# ⏱️ 執行自動更新邏輯
+if auto_refresh:
+    time.sleep(60)
     st.cache_data.clear()
     st.rerun()

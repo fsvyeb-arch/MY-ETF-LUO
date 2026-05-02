@@ -12,19 +12,25 @@
             "symbol": "00891.TW",
             "name": "00891 中信關鍵半導體",
             "holdings": 5.0,
-            "cost": 31.3
+            "cost": 31.3,
+            "alert_high": 0.0,
+            "alert_low": 0.0
         },
         {
             "symbol": "00919.TW",
             "name": "00919 群益台灣精選高息",
             "holdings": 10.0,
-            "cost": 23.04
+            "cost": 23.04,
+            "alert_high": 0.0,
+            "alert_low": 0.0
         },
         {
             "symbol": "00927.TW",
             "name": "00927 群益半導體收益",
             "holdings": 6.0,
-            "cost": 27.63
+            "cost": 27.63,
+            "alert_high": 0.0,
+            "alert_low": 0.0
         }
     ],
     "loan": {
