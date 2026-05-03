@@ -24,18 +24,19 @@ st.markdown("""
     .news-item a { text-decoration: none; color: #1e3c72; transition: color 0.2s;}
     .news-item a:hover { text-decoration: underline; color: #d32f2f; }
 
-    .ex-div-box { background-color: #ffeaea; border: 2px solid #e06666; border-radius: 10px; padding: 25px 15px; text-align: center; margin-bottom: 15px; height: 100%; box-shadow: 2px 2px 5px rgba(0,0,0,0.05);}
-    .ex-div-title { color: #cc0000; font-weight: bold; font-size: 16px; margin-bottom: 10px; }
-    .ex-div-text { color: #783f04; font-size: 14px; font-weight: bold; }
+    /* 雙重雷達：壓縮體積 + 強制等高對齊 + 垂直置中 */
+    .ex-div-box { background-color: #ffeaea; border: 1.5px solid #e06666; border-radius: 8px; padding: 10px; text-align: center; margin-bottom: 15px; height: 115px; display: flex; flex-direction: column; justify-content: center; box-shadow: 1px 1px 3px rgba(0,0,0,0.05); overflow-y: auto;}
+    .ex-div-title { color: #cc0000; font-weight: bold; font-size: 13px; margin-bottom: 4px; }
+    .ex-div-text { color: #783f04; font-size: 12px; font-weight: bold; line-height: 1.4; }
     
-    .pay-div-box { background-color: #fff2cc; border: 2px solid #f6b26b; border-radius: 10px; padding: 15px; text-align: center; margin-bottom: 15px; box-shadow: 2px 2px 5px rgba(0,0,0,0.05);}
-    .pay-div-title { color: #b45f06; font-weight: bold; font-size: 16px; margin-bottom: 8px; }
-    .pay-div-text { color: #783f04; font-size: 14px; font-weight: bold; }
+    .pay-div-box { background-color: #fff2cc; border: 1.5px solid #f6b26b; border-radius: 8px; padding: 10px; text-align: center; margin-bottom: 15px; height: 115px; display: flex; flex-direction: column; justify-content: center; box-shadow: 1px 1px 3px rgba(0,0,0,0.05); overflow-y: auto;}
+    .pay-div-title { color: #b45f06; font-weight: bold; font-size: 13px; margin-bottom: 4px; }
+    .pay-div-text { color: #783f04; font-size: 12px; font-weight: bold; line-height: 1.4; }
 
-    /* 三拼損益與領息橫列大看板樣式 (手機排版優化版) */
+    /* 三拼損益與領息橫列大看板樣式 */
     .triple-box { background-color: #ffffff; border-radius: 12px; border: 1px solid #e0e0e0; padding: 15px; display: flex; flex-wrap: wrap; justify-content: space-around; align-items: center; margin-bottom: 20px; box-shadow: 2px 2px 8px rgba(0,0,0,0.04); gap: 10px; }
     .triple-col { flex: 1 1 30%; min-width: 140px; text-align: center; padding: 10px 0; }
-    .triple-divider { display: none; } /* 移除分隔線，提升手機換行流暢度 */
+    .triple-divider { display: none; }
     .triple-title { font-size: 14px; color: #757575; font-weight: bold; margin-bottom: 5px; }
     .triple-val-r { font-size: 28px; font-weight: 900; color: #b71c1c; font-family: Arial, sans-serif; line-height: 1.1; }
     .triple-val-g { font-size: 28px; font-weight: 900; color: #2e7d32; font-family: Arial, sans-serif; line-height: 1.1; }
@@ -56,31 +57,47 @@ st.markdown("""
     .secret-box { padding: 25px; border: 2px dashed #dc3545; border-radius: 12px; background-color: #fffafb; }
     .net-worth-box { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; padding: 20px; border-radius: 10px; text-align: center; margin-top: 15px; }
 
-    /* 即將掛牌 ETF 樣式 */
-    .upcoming-box { background-color: #fff4e6; border: 2px solid #ffd8a8; border-radius: 10px; padding: 15px; text-align: center; margin-bottom: 25px; box-shadow: 2px 2px 5px rgba(0,0,0,0.05); }
-    .upcoming-title { color: #d9480f; font-weight: bold; font-size: 18px; margin-bottom: 10px; }
-    .upcoming-item { color: #862e01; font-size: 15px; font-weight: bold; margin-bottom: 5px; }
+    /* 即將掛牌 ETF 樣式 (體積縮小版) */
+    .upcoming-box { background-color: #fff4e6; border: 1px solid #ffd8a8; border-radius: 8px; padding: 8px 10px; text-align: center; margin-bottom: 15px; box-shadow: 1px 1px 3px rgba(0,0,0,0.05); }
+    .upcoming-title { color: #d9480f; font-weight: bold; font-size: 13px; margin-bottom: 4px; }
+    .upcoming-item { color: #862e01; font-size: 13px; font-weight: bold; margin-bottom: 2px; }
+    .upcoming-price { font-size: 11px; color: #888; }
     </style>
     """, unsafe_allow_html=True)
 
 # --- 2. 系統設定與資料庫 ---
 SETTINGS_FILE = 'settings.json'
 
-ETF_NAME_DB = {
+# 戰情報告：被動式 ETF 資料庫
+PASSIVE_ETFS = {
     "0050": "0050 元大台灣50", "006208": "006208 富邦台50", "00692": "00692 富邦公司治理", 
     "00850": "00850 元大台灣ESG永續", "00922": "00922 國泰台灣領袖50", "00923": "00923 群益台ESG低碳50",
     "0056": "0056 元大高股息", "00878": "00878 國泰永續高股息", "00713": "00713 元大台灣高息低波",
     "00900": "00900 富邦特選高股息30", "00915": "00915 凱基優選高股息30", "00918": "00918 大華優利高填息30",
-    "00919": "00919 群益台灣精選高息", "00929": "00929 復華台灣科技優息", "00939": "00939 統一台灣高息動能",
-    "00940": "00940 元大台灣價值高息", "00944": "00944 野村趨勢動能高息", "00946": "00946 群益科技高息成長",
-    "0052": "0052 富邦科技", "00881": "00881 國泰台灣5G+", "00891": "00891 中信關鍵半導體",
-    "00892": "00892 富邦台灣半導體", "00927": "00927 群益半導體收益",
-    "00679B": "00679B 元大美債20年", "00687B": "00687B 國泰20年美債", "00720B": "00720B 元大投資級公司債",
-    "00751B": "00751B 元大AAA至A公司債", "00937B": "00937B 群益ESG投等債20+",
-    "00981A": "00981A 主動統一台股增長 ETF", "00400A": "00400A 台灣主動型 ETF", "00992A": "00992A 台灣主動型 ETF",
+    "00919": "00919 群益台灣精選高息", "00929": "00929 復華台灣科技優息", "00936": "00936 台新永續高息中小",
+    "00939": "00939 統一台灣高息動能", "00940": "00940 元大台灣價值高息", "00944": "00944 野村趨勢動能高息", 
+    "00946": "00946 群益科技高息成長", "0052": "0052 富邦科技", "00881": "00881 國泰台灣5G+", 
+    "00891": "00891 中信關鍵半導體", "00892": "00892 富邦台灣半導體", "00927": "00927 群益半導體收益", 
+    "00935": "00935 野村臺灣新科技50", "00941": "00941 中信上游半導體", "00893": "00893 國泰智能電動車", 
+    "00895": "00895 富邦未來車", "00646": "00646 元大S&P500", "00662": "00662 富邦NASDAQ", 
+    "00830": "00830 國泰費城半導體", "00757": "00757 統一FANG+", "00882": "00882 中信中國高股息", 
     "00962": "00962 洲際美國大型龍頭", "00963": "00963 中信全球高股息", "00964": "00964 中信亞太高股息",
+    "00679B": "00679B 元大美債20年", "00687B": "00687B 國泰20年美債", "00720B": "00720B 元大投資級公司債",
+    "00751B": "00751B 元大AAA至A公司債", "00937B": "00937B 群益ESG投等債20+", "00772B": "00772B 中信高評級公司債",
+    "00773B": "00773B 中信優先金融債", "00780B": "00780B 國泰A級金融債", "00795B": "00795B 中信美國公債20年",
     "2330": "2330 台積電", "2454": "2454 聯發科", "2317": "2317 鴻海"
 }
+
+# 戰情報告：主動式 ETF 資料庫 (2026年熱門精選)
+ACTIVE_ETFS = {
+    "00981A": "00981A 主動統一台股增長",
+    "00403A": "00403A 主動統一台股升級50",
+    "00999A": "00999A 主動野村臺灣動能",
+    "00401A": "00401A 主動摩根台灣鑫收",
+}
+
+# 整合兩大軍火庫供系統自動帶入使用
+ETF_NAME_DB = {**PASSIVE_ETFS, **ACTIVE_ETFS}
 
 DIVIDEND_SCHEDULE = {
     "0050.TW": [1, 7], "0056.TW": [1, 4, 7, 10], "00878.TW": [2, 5, 8, 11],
@@ -93,7 +110,7 @@ DIVIDEND_DB = {
     "00927.TW": {"v": 0.94, "d": "2026-04-18", "p": "2026-05-15"}  
 }
 
-# 🆕 戰情室專屬：熱門 ETF 核心成分股資料庫 (權重佔比版)
+# 戰情室專屬：熱門 ETF 核心成分股資料庫
 ETF_CONSTITUENTS_DB = {
     "0056.TW": [{"name": "鴻海", "weight": 6.5}, {"name": "聯發科", "weight": 5.2}, {"name": "聯詠", "weight": 4.8}, {"name": "中信金", "weight": 4.5}, {"name": "聯電", "weight": 4.1}, {"name": "其他", "weight": 74.9}],
     "00878.TW": [{"name": "聯發科", "weight": 5.5}, {"name": "國泰金", "weight": 5.1}, {"name": "富邦金", "weight": 4.9}, {"name": "廣達", "weight": 4.5}, {"name": "聯電", "weight": 4.2}, {"name": "其他", "weight": 75.8}],
@@ -131,7 +148,7 @@ if 'loan' not in st.session_state.my_data:
     st.session_state.my_data['loan'] = {"months_paid": 1, "first_amount": 6000, "regular_amount": 15000, "total_months": 84}
     save_to_json(st.session_state.my_data)
 
-# --- 🚀 修正版：使用 Callback 來處理所有管理邏輯 ---
+# --- 🚀 Callback 函數區 ---
 def auto_fill_etf_name():
     raw_sym = st.session_state.get('add_sym_bot', '')
     clean_sym = raw_sym.strip().upper().replace(".TW", "")
@@ -223,7 +240,7 @@ def fetch_etf_news():
         news_list = [
             {"title": f"{today_str} 盤前觀察：半導體龍頭動向 (影響 00927 走勢)", "link": "#"},
             {"title": f"{today_str} 高股息標的篩選：關注 00878、0056 成分股調整", "link": "#"},
-            {"title": f"{today_str} 焦點情報：多檔新上市 ETF 展開募集與掛牌", "link": "#"},
+            {"title": f"{today_str} 焦點情報：多檔新上市主動式 ETF 展開募集與掛牌", "link": "#"},
             {"title": f"{today_str} 大盤壓力測試：正二 (00631L) 槓桿風險控管建議", "link": "#"}
         ]
     return news_list
@@ -430,20 +447,22 @@ for news in news_data:
 news_html += "</div>"
 st.markdown(news_html, unsafe_allow_html=True)
 
-st.markdown("### 🗓️ 即將掛牌 ETF 追蹤")
+# 🚀 更新至 2026 最新即將上市 ETF 資訊
+st.markdown("### 🗓️ 2026 即將上市 ETF 追蹤")
 upcoming_list = [
-    {"date": "2024/11/14", "symbol": "00963", "name": "中信全球高股息", "price": "15.00"},
-    {"date": "2024/11/14", "symbol": "00964", "name": "中信亞太高股息", "price": "10.00"},
-    {"date": "2024/12/05", "symbol": "00962", "name": "洲際美國大型龍頭", "price": "15.00"},
+    {"date": "2026/05/05", "symbol": "00999A", "name": "主動野村臺灣動能", "price": "10.00"},
+    {"date": "2026/05/15", "symbol": "00403A", "name": "主動統一台股升級50", "price": "15.00"},
+    {"date": "2026/06/05", "symbol": "00401A", "name": "主動摩根台灣鑫收", "price": "15.00"},
 ]
-up_cols = st.columns(len(upcoming_list))
+
+up_cols = st.columns([1, 1, 1, 3]) 
 for i, etf in enumerate(upcoming_list):
     with up_cols[i]:
         st.markdown(f"""
         <div class='upcoming-box'>
-            <div class='upcoming-title'>🚀 預計掛牌日：{etf['date']}</div>
+            <div class='upcoming-title'>🚀 上市日：{etf['date']}</div>
             <div class='upcoming-item'>{etf['symbol']} {etf['name']}</div>
-            <div style='font-size:12px; color:#888;'>發行價：${etf['price']}</div>
+            <div class='upcoming-price'>發行價：${etf['price']}</div>
         </div>
         """, unsafe_allow_html=True)
 st.write("")
@@ -458,11 +477,13 @@ if not df.empty:
                 st.markdown(f"<div class='alert-low'>⚠️ 跌破停損低標：【{alert['name']}】 現價 ${alert['price']:.2f} 已跌破您設定的 ${alert['target']}！</div>", unsafe_allow_html=True)
 
     st.markdown("### 👾 羅小翔專用：雙重雷達戰情室")
-    col1, col2 = st.columns(2)
+    # 🎯 調整比例，將雙重雷達寬度縮小到佔據螢幕約 66%，右側留白，與縮小需求呼應
+    col1, col2, _ = st.columns([1, 1, 1])
+    
     with col1:
         if radar_ex:
             radar_ex = sorted(radar_ex, key=lambda x: x['days'])
-            ex_content = "".join([f"<div style='margin-bottom: 8px; font-weight:bold;'>標的 {r['symbol']} 將於 {r['date'][5:7]}/{r['date'][8:10]} 除息 (倒數 {r['days']} 天)</div>" for r in radar_ex])
+            ex_content = "".join([f"<div style='margin-bottom: 4px; font-weight:bold;'>標的 {r['symbol']} 將於 {r['date'][5:7]}/{r['date'][8:10]} 除息 (倒數 {r['days']} 天)</div>" for r in radar_ex])
             st.markdown(f"<div class='ex-div-box'><div class='ex-div-title'>⚡ 除息雷達提醒 ⚡</div><div class='ex-div-text'>{ex_content}</div></div>", unsafe_allow_html=True)
         else:
             current_m = datetime.today().month
@@ -471,20 +492,21 @@ if not df.empty:
             next_m_etfs = [etf['symbol'].split('.')[0] for etf in st.session_state.my_data['etfs'] if next_m in DIVIDEND_SCHEDULE.get(etf['symbol'], [])]
             
             if this_m_etfs:
-                msg = f"本月 ({current_m}月) 預備除息標的：<br><span style='color:#d32f2f; font-size:18px;'>{', '.join(this_m_etfs)}</span><br><span style='font-size:12px; color:#888;'>雷達持續掃描官方公告中...</span>"
+                msg = f"本月 ({current_m}月) 預備除息標的：<br><span style='color:#d32f2f; font-size:16px;'>{', '.join(this_m_etfs)}</span><br><span style='font-size:11px; color:#888;'>雷達持續掃描官方公告中...</span>"
             elif next_m_etfs:
-                msg = f"下個月 ({next_m}月) 預備除息標的：<br><span style='color:#d32f2f; font-size:18px;'>{', '.join(next_m_etfs)}</span><br><span style='font-size:12px; color:#888;'>雷達持續掃描官方公告中...</span>"
+                msg = f"下個月 ({next_m}月) 預備除息標的：<br><span style='color:#d32f2f; font-size:16px;'>{', '.join(next_m_etfs)}</span><br><span style='font-size:11px; color:#888;'>雷達持續掃描官方公告中...</span>"
             else:
-                msg = "目前無 20 天內已公告之除息<br><span style='font-size:12px; color:#888;'>近期亦無表定除息標的</span>"
+                msg = "目前無 20 天內已公告之除息<br><span style='font-size:11px; color:#888;'>近期亦無表定除息標的</span>"
                 
-            st.markdown(f" <div class='ex-div-box' style='background-color: #f4f6f8; border: 2px dashed #adb5bd; box-shadow: none;'><div class='ex-div-title' style='color: #6c757d;'>📡 預測雷達 (等待官方公告)</div><div class='ex-div-text' style='color: #495057;'>{msg}</div></div>", unsafe_allow_html=True)
+            st.markdown(f" <div class='ex-div-box' style='background-color: #f4f6f8; border: 1.5px dashed #adb5bd; box-shadow: none;'><div class='ex-div-title' style='color: #6c757d;'>📡 預測雷達 (等待官方公告)</div><div class='ex-div-text' style='color: #495057;'>{msg}</div></div>", unsafe_allow_html=True)
 
     with col2:
         if radar_pay:
             radar_pay = sorted(radar_pay, key=lambda x: x['days'])
-            pay_content = "".join([f"<div style='margin-bottom: 8px; font-weight:bold;'>標的 {r['symbol']} 股息約 ${r['amount']:,.0f} 將於 {r['date'][5:7]}/{r['date'][8:10]} 入帳 (倒數 {r['days']} 天)！</div>" for r in radar_pay])
+            pay_content = "".join([f"<div style='margin-bottom: 4px; font-weight:bold;'>標的 {r['symbol']} 股息約 ${r['amount']:,.0f} 將於 {r['date'][5:7]}/{r['date'][8:10]} 入帳 (倒數 {r['days']} 天)！</div>" for r in radar_pay])
             st.markdown(f"<div class='pay-div-box'><div class='pay-div-title'>💰 領息雷達提醒 💰</div><div class='pay-div-text'>{pay_content}</div></div>", unsafe_allow_html=True)
-        else: st.info("目前無 20 天內領息雷達提示")
+        else: 
+            st.markdown(f" <div class='pay-div-box' style='background-color: #fafafa; border: 1.5px dashed #ddd;'><div class='pay-div-title' style='color: #888;'>💰 領息雷達提醒 💰</div><div class='pay-div-text' style='color:#666;'>目前無 20 天內領息雷達提示</div></div>", unsafe_allow_html=True)
 
     p_total = g_mkt - g_cost
     r_total = (p_total / g_cost * 100) if g_cost != 0 else 0
@@ -783,7 +805,7 @@ with bot_c2:
         if "add_h_bot" not in st.session_state: st.session_state.add_h_bot = 0.0
         if "add_c_bot" not in st.session_state: st.session_state.add_c_bot = 0.0
 
-        st.text_input("輸入代碼 (不需手打 .TW)", placeholder="例如: 00878 或 00981a", key="add_sym_bot", on_change=auto_fill_etf_name)
+        st.text_input("輸入代碼 (不需手打 .TW)", placeholder="例如: 00878 或 00981A", key="add_sym_bot", on_change=auto_fill_etf_name)
         st.text_input("自定義名稱", placeholder="例如: 00878 國泰永續高股息", key="add_name_bot")
         
         col_add1, col_add2 = st.columns(2)
