@@ -40,10 +40,39 @@ st.markdown("""
     .triple-title { font-size: 14px; color: #757575; font-weight: bold; margin-bottom: 5px; }
     .triple-val-r { font-size: 28px; font-weight: 900; color: #b71c1c; font-family: Arial, sans-serif; line-height: 1.1; }
     .triple-val-g { font-size: 28px; font-weight: 900; color: #2e7d32; font-family: Arial, sans-serif; line-height: 1.1; }
-    .triple-val-gold { font-size: 28px; font-weight: 900; color: #f39c12; font-family: Arial, sans-serif; line-height: 1.1; }
+    .triple-val-gold { font-size: 28px; font-weight: 900; color: #f39c12; font-family: Arial, sans-serif; line-height: 1.1; text-shadow: 1px 1px 2px rgba(243, 156, 18, 0.3); }
     .triple-pct-r { font-size: 14px; font-weight: bold; color: #b71c1c; margin-top: 5px; }
     .triple-pct-g { font-size: 14px; font-weight: bold; color: #2e7d32; margin-top: 5px; }
     .triple-sub-gold { font-size: 12px; font-weight: bold; color: #7f8c8d; margin-top: 5px; }
+
+    /* ⚡⚡ 專屬閃電特效：0.1秒極限持續瘋狂爆發 ⚡⚡ */
+    @keyframes lightning-strike {
+        0% {
+            box-shadow: 0 0 10px rgba(241, 196, 15, 0.5);
+            background-color: #fffdf5;
+            border-color: #f1c40f;
+            transform: scale(1);
+        }
+        50% {
+            box-shadow: 0 0 40px rgba(255, 235, 59, 1), inset 0 0 25px rgba(255, 235, 59, 0.9);
+            background-color: #ffffe0;
+            border-color: #ffeb3b;
+            transform: scale(1.03); /* 高頻震動放大 */
+        }
+        100% {
+            box-shadow: 0 0 10px rgba(241, 196, 15, 0.5);
+            background-color: #fffdf5;
+            border-color: #f1c40f;
+            transform: scale(1);
+        }
+    }
+    .flash-gold-box {
+        background-color: #fffdf5;
+        border-radius: 12px;
+        padding: 15px;
+        border: 2px solid #f1c40f;
+        animation: lightning-strike 0.1s infinite; /* 0.1秒瘋狂連閃，沒有間斷 */
+    }
 
     .alert-high { background-color: #ffebee; border: 2px solid #ef5350; border-left: 8px solid #d32f2f; padding: 15px; border-radius: 8px; margin-bottom: 15px; color: #b71c1c; font-size: 16px; font-weight: bold; animation: pulse-red 2s infinite;}
     .alert-low { background-color: #e8f5e9; border: 2px solid #66bb6a; border-left: 8px solid #388e3c; padding: 15px; border-radius: 8px; margin-bottom: 15px; color: #1b5e20; font-size: 16px; font-weight: bold; animation: pulse-green 2s infinite;}
@@ -477,7 +506,6 @@ if not df.empty:
                 st.markdown(f"<div class='alert-low'>⚠️ 跌破停損低標：【{alert['name']}】 現價 ${alert['price']:.2f} 已跌破您設定的 ${alert['target']}！</div>", unsafe_allow_html=True)
 
     st.markdown("### 👾 羅小翔專用：雙重雷達戰情室")
-    # 🎯 調整比例，將雙重雷達寬度縮小到佔據螢幕約 66%，右側留白，與縮小需求呼應
     col1, col2, _ = st.columns([1, 1, 1])
     
     with col1:
@@ -533,7 +561,7 @@ if not df.empty:
     else:
         sub_title = "本月無現金流入預定"
 
-    # 🎯 手機排版優化版
+    # 🎯 手機排版優化版 ＋ ⚡ 專屬閃電特效 (加在第三個框框)
     html_triple_pnl = f"""
     <div class="triple-box">
         <div class="triple-col">
@@ -546,8 +574,8 @@ if not df.empty:
             <div class="{total_c_val}">{total_val_str}</div>
             <div class="{total_c_pct}">{total_pct_str}</div>
         </div>
-        <div class="triple-col" style="background-color: #fffdf5; border-radius: 12px; padding: 15px; border: 1px solid #f1c40f;">
-            <div class="triple-title" style="color: #b48608; margin-bottom: 5px;">🗓️ {current_month_num} 月預估領息總額</div>
+        <div class="triple-col flash-gold-box">
+            <div class="triple-title" style="color: #b48608; margin-bottom: 5px;">⚡ {current_month_num} 月預估領息總額</div>
             <div class="triple-val-gold">{current_month_div_str}</div>
             <div class="triple-sub-gold">{sub_title}</div>
         </div>
