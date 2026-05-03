@@ -32,23 +32,20 @@ st.markdown("""
     .pay-div-title { color: #b45f06; font-weight: bold; font-size: 16px; margin-bottom: 8px; }
     .pay-div-text { color: #783f04; font-size: 14px; font-weight: bold; }
 
-    /* 三拼損益與領息橫列大看板樣式 */
-    .triple-box { background-color: #ffffff; border-radius: 16px; border: 1px solid #e0e0e0; padding: 30px; display: flex; align-items: center; margin-bottom: 25px; box-shadow: 2px 2px 10px rgba(0,0,0,0.04); }
-    .triple-col { flex: 1; text-align: left; padding: 0 15px; }
-    .triple-divider { width: 1px; background-color: #e0e0e0; height: 100px; margin: 0 15px; }
-    .triple-title { font-size: 18px; color: #757575; font-weight: bold; margin-bottom: 12px; }
-    .triple-val-r { font-size: 48px; font-weight: 900; color: #b71c1c; font-family: Arial, sans-serif; line-height: 1.1; }
-    .triple-val-g { font-size: 48px; font-weight: 900; color: #2e7d32; font-family: Arial, sans-serif; line-height: 1.1; }
-    .triple-val-gold { font-size: 48px; font-weight: 900; color: #f39c12; font-family: Arial, sans-serif; line-height: 1.1; }
-    .triple-pct-r { font-size: 20px; font-weight: bold; color: #b71c1c; margin-top: 10px; }
-    .triple-pct-g { font-size: 20px; font-weight: bold; color: #2e7d32; margin-top: 10px; }
-    .triple-sub-gold { font-size: 15px; font-weight: bold; color: #7f8c8d; margin-top: 10px; }
+    /* 三拼損益與領息橫列大看板樣式 (手機排版優化版) */
+    .triple-box { background-color: #ffffff; border-radius: 12px; border: 1px solid #e0e0e0; padding: 15px; display: flex; flex-wrap: wrap; justify-content: space-around; align-items: center; margin-bottom: 20px; box-shadow: 2px 2px 8px rgba(0,0,0,0.04); gap: 10px; }
+    .triple-col { flex: 1 1 30%; min-width: 140px; text-align: center; padding: 10px 0; }
+    .triple-divider { display: none; } /* 移除分隔線，提升手機換行流暢度 */
+    .triple-title { font-size: 14px; color: #757575; font-weight: bold; margin-bottom: 5px; }
+    .triple-val-r { font-size: 28px; font-weight: 900; color: #b71c1c; font-family: Arial, sans-serif; line-height: 1.1; }
+    .triple-val-g { font-size: 28px; font-weight: 900; color: #2e7d32; font-family: Arial, sans-serif; line-height: 1.1; }
+    .triple-val-gold { font-size: 28px; font-weight: 900; color: #f39c12; font-family: Arial, sans-serif; line-height: 1.1; }
+    .triple-pct-r { font-size: 14px; font-weight: bold; color: #b71c1c; margin-top: 5px; }
+    .triple-pct-g { font-size: 14px; font-weight: bold; color: #2e7d32; margin-top: 5px; }
+    .triple-sub-gold { font-size: 12px; font-weight: bold; color: #7f8c8d; margin-top: 5px; }
 
     .alert-high { background-color: #ffebee; border: 2px solid #ef5350; border-left: 8px solid #d32f2f; padding: 15px; border-radius: 8px; margin-bottom: 15px; color: #b71c1c; font-size: 16px; font-weight: bold; animation: pulse-red 2s infinite;}
     .alert-low { background-color: #e8f5e9; border: 2px solid #66bb6a; border-left: 8px solid #388e3c; padding: 15px; border-radius: 8px; margin-bottom: 15px; color: #1b5e20; font-size: 16px; font-weight: bold; animation: pulse-green 2s infinite;}
-
-    @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(239, 83, 80, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(239, 83, 80, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 83, 80, 0); } }
-    @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(102, 187, 106, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(102, 187, 106, 0); } 100% { box-shadow: 0 0 0 0 rgba(102, 187, 106, 0); } }
 
     .month-card { background-color: #e9ecef; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 10px; border: 1px solid #ced4da; }
     .month-title { font-size: 20px; font-weight: bold; color: #495057; }
@@ -63,10 +60,6 @@ st.markdown("""
     .upcoming-box { background-color: #fff4e6; border: 2px solid #ffd8a8; border-radius: 10px; padding: 15px; text-align: center; margin-bottom: 25px; box-shadow: 2px 2px 5px rgba(0,0,0,0.05); }
     .upcoming-title { color: #d9480f; font-weight: bold; font-size: 18px; margin-bottom: 10px; }
     .upcoming-item { color: #862e01; font-size: 15px; font-weight: bold; margin-bottom: 5px; }
-    
-    /* 🧩 成分股標籤樣式 */
-    .tag-pill { display: inline-block; background-color: #e3f2fd; color: #1565c0; padding: 5px 12px; border-radius: 15px; font-size: 14px; font-weight: bold; margin: 4px; border: 1px solid #90caf9; transition: all 0.2s;}
-    .tag-pill:hover { background-color: #1e3c72; color: #fff; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -100,18 +93,18 @@ DIVIDEND_DB = {
     "00927.TW": {"v": 0.94, "d": "2026-04-18", "p": "2026-05-15"}  
 }
 
-# 🆕 戰情室專屬：熱門 ETF 核心成分股資料庫 (Top 5)
+# 🆕 戰情室專屬：熱門 ETF 核心成分股資料庫 (權重佔比版)
 ETF_CONSTITUENTS_DB = {
-    "0056.TW": ["鴻海 (2317)", "聯發科 (2454)", "聯詠 (3034)", "中信金 (2891)", "聯電 (2303)"],
-    "00878.TW": ["聯發科 (2454)", "國泰金 (2882)", "富邦金 (2881)", "廣達 (2382)", "聯電 (2303)"],
-    "00919.TW": ["長榮 (2603)", "聯電 (2303)", "瑞昱 (2379)", "聯發科 (2454)", "聯詠 (3034)"],
-    "00927.TW": ["台積電 (2330)", "聯發科 (2454)", "聯電 (2303)", "日月光投控 (3711)", "瑞昱 (2379)"],
-    "00891.TW": ["台積電 (2330)", "聯發科 (2454)", "聯電 (2303)", "日月光投控 (3711)", "瑞昱 (2379)"],
-    "00929.TW": ["聯發科 (2454)", "聯電 (2303)", "日月光投控 (3711)", "瑞昱 (2379)", "聯詠 (3034)"],
-    "0050.TW": ["台積電 (2330)", "鴻海 (2317)", "聯發科 (2454)", "廣達 (2382)", "台達電 (2308)"],
-    "006208.TW": ["台積電 (2330)", "鴻海 (2317)", "聯發科 (2454)", "廣達 (2382)", "台達電 (2308)"],
-    "00713.TW": ["統一 (1216)", "台灣大 (3045)", "遠傳 (4904)", "華碩 (2357)", "仁寶 (2324)"],
-    "00940.TW": ["長榮 (2603)", "聯電 (2303)", "聯發科 (2454)", "中美晶 (5483)", "神基 (3005)"]
+    "0056.TW": [{"name": "鴻海", "weight": 6.5}, {"name": "聯發科", "weight": 5.2}, {"name": "聯詠", "weight": 4.8}, {"name": "中信金", "weight": 4.5}, {"name": "聯電", "weight": 4.1}, {"name": "其他", "weight": 74.9}],
+    "00878.TW": [{"name": "聯發科", "weight": 5.5}, {"name": "國泰金", "weight": 5.1}, {"name": "富邦金", "weight": 4.9}, {"name": "廣達", "weight": 4.5}, {"name": "聯電", "weight": 4.2}, {"name": "其他", "weight": 75.8}],
+    "00919.TW": [{"name": "長榮", "weight": 11.5}, {"name": "聯電", "weight": 6.2}, {"name": "瑞昱", "weight": 5.8}, {"name": "聯發科", "weight": 5.1}, {"name": "聯詠", "weight": 4.8}, {"name": "其他", "weight": 66.6}],
+    "00927.TW": [{"name": "台積電", "weight": 31.2}, {"name": "聯發科", "weight": 15.5}, {"name": "聯電", "weight": 6.5}, {"name": "日月光投控", "weight": 5.8}, {"name": "瑞昱", "weight": 5.2}, {"name": "其他", "weight": 35.8}],
+    "00891.TW": [{"name": "台積電", "weight": 30.5}, {"name": "聯發科", "weight": 14.2}, {"name": "聯電", "weight": 6.1}, {"name": "日月光投控", "weight": 5.5}, {"name": "瑞昱", "weight": 5.0}, {"name": "其他", "weight": 38.7}],
+    "00929.TW": [{"name": "聯發科", "weight": 9.5}, {"name": "聯電", "weight": 7.2}, {"name": "日月光投控", "weight": 6.8}, {"name": "瑞昱", "weight": 6.5}, {"name": "聯詠", "weight": 6.1}, {"name": "其他", "weight": 63.9}],
+    "0050.TW": [{"name": "台積電", "weight": 52.5}, {"name": "鴻海", "weight": 5.5}, {"name": "聯發科", "weight": 4.8}, {"name": "廣達", "weight": 2.1}, {"name": "台達電", "weight": 1.9}, {"name": "其他", "weight": 33.2}],
+    "006208.TW": [{"name": "台積電", "weight": 52.6}, {"name": "鴻海", "weight": 5.4}, {"name": "聯發科", "weight": 4.9}, {"name": "廣達", "weight": 2.0}, {"name": "台達電", "weight": 1.8}, {"name": "其他", "weight": 33.3}],
+    "00713.TW": [{"name": "統一", "weight": 8.5}, {"name": "台灣大", "weight": 7.2}, {"name": "遠傳", "weight": 6.8}, {"name": "華碩", "weight": 6.1}, {"name": "仁寶", "weight": 5.5}, {"name": "其他", "weight": 65.9}],
+    "00940.TW": [{"name": "長榮", "weight": 9.5}, {"name": "聯電", "weight": 6.5}, {"name": "聯發科", "weight": 5.8}, {"name": "中美晶", "weight": 5.2}, {"name": "神基", "weight": 4.8}, {"name": "其他", "weight": 68.2}]
 }
 
 def load_settings():
@@ -138,14 +131,14 @@ if 'loan' not in st.session_state.my_data:
     st.session_state.my_data['loan'] = {"months_paid": 1, "first_amount": 6000, "regular_amount": 15000, "total_months": 84}
     save_to_json(st.session_state.my_data)
 
-# 初始化所有按鈕的開關狀態 (預設收起)
+# 初始化所有按鈕的開關狀態
 if 'show_us' not in st.session_state: st.session_state.show_us = False
 if 'show_tw' not in st.session_state: st.session_state.show_tw = False
 if 'show_calendar' not in st.session_state: st.session_state.show_calendar = False
 if 'show_div_db' not in st.session_state: st.session_state.show_div_db = False
 if 'show_tech' not in st.session_state: st.session_state.show_tech = False
 if 'show_holdings' not in st.session_state: st.session_state.show_holdings = False
-if 'show_constituents' not in st.session_state: st.session_state.show_constituents = False # 🆕 新增成分股開關
+if 'show_constituents' not in st.session_state: st.session_state.show_constituents = False 
 if 'show_secret' not in st.session_state: st.session_state.show_secret = False
 if 'is_unlocked' not in st.session_state: st.session_state.is_unlocked = False
 
@@ -155,7 +148,7 @@ def toggle_calendar(): st.session_state.show_calendar = not st.session_state.sho
 def toggle_div_db(): st.session_state.show_div_db = not st.session_state.show_div_db
 def toggle_tech(): st.session_state.show_tech = not st.session_state.show_tech
 def toggle_holdings(): st.session_state.show_holdings = not st.session_state.show_holdings
-def toggle_constituents(): st.session_state.show_constituents = not st.session_state.show_constituents # 🆕 新增切換邏輯
+def toggle_constituents(): st.session_state.show_constituents = not st.session_state.show_constituents
 def toggle_secret(): st.session_state.show_secret = not st.session_state.show_secret
 
 # --- 📡 抓取 ETF 焦點新聞 ---
@@ -234,28 +227,8 @@ def render_macro_cards(data_dict, region_prefix):
 
 # --- 3. 側邊欄：管理功能 ---
 st.sidebar.header("🚀 投資組合管理")
-with st.sidebar.expander("➕ 新增標的 (股票/ETF)", expanded=False):
-    raw_symbol = st.text_input("輸入代碼 (不需手打 .TW)", placeholder="例如: 00878 或 00981a")
-    clean_symbol = raw_symbol.strip().upper().replace(".TW", "")
-    default_name = ETF_NAME_DB.get(clean_symbol, f"{clean_symbol} ETF" if clean_symbol else "")
-    
-    new_name = st.text_input("自定義名稱", value=default_name, placeholder="例如: 00878 國泰永續高股息")
-    new_h = st.number_input("張數", value=0.0, step=1.0, key="add_h")
-    new_c = st.number_input("均價", value=0.0, step=0.1, key="add_c")
-    
-    if st.button("確認新增"):
-        if clean_symbol and new_name:
-            final_symbol = f"{clean_symbol}.TW" 
-            
-            st.session_state.my_data['etfs'].append({
-                "symbol": final_symbol, "name": new_name, 
-                "holdings": new_h, "cost": new_c, "alert_high": 0.0, "alert_low": 0.0
-            })
-            save_to_json(st.session_state.my_data)
-            st.rerun()
+st.sidebar.subheader("📝 庫存修改與刪除")
 
-st.sidebar.write("---")
-st.sidebar.subheader("📝 修改與刪除")
 temp_list = []
 to_delete = -1
 for i, item in enumerate(st.session_state.my_data['etfs']):
@@ -275,10 +248,6 @@ if st.sidebar.button("💾 儲存所有修改"):
     save_to_json(st.session_state.my_data)
     st.sidebar.success("已存檔！")
     st.rerun()
-
-st.sidebar.write("---")
-st.sidebar.subheader("⏱️ 系統設定")
-auto_refresh = st.sidebar.checkbox("開啟股價自動更新 (每 60 秒)", value=False, help="開啟後網頁將會每分鐘自動重新整理最新報價。")
 
 # --- 4. 核心數據計算 ---
 @st.cache_data(ttl=60)
@@ -321,7 +290,6 @@ def fetch_data(etf_list):
             if a_low > 0 and curr_p <= a_low:
                 price_alerts.append({"name": item['name'], "price": curr_p, "target": a_low, "type": "low"})
 
-            # --- 🎯 絕對精準現金流抓取區塊 ---
             is_announced, div_amount, ex_date, pay_date = False, 0, "待官方公告", "待官方公告"
             
             cfg = DIVIDEND_DB.get(item['symbol'])
@@ -355,7 +323,6 @@ def fetch_data(etf_list):
                 days_diff_pay = (pay_date_obj.date() - today.date()).days
                 if 0 <= days_diff_pay <= 20: radar_pay.append({"symbol": item['symbol'].split('.')[0], "date": pay_date, "amount": shares * div_amount, "days": days_diff_pay})
 
-            # --- 📅 終極精準：入帳日計算邏輯 ---
             if div_amount > 0 and shares > 0:
                 explicit_pay_month = None
                 if is_announced and pay_date != "待官方公告":
@@ -371,7 +338,6 @@ def fetch_data(etf_list):
                         if item['name'] not in monthly_calendar[pay_m]["sources"]:
                             monthly_calendar[pay_m]["sources"].append(item['name'])
 
-            # --- ⏳ 智能計算「最新填息天數」 ---
             fill_status = "-"
             try:
                 divs = tk.dividends
@@ -430,7 +396,6 @@ macro_data = fetch_macro_data()
 st.title("📈 實戰資產戰情室")
 st.caption(f"最後更新：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-# --- 📰 頂部模組：今日財經焦點 ---
 news_data = fetch_etf_news()
 news_html = "<div class='news-box'><div class='news-title'>📰 今日財經焦點</div>"
 for news in news_data:
@@ -438,7 +403,6 @@ for news in news_data:
 news_html += "</div>"
 st.markdown(news_html, unsafe_allow_html=True)
 
-# --- 🆕 追加區塊：即將掛牌 ETF 觀測區 ---
 st.markdown("### 🗓️ 即將掛牌 ETF 追蹤")
 upcoming_list = [
     {"date": "2024/11/14", "symbol": "00963", "name": "中信全球高股息", "price": "15.00"},
@@ -459,7 +423,6 @@ st.write("")
 
 if not df.empty:
     
-    # 🚨 動態脈衝價格越界警報
     if price_alerts:
         for alert in price_alerts:
             if alert['type'] == "high":
@@ -467,7 +430,6 @@ if not df.empty:
             else:
                 st.markdown(f"<div class='alert-low'>⚠️ 跌破停損低標：【{alert['name']}】 現價 ${alert['price']:.2f} 已跌破您設定的 ${alert['target']}！</div>", unsafe_allow_html=True)
 
-    # 👾 雙重雷達戰情室 
     st.markdown("### 👾 羅小翔專用：雙重雷達戰情室")
     col1, col2 = st.columns(2)
     with col1:
@@ -497,7 +459,6 @@ if not df.empty:
             st.markdown(f"<div class='pay-div-box'><div class='pay-div-title'>💰 領息雷達提醒 💰</div><div class='pay-div-text'>{pay_content}</div></div>", unsafe_allow_html=True)
         else: st.info("目前無 20 天內領息雷達提示")
 
-    # --- 💰 終極損益與現金流黃金大看板 ---
     p_total = g_mkt - g_cost
     r_total = (p_total / g_cost * 100) if g_cost != 0 else 0
     prev_mkt = g_mkt - g_today_pnl
@@ -523,27 +484,26 @@ if not df.empty:
     else:
         sub_title = "本月無現金流入預定"
 
+    # 🎯 這裡換成了手機排版優化版的 HTML 結構
     html_triple_pnl = f"""
-<div class="triple-box">
-    <div class="triple-col">
-        <div class="triple-title">今日損益</div>
-        <div class="{today_c_val}">{today_val_str}</div>
-        <div class="{today_c_pct}">{today_pct_str}</div>
+    <div class="triple-box">
+        <div class="triple-col">
+            <div class="triple-title">今日損益</div>
+            <div class="{today_c_val}">{today_val_str}</div>
+            <div class="{today_c_pct}">{today_pct_str}</div>
+        </div>
+        <div class="triple-col">
+            <div class="triple-title">累積損益</div>
+            <div class="{total_c_val}">{total_val_str}</div>
+            <div class="{total_c_pct}">{total_pct_str}</div>
+        </div>
+        <div class="triple-col" style="background-color: #fffdf5; border-radius: 12px; padding: 15px; border: 1px solid #f1c40f;">
+            <div class="triple-title" style="color: #b48608; margin-bottom: 5px;">🗓️ {current_month_num} 月預估領息總額</div>
+            <div class="triple-val-gold">{current_month_div_str}</div>
+            <div class="triple-sub-gold">{sub_title}</div>
+        </div>
     </div>
-    <div class="triple-divider"></div>
-    <div class="triple-col">
-        <div class="triple-title">累積損益</div>
-        <div class="{total_c_val}">{total_val_str}</div>
-        <div class="{total_c_pct}">{total_pct_str}</div>
-    </div>
-    <div class="triple-divider"></div>
-    <div class="triple-col" style="background-color: #fffdf5; border-radius: 12px; padding: 20px; border: 1px solid #f1c40f; text-align: center;">
-        <div class="triple-title" style="color: #b48608; margin-bottom: 5px; font-size: 16px;">🗓️ {current_month_num} 月預估領息總額</div>
-        <div class="triple-val-gold">{current_month_div_str}</div>
-        <div class="triple-sub-gold">{sub_title}</div>
-    </div>
-</div>
-"""
+    """
     st.markdown(html_triple_pnl, unsafe_allow_html=True)
 
     c1, c2, c3 = st.columns(3)
@@ -552,7 +512,6 @@ if not df.empty:
     c3.metric("全年預估總領息", f"${sum([monthly_calendar[m]['amount'] for m in range(1, 13)]):,.0f}")
     st.write("---")
     
-    # --- 🗄️ 動態切換控制台 (🌟 擴充為 8 顆按鈕) ---
     us_icon = "🌏"
     if "us" in macro_data and macro_data["us"]:
         us_up = sum(1 for v in macro_data["us"].values() if v['diff'] >= 0)
@@ -565,26 +524,34 @@ if not df.empty:
         tw_down = len(macro_data["tw"]) - tw_up
         tw_icon = "🔴" if tw_up >= tw_down else "🟢"
 
-    # 調整為 8 欄
-    cols_btn = st.columns(8)
+    # 🎯 雙層陣列排版：上下兩排，每排 4 顆按鈕
+    cols_btn_r1 = st.columns(4)
+    cols_btn_r2 = st.columns(4)
     
-    b1_lbl, b1_typ = (f"🔽 收起美股 {us_icon}", "primary") if st.session_state.show_us else (f"{us_icon} 展開美股", "secondary")
-    b2_lbl, b2_typ = (f"🔽 收起台股 {tw_icon}", "primary") if st.session_state.show_tw else (f"{tw_icon} 展開台股", "secondary")
-    b3_lbl, b3_typ = ("🔽 收起日曆", "primary") if st.session_state.show_calendar else ("📅 展開日曆", "secondary")
+    # 第一排按鈕
+    b1_lbl, b1_typ = (f"🔽 收起美股指數 {us_icon}", "primary") if st.session_state.show_us else (f"{us_icon} 展開美股指數", "secondary")
+    b2_lbl, b2_typ = (f"🔽 收起台股指數 {tw_icon}", "primary") if st.session_state.show_tw else (f"{tw_icon} 展開台股指數", "secondary")
+    b3_lbl, b3_typ = ("🔽 收起每月領息", "primary") if st.session_state.show_calendar else ("📅 展開每月領息", "secondary")
     b4_lbl, b4_typ = ("🔽 收起除權息", "primary") if st.session_state.show_div_db else ("📂 展開除權息", "secondary")
-    b5_lbl, b5_typ = ("🔽 收起監控", "primary") if st.session_state.show_tech else ("📡 展開監控", "secondary")
-    b6_lbl, b6_typ = ("🔽 收起明細", "primary") if st.session_state.show_holdings else ("📊 展開明細", "secondary")
-    b7_lbl, b7_typ = ("🔽 收起成分", "primary") if st.session_state.show_constituents else ("🧩 展開成分", "secondary") # 🆕 新按鈕
+    
+    # 第二排按鈕
+    b5_lbl, b5_typ = ("🔽 收起股價監控", "primary") if st.session_state.show_tech else ("📡 展開股價監控", "secondary")
+    b6_lbl, b6_typ = ("🔽 收起持股明細", "primary") if st.session_state.show_holdings else ("📊 展開持股明細", "secondary")
+    b7_lbl, b7_typ = ("🔽 收起ETF成份股", "primary") if st.session_state.show_constituents else ("🧩 展開ETF成份股", "secondary")
     b8_lbl, b8_typ = ("🔽 收起機密", "primary") if st.session_state.show_secret else ("🔐 展開機密", "secondary")
 
-    with cols_btn[0]: st.button(b1_lbl, on_click=toggle_us, type=b1_typ, use_container_width=True)
-    with cols_btn[1]: st.button(b2_lbl, on_click=toggle_tw, type=b2_typ, use_container_width=True)
-    with cols_btn[2]: st.button(b3_lbl, on_click=toggle_calendar, type=b3_typ, use_container_width=True)
-    with cols_btn[3]: st.button(b4_lbl, on_click=toggle_div_db, type=b4_typ, use_container_width=True)
-    with cols_btn[4]: st.button(b5_lbl, on_click=toggle_tech, type=b5_typ, use_container_width=True)
-    with cols_btn[5]: st.button(b6_lbl, on_click=toggle_holdings, type=b6_typ, use_container_width=True)
-    with cols_btn[6]: st.button(b7_lbl, on_click=toggle_constituents, type=b7_typ, use_container_width=True) # 🆕 綁定成分股
-    with cols_btn[7]: st.button(b8_lbl, on_click=toggle_secret, type=b8_typ, use_container_width=True)
+    # 部署第一排
+    with cols_btn_r1[0]: st.button(b1_lbl, on_click=toggle_us, type=b1_typ, use_container_width=True)
+    with cols_btn_r1[1]: st.button(b2_lbl, on_click=toggle_tw, type=b2_typ, use_container_width=True)
+    with cols_btn_r1[2]: st.button(b3_lbl, on_click=toggle_calendar, type=b3_typ, use_container_width=True)
+    with cols_btn_r1[3]: st.button(b4_lbl, on_click=toggle_div_db, type=b4_typ, use_container_width=True)
+    
+    # 部署第二排
+    with cols_btn_r2[0]: st.button(b5_lbl, on_click=toggle_tech, type=b5_typ, use_container_width=True)
+    with cols_btn_r2[1]: st.button(b6_lbl, on_click=toggle_holdings, type=b6_typ, use_container_width=True)
+    with cols_btn_r2[2]: st.button(b7_lbl, on_click=toggle_constituents, type=b7_typ, use_container_width=True) 
+    with cols_btn_r2[3]: st.button(b8_lbl, on_click=toggle_secret, type=b8_typ, use_container_width=True)
+    
     st.write("---")
 
     if st.session_state.show_us and "us" in macro_data and macro_data["us"]:
@@ -676,29 +643,45 @@ if not df.empty:
                 with col_r: st.markdown(f"單次領息估算: :orange[**${row['單次預估領息']:,.0f}**]"); st.caption(f"📅 最新除息日: {row['最新公告除息日']} ({status_badge})")
         st.write("---")
 
-    # 🆕 區塊：專屬庫存 ETF 核心成分股
     if st.session_state.show_constituents:
-        st.markdown("#### 🧩 專屬庫存 ETF 核心成分股 (Top 5 權重)")
-        st.caption("透過檢視成分股，可避免資金過度集中於單一個股（例如台積電或聯發科），降低系統性風險。")
+        st.markdown("#### 🧩 專屬庫存 ETF 核心成分股佔比")
+        st.caption("已開啟「直接顯示比例」模式。透過圓餅圖檢視成分股，可協助您避免資金過度集中於單一個股，降低系統性風險。")
         
         c_cols = st.columns(3)
         for idx, item in enumerate(st.session_state.my_data['etfs']):
             sym = item['symbol']
             name = item['name']
-            # 從自建資料庫抓取成分股，找不到就給預設提示
-            comps = ETF_CONSTITUENTS_DB.get(sym, ["暫無成分股資料，請手動查詢"])
             
-            # 將成分股轉換為標籤 (Pill) 樣式
-            tags_html = "".join([f"<span class='tag-pill'>{c}</span>" for c in comps])
+            comp_data = ETF_CONSTITUENTS_DB.get(sym, [{"name": "其他成分股", "weight": 100.0}])
+            df_comp = pd.DataFrame(comp_data)
             
-            card_html = f"""
-            <div style="background:#fff; border:1px solid #e0e0e0; border-radius:12px; padding:20px; margin-bottom:20px; box-shadow: 2px 2px 8px rgba(0,0,0,0.06); height:90%;">
-                <div style="font-weight:900; color:#1e3c72; font-size:16px; margin-bottom:12px;">🛡️ {name}</div>
-                <div>{tags_html}</div>
-            </div>
-            """
+            df_comp['label'] = df_comp['weight'].apply(lambda w: f"{w:.1f}%" if w >= 2.0 else "")
+            
+            base = alt.Chart(df_comp).encode(
+                theta=alt.Theta("weight:Q", stack=True),
+                color=alt.Color("name:N", 
+                                sort=alt.EncodingSortField(field="weight", op="sum", order="descending"), 
+                                legend=alt.Legend(title=None, orient="right", labelFontSize=12)),
+                tooltip=[
+                    alt.Tooltip("name:N", title="成分股"),
+                    alt.Tooltip("weight:Q", title="權重 (%)", format=".2f")
+                ]
+            )
+            
+            pie = base.mark_arc(outerRadius=100, innerRadius=0)
+            
+            text = base.mark_text(radius=125, size=13, fontWeight="bold", color="#333333").encode(
+                text="label:N"
+            )
+            
+            chart = alt.layer(pie, text).properties(
+                height=280
+            ).configure_view(strokeWidth=0)
+            
             with c_cols[idx % 3]:
-                st.markdown(card_html, unsafe_allow_html=True)
+                st.markdown(f"<div style='font-weight:900; color:#1e3c72; font-size:16px; margin-bottom:5px; margin-top:15px;'>🛡️ {name}</div>", unsafe_allow_html=True)
+                st.altair_chart(chart, use_container_width=True)
+                
         st.write("---")
 
     if st.session_state.show_secret:
@@ -752,16 +735,44 @@ if not df.empty:
         st.write("---")
 
 st.write("---")
-if st.button("🔄 手動重新整理股價"):
-    st.cache_data.clear()
-    st.rerun()
+
+# 🎯 將手動更新按鈕、新增標的選單、自動更新勾選框並排 (3欄式佈局)
+bot_c1, bot_c2, bot_c3 = st.columns([2, 4, 4])
+
+with bot_c1:
+    if st.button("🔄 手動重新整理股價", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
+
+with bot_c2:
+    with st.expander("➕ 新增標的 (股票/ETF)", expanded=False):
+        raw_symbol = st.text_input("輸入代碼 (不需手打 .TW)", placeholder="例如: 00878 或 00981a", key="add_sym_bot")
+        clean_symbol = raw_symbol.strip().upper().replace(".TW", "")
+        default_name = ETF_NAME_DB.get(clean_symbol, f"{clean_symbol} ETF" if clean_symbol else "")
+        
+        new_name = st.text_input("自定義名稱", value=default_name, placeholder="例如: 00878 國泰永續高股息", key="add_name_bot")
+        new_h = st.number_input("張數", value=0.0, step=1.0, key="add_h_bot")
+        new_c = st.number_input("均價", value=0.0, step=0.1, key="add_c_bot")
+        
+        if st.button("確認新增", key="btn_add_bot"):
+            if clean_symbol and new_name:
+                final_symbol = f"{clean_symbol}.TW" 
+                
+                st.session_state.my_data['etfs'].append({
+                    "symbol": final_symbol, "name": new_name, 
+                    "holdings": new_h, "cost": new_c, "alert_high": 0.0, "alert_low": 0.0
+                })
+                save_to_json(st.session_state.my_data)
+                st.rerun()
+
+with bot_c3:
+    auto_refresh = st.checkbox("開啟股價自動更新 (每 60 秒)", value=False, help="開啟後網頁將會每分鐘自動重新整理最新報價。")
 
 if auto_refresh:
     time.sleep(60)
     st.cache_data.clear()
     st.rerun()
 
-# --- 🚀 追加區塊：使用 Altair 進行進階歷史漲跌圖渲染 ---
 st.write("---")
 st.markdown("### 📈 持股歷史股價趨勢 (近 30 日)")
 
@@ -779,26 +790,24 @@ if current_etfs:
                 name_map = {item['symbol']: item['name'] for item in st.session_state.my_data['etfs']}
                 price_history = price_history.rename(columns=name_map)
             
-            # --- 將資料轉為 Altair 需要的長格式 ---
             df_chart = price_history.reset_index()
             date_col = df_chart.columns[0]
             df_melted = df_chart.melt(id_vars=[date_col], var_name='ETF', value_name='Price')
 
-            # --- 建立 Altair 互動圖表 ---
             chart = alt.Chart(df_melted).mark_line().encode(
                 x=alt.X(f'{date_col}:T',
                         axis=alt.Axis(
-                            format='%d日',      # 🎯 強制格式化為 30日、01日
+                            format='%d日',      
                             title=None,
                             grid=False
                         )),
                 y=alt.Y('Price:Q',
-                        scale=alt.Scale(zero=False), # 不強制從 0 開始，讓細節更清楚
+                        scale=alt.Scale(zero=False), 
                         axis=alt.Axis(
                             title=None,
-                            labelFontSize=10,  # 🎯 字體縮小
-                            tickMinStep=1,     # 🎯 最小間距為 1 
-                            tickCount=40,      # 🎯 強制增加刻度數量，逼近 0,1,2,3... 的密度
+                            labelFontSize=10,  
+                            tickMinStep=1,     
+                            tickCount=40,      
                             gridColor='#f0f2f6'
                         )),
                 color=alt.Color('ETF:N', legend=alt.Legend(title=None, orient="bottom")),
@@ -811,7 +820,6 @@ if current_etfs:
                 height=450
             ).interactive()
 
-            # 渲染圖表
             st.altair_chart(chart, use_container_width=True)
             st.caption("數據來源：Yahoo Finance (近一個月每日收盤價趨勢)")
         except Exception as e:
