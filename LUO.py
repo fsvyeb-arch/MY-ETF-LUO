@@ -131,6 +131,57 @@ if 'loan' not in st.session_state.my_data:
     st.session_state.my_data['loan'] = {"months_paid": 1, "first_amount": 6000, "regular_amount": 15000, "total_months": 84}
     save_to_json(st.session_state.my_data)
 
+# --- 🚀 修正版：使用 Callback 來處理所有管理邏輯 ---
+def auto_fill_etf_name():
+    raw_sym = st.session_state.get('add_sym_bot', '')
+    clean_sym = raw_sym.strip().upper().replace(".TW", "")
+    if clean_sym:
+        st.session_state.add_name_bot = ETF_NAME_DB.get(clean_sym, f"{clean_sym} ETF")
+    else:
+        st.session_state.add_name_bot = ""
+
+def add_new_etf_bot():
+    raw_sym = st.session_state.get('add_sym_bot', '')
+    new_name = st.session_state.get('add_name_bot', '')
+    new_h = st.session_state.get('add_h_bot', 0.0)
+    new_c = st.session_state.get('add_c_bot', 0.0)
+
+    clean_symbol = raw_sym.strip().upper().replace(".TW", "")
+    if clean_symbol and new_name:
+        final_symbol = f"{clean_symbol}.TW" 
+        
+        st.session_state.my_data['etfs'].append({
+            "symbol": final_symbol, "name": new_name, 
+            "holdings": new_h, "cost": new_c, "alert_high": 0.0, "alert_low": 0.0
+        })
+        save_to_json(st.session_state.my_data)
+        
+        st.session_state.add_sym_bot = ""
+        st.session_state.add_name_bot = ""
+        st.session_state.add_h_bot = 0.0
+        st.session_state.add_c_bot = 0.0
+
+def delete_etf(index):
+    if 0 <= index < len(st.session_state.my_data['etfs']):
+        st.session_state.my_data['etfs'].pop(index)
+        save_to_json(st.session_state.my_data)
+
+def save_edits():
+    temp_list = []
+    for i, item in enumerate(st.session_state.my_data['etfs']):
+        h_val = st.session_state.get(f"edit_h_{i}", item['holdings'])
+        c_val = st.session_state.get(f"edit_c_{i}", item['cost'])
+        temp_list.append({
+            "symbol": item['symbol'],
+            "name": item['name'],
+            "holdings": h_val,
+            "cost": c_val,
+            "alert_high": item.get('alert_high', 0.0),
+            "alert_low": item.get('alert_low', 0.0)
+        })
+    st.session_state.my_data['etfs'] = temp_list
+    save_to_json(st.session_state.my_data)
+
 # 初始化所有按鈕的開關狀態
 if 'show_us' not in st.session_state: st.session_state.show_us = False
 if 'show_tw' not in st.session_state: st.session_state.show_tw = False
@@ -224,30 +275,6 @@ def render_macro_cards(data_dict, region_prefix):
         with cols[idx % 3]:
             st.markdown(html, unsafe_allow_html=True)
         idx += 1
-
-# --- 3. 側邊欄：管理功能 ---
-st.sidebar.header("🚀 投資組合管理")
-st.sidebar.subheader("📝 庫存修改與刪除")
-
-temp_list = []
-to_delete = -1
-for i, item in enumerate(st.session_state.my_data['etfs']):
-    with st.sidebar.expander(f"📍 {item['name']}"):
-        edit_h = st.number_input(f"張數", value=float(item['holdings']), key=f"h_{i}")
-        edit_c = st.number_input(f"均價", value=float(item['cost']), key=f"c_{i}")
-        temp_list.append({"symbol": item['symbol'], "name": item['name'], "holdings": edit_h, "cost": edit_c, "alert_high": item.get('alert_high', 0.0), "alert_low": item.get('alert_low', 0.0)})
-        if st.button(f"🗑️ 刪除標的", key=f"del_{i}"): to_delete = i
-
-if to_delete != -1:
-    st.session_state.my_data['etfs'].pop(to_delete)
-    save_to_json(st.session_state.my_data)
-    st.rerun()
-
-if st.sidebar.button("💾 儲存所有修改"):
-    st.session_state.my_data['etfs'] = temp_list
-    save_to_json(st.session_state.my_data)
-    st.sidebar.success("已存檔！")
-    st.rerun()
 
 # --- 4. 核心數據計算 ---
 @st.cache_data(ttl=60)
@@ -484,7 +511,7 @@ if not df.empty:
     else:
         sub_title = "本月無現金流入預定"
 
-    # 🎯 這裡換成了手機排版優化版的 HTML 結構
+    # 🎯 手機排版優化版
     html_triple_pnl = f"""
     <div class="triple-box">
         <div class="triple-col">
@@ -736,8 +763,8 @@ if not df.empty:
 
 st.write("---")
 
-# 🎯 將手動更新按鈕、新增標的選單、自動更新勾選框並排 (3欄式佈局)
-bot_c1, bot_c2, bot_c3 = st.columns([2, 4, 4])
+# 🎯 將手動更新按鈕、綜合管理選單、自動更新勾選框並排 (3欄式佈局)
+bot_c1, bot_c2, bot_c3 = st.columns([2, 5, 3])
 
 with bot_c1:
     if st.button("🔄 手動重新整理股價", use_container_width=True):
@@ -745,25 +772,45 @@ with bot_c1:
         st.rerun()
 
 with bot_c2:
-    with st.expander("➕ 新增標的 (股票/ETF)", expanded=False):
-        raw_symbol = st.text_input("輸入代碼 (不需手打 .TW)", placeholder="例如: 00878 或 00981a", key="add_sym_bot")
-        clean_symbol = raw_symbol.strip().upper().replace(".TW", "")
-        default_name = ETF_NAME_DB.get(clean_symbol, f"{clean_symbol} ETF" if clean_symbol else "")
+    with st.expander("⚙️ 標的管理 (新增 / 修改 / 刪除)", expanded=False):
         
-        new_name = st.text_input("自定義名稱", value=default_name, placeholder="例如: 00878 國泰永續高股息", key="add_name_bot")
-        new_h = st.number_input("張數", value=0.0, step=1.0, key="add_h_bot")
-        new_c = st.number_input("均價", value=0.0, step=0.1, key="add_c_bot")
+        # --- 區塊 1：新增標的 ---
+        st.markdown("#### ➕ 新增標的 (股票/ETF)")
         
-        if st.button("確認新增", key="btn_add_bot"):
-            if clean_symbol and new_name:
-                final_symbol = f"{clean_symbol}.TW" 
-                
-                st.session_state.my_data['etfs'].append({
-                    "symbol": final_symbol, "name": new_name, 
-                    "holdings": new_h, "cost": new_c, "alert_high": 0.0, "alert_low": 0.0
-                })
-                save_to_json(st.session_state.my_data)
-                st.rerun()
+        # 初始化 Widget State (防止報錯)
+        if "add_name_bot" not in st.session_state: st.session_state.add_name_bot = ""
+        if "add_sym_bot" not in st.session_state: st.session_state.add_sym_bot = ""
+        if "add_h_bot" not in st.session_state: st.session_state.add_h_bot = 0.0
+        if "add_c_bot" not in st.session_state: st.session_state.add_c_bot = 0.0
+
+        st.text_input("輸入代碼 (不需手打 .TW)", placeholder="例如: 00878 或 00981a", key="add_sym_bot", on_change=auto_fill_etf_name)
+        st.text_input("自定義名稱", placeholder="例如: 00878 國泰永續高股息", key="add_name_bot")
+        
+        col_add1, col_add2 = st.columns(2)
+        with col_add1:
+            st.number_input("張數", step=1.0, key="add_h_bot")
+        with col_add2:
+            st.number_input("均價", step=0.1, key="add_c_bot")
+        
+        # 綁定 Callback 函數 (新增並清空)
+        st.button("確認新增", key="btn_add_bot", use_container_width=True, on_click=add_new_etf_bot)
+
+        st.write("---")
+
+        # --- 區塊 2：庫存修改與刪除 ---
+        st.markdown("#### 📝 庫存修改與刪除")
+        
+        for i, item in enumerate(st.session_state.my_data['etfs']):
+            with st.expander(f"📍 {item['name']}"):
+                col_e1, col_e2 = st.columns(2)
+                with col_e1:
+                    st.number_input("張數", value=float(item['holdings']), step=1.0, key=f"edit_h_{i}")
+                with col_e2:
+                    st.number_input("均價", value=float(item['cost']), step=0.1, key=f"edit_c_{i}")
+
+                st.button(f"🗑️ 刪除 {item['name']}", key=f"del_{i}", on_click=delete_etf, args=(i,), use_container_width=True)
+
+        st.button("💾 儲存所有修改", use_container_width=True, type="primary", on_click=save_edits)
 
 with bot_c3:
     auto_refresh = st.checkbox("開啟股價自動更新 (每 60 秒)", value=False, help="開啟後網頁將會每分鐘自動重新整理最新報價。")
