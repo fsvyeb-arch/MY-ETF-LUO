@@ -35,15 +35,6 @@
             "alert_high": 0.0,
             "alert_low": 0.0,
             "pledged_shares": 6.0
-        },
-        {
-            "symbol": "00878.TW",
-            "name": "00878 國泰永續高股息",
-            "holdings": 0.0,
-            "cost": 0.0,
-            "alert_high": 0.0,
-            "alert_low": 0.0,
-            "pledged_shares": 0.0
         }
     ],
     "loan": {
@@ -60,5 +51,15 @@
         "regular_amount": 5300,
         "total_months": 60,
         "last_updated_month": "2026-05"
-    }
+    },
+    "watchlist": [
+        {
+            "symbol": "00981A.TW",
+            "name": "00981A 主動統一台股增長"
+        },
+        {
+            "symbol": "00878.TW",
+            "name": "00878 國泰永續高股息"
+        }
+    ]
 }

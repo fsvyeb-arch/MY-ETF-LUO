@@ -146,7 +146,8 @@ def load_settings():
         except: pass
     return {
         "etfs": [], 
-        "pledge": {"borrowed_amount": 0}
+        "pledge": {"borrowed_amount": 0},
+        "watchlist": [] # 新增自選股觀察清單存檔區
     }
 
 def save_to_json(data):
@@ -156,10 +157,12 @@ def save_to_json(data):
 if 'my_data' not in st.session_state: 
     st.session_state.my_data = load_settings()
 
+if 'watchlist' not in st.session_state.my_data:
+    st.session_state.my_data['watchlist'] = []
+
 # --- 🎯 信貸跨月自動計算邏輯 ---
 now_str = datetime.now().strftime("%Y-%m")
 
-# 1. 自己的核心信貸
 if 'loan' not in st.session_state.my_data:
     st.session_state.my_data['loan'] = {
         "months_paid": 1, 
@@ -181,7 +184,6 @@ if last_m != now_str:
         loan_data['last_updated_month'] = now_str
         save_to_json(st.session_state.my_data)
 
-# 2. 別人欠的彰銀信貸
 if 'loan_chb' not in st.session_state.my_data:
     st.session_state.my_data['loan_chb'] = {
         "months_paid": 21, 
@@ -262,6 +264,36 @@ def save_edits():
         })
     st.session_state.my_data['etfs'] = temp_list
     save_to_json(st.session_state.my_data)
+
+# --- 自選股 Callback ---
+def auto_fill_wl_name():
+    raw_sym = st.session_state.get('add_sym_wl', '')
+    clean_sym = raw_sym.strip().upper().replace(".TW", "")
+    if clean_sym:
+        st.session_state.add_name_wl = ETF_NAME_DB.get(clean_sym, f"{clean_sym}")
+    else:
+        st.session_state.add_name_wl = ""
+
+def add_new_wl():
+    raw_sym = st.session_state.get('add_sym_wl', '')
+    new_name = st.session_state.get('add_name_wl', '')
+    clean_symbol = raw_sym.strip().upper().replace(".TW", "")
+    if clean_symbol and new_name:
+        final_symbol = f"{clean_symbol}.TW"
+        if any(x['symbol'] == final_symbol for x in st.session_state.my_data['watchlist']):
+            st.warning("該標的已在自選名單中！")
+            return
+        st.session_state.my_data['watchlist'].append({
+            "symbol": final_symbol, "name": new_name
+        })
+        save_to_json(st.session_state.my_data)
+        st.session_state.add_sym_wl = ""
+        st.session_state.add_name_wl = ""
+
+def delete_wl(index):
+    if 0 <= index < len(st.session_state.my_data['watchlist']):
+        st.session_state.my_data['watchlist'].pop(index)
+        save_to_json(st.session_state.my_data)
 
 def execute_trade():
     trade_etf_name = st.session_state.calc_selected_etf
@@ -393,6 +425,38 @@ def render_macro_cards(data_dict, region_prefix):
         with cols[idx % 3]:
             st.markdown(html, unsafe_allow_html=True)
         idx += 1
+
+# --- 🎯 抓取自選股資料 ---
+@st.cache_data(ttl=10)
+def fetch_watchlist_data(wl_list):
+    if not wl_list: return pd.DataFrame()
+    results = []
+    for item in wl_list:
+        try:
+            tk = yf.Ticker(item['symbol'])
+            hist = tk.history(period="2d")
+            if hist.empty: continue
+            
+            rt_curr = tk.fast_info.get('lastPrice')
+            curr_p = rt_curr if rt_curr is not None else hist['Close'].iloc[-1]
+            
+            rt_prev = tk.fast_info.get('previousClose')
+            prev_close = rt_prev if rt_prev is not None else (hist['Close'].iloc[-2] if len(hist) >= 2 else curr_p)
+            
+            diff = curr_p - prev_close
+            pct = (diff / prev_close * 100) if prev_close else 0
+            status_light = "🔴" if diff > 0 else "🟢" if diff < 0 else "⚪"
+            
+            results.append({
+                "代號": item['symbol'].replace('.TW', ''),
+                "名稱": item['name'],
+                "現價": round(curr_p, 2),
+                "漲跌": round(diff, 2),
+                "漲跌幅": f"{pct:+.2f}%",
+                "狀態": status_light
+            })
+        except Exception: continue
+    return pd.DataFrame(results)
 
 # --- 4. 核心數據計算 ---
 @st.cache_data(ttl=10)
@@ -528,7 +592,6 @@ def fetch_data(etf_list):
                             for d, r in post_ex.iterrows():
                                 t_days += 1
                                 if r['High'] >= target_price:
-                                    # ✅ 這裡新增了具體的填息完成日期
                                     fill_status = f"{d.month}/{d.day} 填息完成 ({t_days}天)"
                                     filled = True
                                     break
@@ -718,6 +781,7 @@ b7_lbl, b7_typ = ("🔽 收起ETF成份股", "primary") if st.session_state.show
 b8_lbl, b8_typ = ("🔽 收起質押專區", "primary") if st.session_state.show_pledge else ("🏦 展開質押專區", "secondary") 
 b9_lbl, b9_typ = ("🔽 收起機密面板", "primary") if st.session_state.show_secret else ("🔐 展開機密面板", "secondary")
 
+
 with cols_btn_r1[0]: st.button(b1_lbl, on_click=toggle_us, type=b1_typ, use_container_width=True)
 with cols_btn_r1[1]: st.button(b2_lbl, on_click=toggle_tw, type=b2_typ, use_container_width=True)
 with cols_btn_r1[2]: st.button(b3_lbl, on_click=toggle_calendar, type=b3_typ, use_container_width=True)
@@ -741,6 +805,7 @@ if st.session_state.show_tw and "tw" in macro_data and macro_data["tw"]:
     st.markdown("#### 🇹🇼 關鍵台股點數")
     render_macro_cards(macro_data["tw"], "tw")
     st.write("---")
+
 
 if st.session_state.show_calendar:
     st.markdown("#### 📅 1~12月 預估領息日曆")
@@ -783,7 +848,7 @@ if not df.empty:
         st.write("---")
 
     if st.session_state.show_tech:
-        st.markdown("#### 📡 價格區間監控與技術分析 (👉 雙擊表格中的數值即可設定警報，設 0 代表關閉)")
+        st.markdown("#### 📡 庫存價格區間監控與技術分析 (👉 雙擊表格數值設定警報，設 0 代表關閉)")
         
         def color_profit_loss(val):
             if isinstance(val, str):
@@ -824,6 +889,48 @@ if not df.empty:
             save_to_json(st.session_state.my_data)
             st.cache_data.clear()
             st.rerun()
+            
+        st.write("---")
+        
+        # --- 整合在展開股價監控內的自選股區域 ---
+        st.markdown("#### 👀 自選股觀察清單")
+        st.caption("追蹤您尚未入手、正在觀察的標的")
+        
+        col_w1, col_w2, col_w3 = st.columns([2, 2, 1])
+        with col_w1:
+            st.text_input("輸入代碼 (不需手打 .TW)", placeholder="例如: 2330", key="add_sym_wl", on_change=auto_fill_wl_name)
+        with col_w2:
+            st.text_input("自定義名稱", placeholder="例如: 2330 台積電", key="add_name_wl")
+        with col_w3:
+            st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+            st.button("➕ 加入名單", key="btn_add_wl", on_click=add_new_wl, use_container_width=True)
+
+        wl_df = fetch_watchlist_data(st.session_state.my_data.get('watchlist', []))
+        if not wl_df.empty:
+            def color_diff(val):
+                if isinstance(val, str) and '%' in val:
+                    if val.startswith('+'): return 'color: #d32f2f; font-weight: bold;'
+                    elif val.startswith('-'): return 'color: #388e3c; font-weight: bold;'
+                elif isinstance(val, (int, float)):
+                    if val > 0: return 'color: #d32f2f; font-weight: bold;'
+                    elif val < 0: return 'color: #388e3c; font-weight: bold;'
+                return ''
+            
+            try:
+                styled_wl = wl_df.style.map(color_diff, subset=['漲跌', '漲跌幅'])
+            except AttributeError:
+                styled_wl = wl_df.style.applymap(color_diff, subset=['漲跌', '漲跌幅'])
+                
+            st.dataframe(styled_wl, use_container_width=True, hide_index=True)
+            
+            with st.expander("🗑️ 管理與刪除自選股"):
+                for i, item in enumerate(st.session_state.my_data['watchlist']):
+                    cols_wl_del = st.columns([3, 1, 6])
+                    cols_wl_del[0].markdown(f"📍 **{item['name']}**")
+                    cols_wl_del[1].button("刪除", key=f"del_wl_{i}", on_click=delete_wl, args=(i,), use_container_width=True)
+        else:
+            st.info("目前尚無自選股。請在上方輸入代碼新增您的觀察名單！")
+
         st.write("---")
     
     if st.session_state.show_holdings:
@@ -1136,9 +1243,8 @@ with bot_c1:
         st.rerun()
 
 with bot_c2:
-    with st.expander("⚙️ 標的管理 (新增 / 修改 / 刪除)", expanded=True):
-        
-        st.markdown("#### ➕ 新增標的 (股票/ETF)")
+    with st.expander("⚙️ 標的管理 (庫存新增 / 修改 / 刪除)", expanded=True):
+        st.markdown("#### ➕ 新增庫存標的 (股票/ETF)")
         
         if "add_name_bot" not in st.session_state: st.session_state.add_name_bot = ""
         if "add_sym_bot" not in st.session_state: st.session_state.add_sym_bot = ""
@@ -1154,7 +1260,7 @@ with bot_c2:
         with col_add2:
             st.number_input("均價", step=0.1, key="add_c_bot")
         
-        st.button("確認新增", key="btn_add_bot", use_container_width=True, on_click=add_new_etf_bot)
+        st.button("確認新增庫存", key="btn_add_bot", use_container_width=True, on_click=add_new_etf_bot)
 
         if st.session_state.my_data['etfs']:
             st.write("---")
