@@ -131,22 +131,10 @@ DIVIDEND_SCHEDULE = {
     "00929.TW": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], "00940.TW": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
 }
 
+# 內建除息備用資料庫
 DIVIDEND_DB = {
     "0056.TW": {"v": 1.07, "d": "2026-04-16", "p": "2026-05-15"}, 
     "00927.TW": {"v": 0.94, "d": "2026-04-18", "p": "2026-05-15"}  
-}
-
-ETF_CONSTITUENTS_DB = {
-    "0056.TW": [{"name": "鴻海", "weight": 6.5}, {"name": "聯發科", "weight": 5.2}, {"name": "聯詠", "weight": 4.8}, {"name": "中信金", "weight": 4.5}, {"name": "聯電", "weight": 4.1}, {"name": "其他", "weight": 74.9}],
-    "00878.TW": [{"name": "聯發科", "weight": 5.5}, {"name": "國泰金", "weight": 5.1}, {"name": "富邦金", "weight": 4.9}, {"name": "廣達", "weight": 4.5}, {"name": "聯電", "weight": 4.2}, {"name": "其他", "weight": 75.8}],
-    "00919.TW": [{"name": "長榮", "weight": 11.5}, {"name": "聯電", "weight": 6.2}, {"name": "瑞昱", "weight": 5.8}, {"name": "聯發科", "weight": 5.1}, {"name": "聯詠", "weight": 4.8}, {"name": "其他", "weight": 66.6}],
-    "00927.TW": [{"name": "台積電", "weight": 31.2}, {"name": "聯發科", "weight": 15.5}, {"name": "聯電", "weight": 6.5}, {"name": "日月光投控", "weight": 5.8}, {"name": "瑞昱", "weight": 5.2}, {"name": "其他", "weight": 35.8}],
-    "00891.TW": [{"name": "台積電", "weight": 30.5}, {"name": "聯發科", "weight": 14.2}, {"name": "聯電", "weight": 6.1}, {"name": "日月光投控", "weight": 5.5}, {"name": "瑞昱", "weight": 5.0}, {"name": "其他", "weight": 38.7}],
-    "00929.TW": [{"name": "聯發科", "weight": 9.5}, {"name": "聯電", "weight": 7.2}, {"name": "日月光投控", "weight": 6.8}, {"name": "瑞昱", "weight": 6.5}, {"name": "聯詠", "weight": 6.1}, {"name": "其他", "weight": 63.9}],
-    "0050.TW": [{"name": "台積電", "weight": 52.5}, {"name": "鴻海", "weight": 5.5}, {"name": "聯發科", "weight": 4.8}, {"name": "廣達", "weight": 2.1}, {"name": "台達電", "weight": 1.9}, {"name": "其他", "weight": 33.2}],
-    "006208.TW": [{"name": "台積電", "weight": 52.6}, {"name": "鴻海", "weight": 5.4}, {"name": "聯發科", "weight": 4.9}, {"name": "廣達", "weight": 2.0}, {"name": "台達電", "weight": 1.8}, {"name": "其他", "weight": 33.3}],
-    "00713.TW": [{"name": "統一", "weight": 8.5}, {"name": "台灣大", "weight": 7.2}, {"name": "遠傳", "weight": 6.8}, {"name": "華碩", "weight": 6.1}, {"name": "仁寶", "weight": 5.5}, {"name": "其他", "weight": 65.9}],
-    "00940.TW": [{"name": "長榮", "weight": 9.5}, {"name": "聯電", "weight": 6.5}, {"name": "聯發科", "weight": 5.8}, {"name": "中美晶", "weight": 5.2}, {"name": "神基", "weight": 4.8}, {"name": "其他", "weight": 68.2}]
 }
 
 def load_settings():
@@ -157,7 +145,8 @@ def load_settings():
     return {
         "etfs": [], 
         "pledge": {"borrowed_amount": 0},
-        "watchlist": [] 
+        "watchlist": [],
+        "custom_divs": {} # 💰 新增手動股息登錄區
     }
 
 def save_to_json(data):
@@ -169,6 +158,9 @@ if 'my_data' not in st.session_state:
 
 if 'watchlist' not in st.session_state.my_data:
     st.session_state.my_data['watchlist'] = []
+    
+if 'custom_divs' not in st.session_state.my_data:
+    st.session_state.my_data['custom_divs'] = {}
 
 # --- 🎯 信貸跨月自動計算邏輯 ---
 now_str = datetime.now().strftime("%Y-%m")
@@ -304,6 +296,30 @@ def delete_wl(index):
     if 0 <= index < len(st.session_state.my_data['watchlist']):
         st.session_state.my_data['watchlist'].pop(index)
         save_to_json(st.session_state.my_data)
+
+# --- 🎯 手動登錄股息 Callback ---
+def save_custom_dividend():
+    sym_raw = st.session_state.get('custom_div_sym', '').split(" ")[0].strip()
+    amount = st.session_state.get('custom_div_amount', 0.0)
+    ex_date = st.session_state.get('custom_div_ex', datetime.today()).strftime('%Y-%m-%d')
+    pay_date = st.session_state.get('custom_div_pay', datetime.today()).strftime('%Y-%m-%d')
+    
+    if sym_raw and amount > 0:
+        if not sym_raw.endswith('.TW'): sym_raw += '.TW'
+        st.session_state.my_data['custom_divs'][sym_raw] = {
+            "v": amount, "d": ex_date, "p": pay_date
+        }
+        save_to_json(st.session_state.my_data)
+        st.success(f"✅ 成功登錄 {sym_raw} 股息資訊！系統已全面更新。")
+        fetch_data.clear()
+        fetch_watchlist_dividend.clear()
+
+def delete_custom_dividend(sym):
+    if sym in st.session_state.my_data['custom_divs']:
+        del st.session_state.my_data['custom_divs'][sym]
+        save_to_json(st.session_state.my_data)
+        fetch_data.clear()
+        fetch_watchlist_dividend.clear()
 
 def execute_trade():
     trade_etf_name = st.session_state.calc_selected_etf
@@ -474,6 +490,8 @@ def fetch_watchlist_dividend(wl_list):
     if not wl_list: return pd.DataFrame()
     results = []
     today = datetime.today()
+    custom_divs = st.session_state.my_data.get('custom_divs', {})
+    
     for item in wl_list:
         sym = item['symbol']
         try:
@@ -482,11 +500,16 @@ def fetch_watchlist_dividend(wl_list):
             
             is_announced, div_amount, ex_date, pay_date = False, 0.0, "待官方公告", "待官方公告"
             
-            cfg = DIVIDEND_DB.get(sym)
-            if cfg:
-                div_amount = cfg['v']
-                ex_date = cfg['d']
-                pay_date = cfg['p']
+            # 優先使用使用者手動登錄的公告資料，其次才是內建資料庫
+            if sym in custom_divs:
+                div_amount = custom_divs[sym]['v']
+                ex_date = custom_divs[sym]['d']
+                pay_date = custom_divs[sym]['p']
+                is_announced = True
+            elif sym in DIVIDEND_DB:
+                div_amount = DIVIDEND_DB[sym]['v']
+                ex_date = DIVIDEND_DB[sym]['d']
+                pay_date = DIVIDEND_DB[sym]['p']
                 is_announced = True
             else:
                 actions = tk.actions
@@ -553,6 +576,7 @@ def fetch_data(etf_list):
     radar_ex, radar_pay, price_alerts = [], [], []
     monthly_calendar = {i: {"amount": 0, "sources": []} for i in range(1, 13)} 
     today = datetime.today()
+    custom_divs = st.session_state.my_data.get('custom_divs', {})
 
     for item in etf_list:
         try:
@@ -611,13 +635,19 @@ def fetch_data(etf_list):
             if a_low > 0 and curr_p <= a_low:
                 price_alerts.append({"name": item['name'], "price": curr_p, "target": a_low, "type": "low"})
 
-            is_announced, div_amount, ex_date, pay_date = False, 0, "待官方公告", "待官方公告"
+            is_announced, div_amount, ex_date, pay_date = False, 0.0, "待官方公告", "待官方公告"
+            sym = item['symbol']
             
-            cfg = DIVIDEND_DB.get(item['symbol'])
-            if cfg:
-                div_amount = cfg['v']
-                ex_date = cfg['d']
-                pay_date = cfg['p']
+            # 優先使用使用者手動登錄的公告資料，其次才是內建資料庫
+            if sym in custom_divs:
+                div_amount = custom_divs[sym]['v']
+                ex_date = custom_divs[sym]['d']
+                pay_date = custom_divs[sym]['p']
+                is_announced = True
+            elif sym in DIVIDEND_DB:
+                div_amount = DIVIDEND_DB[sym]['v']
+                ex_date = DIVIDEND_DB[sym]['d']
+                pay_date = DIVIDEND_DB[sym]['p']
                 is_announced = True
             else:
                 actions = tk.actions
@@ -631,18 +661,18 @@ def fetch_data(etf_list):
                         is_announced = True
 
             est_yield = 0.0
-            months_to_pay = DIVIDEND_SCHEDULE.get(item['symbol'], [])
+            months_to_pay = DIVIDEND_SCHEDULE.get(sym, [])
             if len(months_to_pay) > 0 and div_amount > 0 and curr_p > 0:
                 est_yield = (div_amount * len(months_to_pay)) / curr_p * 100
 
             if is_announced:
                 ex_date_obj = datetime.strptime(ex_date, '%Y-%m-%d')
                 days_diff_ex = (ex_date_obj.date() - today.date()).days
-                if 0 <= days_diff_ex <= 20: radar_ex.append({"symbol": item['symbol'].split('.')[0], "date": ex_date, "days": days_diff_ex})
+                if 0 <= days_diff_ex <= 20: radar_ex.append({"symbol": sym.split('.')[0], "date": ex_date, "days": days_diff_ex})
                 
                 pay_date_obj = datetime.strptime(pay_date, '%Y-%m-%d')
                 days_diff_pay = (pay_date_obj.date() - today.date()).days
-                if 0 <= days_diff_pay <= 20: radar_pay.append({"symbol": item['symbol'].split('.')[0], "date": pay_date, "amount": shares * div_amount, "days": days_diff_pay})
+                if 0 <= days_diff_pay <= 20: radar_pay.append({"symbol": sym.split('.')[0], "date": pay_date, "amount": shares * div_amount, "days": days_diff_pay})
 
             if div_amount > 0 and shares > 0:
                 explicit_pay_month = None
@@ -689,7 +719,7 @@ def fetch_data(etf_list):
             total_mkt += mkt_val; total_cost += cost_val; total_div += (shares * div_amount)
             
             results.append({
-                "代號": item['symbol'], "名稱": item['name'], "現價": curr_p, "均價": item['cost'],
+                "代號": sym, "名稱": item['name'], "現價": curr_p, "均價": item['cost'],
                 "張數": item['holdings'], "市值": mkt_val, "損益": profit, "報酬率": roi,
                 "單次預估領息": shares * div_amount, "每股配息": div_amount,
                 "最新公告除息日": ex_date, "預估發放日": pay_date, "已公告": is_announced,
@@ -913,9 +943,10 @@ if st.session_state.show_calendar:
         """, unsafe_allow_html=True)
     st.write("---")
 
-# --- 📂 展開除權息 ---
+# --- 📂 展開除權息與手動即時登錄 ---
 if st.session_state.show_div_db:
     st.markdown("#### 📚 專屬 ETF 與自選股 除權息時程總覽")
+    st.caption("外國財經 API 更新常有延遲，您可以直接在下方手動登錄投信最新公告，雷達與行事曆將立即同步！")
     db_list = []
     
     # 處理庫存資料
@@ -953,6 +984,40 @@ if st.session_state.show_div_db:
     else:
         st.info("目前尚無庫存或自選股，因此無除權息資料可顯示。")
         
+    # --- ✍️ 股息手動登錄區 ---
+    with st.expander("✍️ 投信剛出新聞？點此手動即時登錄股息公告！", expanded=True):
+        st.markdown("將取代系統預估值，讓您的戰情室擁有最即時、最正確的除權息數據！")
+        
+        all_syms = [item['symbol'] + " " + item['name'] for item in st.session_state.my_data.get('etfs', [])] + \
+                   [item['symbol'] + " " + item['name'] for item in st.session_state.my_data.get('watchlist', [])]
+        # 去除重複
+        all_syms = list(dict.fromkeys(all_syms))
+        
+        if all_syms:
+            col_d1, col_d2, col_d3, col_d4, col_d5 = st.columns([3, 2, 2, 2, 2])
+            with col_d1:
+                st.selectbox("選擇要登錄的標的", all_syms, key="custom_div_sym")
+            with col_d2:
+                st.number_input("公告每股配息", min_value=0.0, step=0.01, format="%.3f", key="custom_div_amount")
+            with col_d3:
+                st.date_input("除息日", key="custom_div_ex")
+            with col_d4:
+                st.date_input("發放日", key="custom_div_pay")
+            with col_d5:
+                st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+                st.button("💾 儲存並更新雷達", type="primary", use_container_width=True, on_click=save_custom_dividend)
+                
+            # 列出目前已手動登錄的資料，讓使用者可以刪除
+            custom_divs = st.session_state.my_data.get('custom_divs', {})
+            if custom_divs:
+                st.write("##### 📝 目前已手動登錄的即時公告：")
+                for sym, data in custom_divs.items():
+                    c_del1, c_del2 = st.columns([8, 2])
+                    c_del1.info(f"**{sym}** ➔ 配息：**${data['v']}** | 除息日：**{data['d']}** | 發放日：**{data['p']}**")
+                    c_del2.button("🗑️ 恢復系統抓取", key=f"del_c_div_{sym}", on_click=delete_custom_dividend, args=(sym,), use_container_width=True)
+        else:
+            st.warning("請先在下方「標的管理」或「自選股」新增標的後，才能手動登錄股息唷！")
+            
     st.write("---")
 
 # --- 📡 展開股價監控 ---
