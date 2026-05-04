@@ -170,7 +170,6 @@ def save_to_json(data):
 
 if 'my_data' not in st.session_state: st.session_state.my_data = load_settings()
 
-# 確保新功能欄位存在
 if 'loan' not in st.session_state.my_data:
     st.session_state.my_data['loan'] = {"months_paid": 1, "first_amount": 6000, "regular_amount": 15000, "total_months": 84}
 if 'pledge' not in st.session_state.my_data:
@@ -241,7 +240,7 @@ if 'show_tech' not in st.session_state: st.session_state.show_tech = False
 if 'show_holdings' not in st.session_state: st.session_state.show_holdings = False
 if 'show_constituents' not in st.session_state: st.session_state.show_constituents = False 
 if 'show_secret' not in st.session_state: st.session_state.show_secret = False
-if 'show_pledge' not in st.session_state: st.session_state.show_pledge = False # 🎯 新增質押狀態
+if 'show_pledge' not in st.session_state: st.session_state.show_pledge = False 
 if 'is_unlocked' not in st.session_state: st.session_state.is_unlocked = False
 
 def toggle_us(): st.session_state.show_us = not st.session_state.show_us
@@ -252,7 +251,7 @@ def toggle_tech(): st.session_state.show_tech = not st.session_state.show_tech
 def toggle_holdings(): st.session_state.show_holdings = not st.session_state.show_holdings
 def toggle_constituents(): st.session_state.show_constituents = not st.session_state.show_constituents
 def toggle_secret(): st.session_state.show_secret = not st.session_state.show_secret
-def toggle_pledge(): st.session_state.show_pledge = not st.session_state.show_pledge # 🎯 質押 Toggle
+def toggle_pledge(): st.session_state.show_pledge = not st.session_state.show_pledge 
 
 # --- 📡 抓取 ETF 焦點新聞 ---
 @st.cache_data(ttl=3600)
@@ -502,7 +501,6 @@ for news in news_data:
 news_html += "</div>"
 st.markdown(news_html, unsafe_allow_html=True)
 
-# 🚀 更新至 2026 最新即將上市 ETF 資訊
 st.markdown("### 🗓️ 2026 即將上市 ETF 追蹤")
 upcoming_list = [
     {"date": "2026/05/05", "symbol": "00999A", "name": "主動野村臺灣動能", "price": "10.00"},
@@ -626,7 +624,6 @@ if not df.empty:
         tw_down = len(macro_data["tw"]) - tw_up
         tw_icon = "🔴" if tw_up >= tw_down else "🟢"
 
-    # 🎯 [重點修改] 改為 3 行 x 3 列的九宮格排版
     cols_btn_r1 = st.columns(3)
     cols_btn_r2 = st.columns(3)
     cols_btn_r3 = st.columns(3)
@@ -634,11 +631,13 @@ if not df.empty:
     b1_lbl, b1_typ = (f"🔽 收起美股指數 {us_icon}", "primary") if st.session_state.show_us else (f"{us_icon} 展開美股指數", "secondary")
     b2_lbl, b2_typ = (f"🔽 收起台股指數 {tw_icon}", "primary") if st.session_state.show_tw else (f"{tw_icon} 展開台股指數", "secondary")
     b3_lbl, b3_typ = ("🔽 收起每月領息", "primary") if st.session_state.show_calendar else ("📅 展開每月領息", "secondary")
+    
     b4_lbl, b4_typ = ("🔽 收起除權息", "primary") if st.session_state.show_div_db else ("📂 展開除權息", "secondary")
     b5_lbl, b5_typ = ("🔽 收起股價監控", "primary") if st.session_state.show_tech else ("📡 展開股價監控", "secondary")
     b6_lbl, b6_typ = ("🔽 收起持股明細", "primary") if st.session_state.show_holdings else ("📊 展開持股明細", "secondary")
+    
     b7_lbl, b7_typ = ("🔽 收起ETF成份股", "primary") if st.session_state.show_constituents else ("🧩 展開ETF成份股", "secondary")
-    b8_lbl, b8_typ = ("🔽 收起質押專區", "primary") if st.session_state.show_pledge else ("🏦 展開質押專區", "secondary") # 🎯 質押按鈕
+    b8_lbl, b8_typ = ("🔽 收起質押專區", "primary") if st.session_state.show_pledge else ("🏦 展開質押專區", "secondary") 
     b9_lbl, b9_typ = ("🔽 收起機密", "primary") if st.session_state.show_secret else ("🔐 展開機密", "secondary")
 
     with cols_btn_r1[0]: st.button(b1_lbl, on_click=toggle_us, type=b1_typ, use_container_width=True)
@@ -650,7 +649,7 @@ if not df.empty:
     with cols_btn_r2[2]: st.button(b6_lbl, on_click=toggle_holdings, type=b6_typ, use_container_width=True)
     
     with cols_btn_r3[0]: st.button(b7_lbl, on_click=toggle_constituents, type=b7_typ, use_container_width=True) 
-    with cols_btn_r3[1]: st.button(b8_lbl, on_click=toggle_pledge, type=b8_typ, use_container_width=True) # 🎯 質押功能
+    with cols_btn_r3[1]: st.button(b8_lbl, on_click=toggle_pledge, type=b8_typ, use_container_width=True) 
     with cols_btn_r3[2]: st.button(b9_lbl, on_click=toggle_secret, type=b9_typ, use_container_width=True)
     
     st.write("---")
@@ -800,13 +799,13 @@ if not df.empty:
                 
         st.write("---")
 
-    # 🎯 [重點修改] 新增質押功能專區
+    # 🎯 [重點修改] 質押專區追加 60% 可借款上限邏輯
     if st.session_state.show_pledge:
         st.markdown("#### 🏦 股票質押專區 (維持率監控)")
-        st.info("💡 股票質押後會從一般券商庫存消失，請在此設定已質押的張數與借入金額，系統將自動為您即時監控維持率！")
+        st.info("💡 股票質押後會從一般券商庫存消失。一般券商（如元大）最高可借出擔保品市值的 60%。請輸入已借入款項，系統將即時監控維持率！")
         
         pledge_data = st.session_state.my_data['pledge']
-        borrowed = st.number_input("💸 輸入已借入款項總額 (元)", min_value=0, value=int(pledge_data.get('borrowed_amount', 0)), step=10000)
+        borrowed = st.number_input("💸 輸入已向券商借入款項總額 (元)", min_value=0, value=int(pledge_data.get('borrowed_amount', 0)), step=10000)
         
         if borrowed != pledge_data.get('borrowed_amount', 0):
             st.session_state.my_data['pledge']['borrowed_amount'] = borrowed
@@ -815,6 +814,7 @@ if not df.empty:
 
         pledge_df_list = []
         total_pledge_mkt = 0
+        total_borrowable = 0
         for item in st.session_state.my_data['etfs']:
             sym = item['symbol']
             name = item['name']
@@ -827,33 +827,38 @@ if not df.empty:
                 curr_p = 0
                 
             p_mkt = p_shares * 1000 * curr_p
+            p_limit = p_mkt * 0.6  # 🎯 計算單檔標的 60% 額度
             total_pledge_mkt += p_mkt
+            total_borrowable += p_limit
             
             pledge_df_list.append({
                 "ETF 名稱": name,
                 "總庫存 (張)": h_total,
                 "質押張數": p_shares,
                 "現價": round(curr_p, 2),
-                "質押市值 (元)": round(p_mkt, 0)
+                "質押市值 (元)": round(p_mkt, 0),
+                "可借上限 (60%)": round(p_limit, 0) # 🎯 新增欄位顯示單檔可借 60% 金額
             })
             
         pledge_df = pd.DataFrame(pledge_df_list)
         margin_ratio = (total_pledge_mkt / borrowed * 100) if borrowed > 0 else 0
         
-        col_m1, col_m2, col_m3 = st.columns(3)
-        col_m1.metric("質押總市值", f"${total_pledge_mkt:,.0f}")
-        col_m2.metric("借入款項總額", f"${borrowed:,.0f}")
+        # 🎯 調整為 4 欄式面板，明確顯示 60% 上限
+        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+        col_m1.metric("擔保品總市值", f"${total_pledge_mkt:,.0f}")
+        col_m2.metric("🎯 總可借款上限 (60%)", f"${total_borrowable:,.0f}")
+        col_m3.metric("💸 已借入總額", f"${borrowed:,.0f}")
         
         if borrowed > 0:
             if margin_ratio < 130:
-                col_m3.metric("🚨 目前維持率", f"{margin_ratio:.2f}%", "危險：低於 130% 將面臨斷頭", delta_color="inverse")
+                col_m4.metric("🚨 目前維持率", f"{margin_ratio:.2f}%", "危險：低於 130% 將面臨斷頭", delta_color="inverse")
                 st.error("🚨 警告：您的維持率已跌破 130%，請盡速補繳保證金或償還部分借款！")
             elif margin_ratio < 160:
-                col_m3.metric("⚠️ 目前維持率", f"{margin_ratio:.2f}%", "注意：市場波動可能導致風險", delta_color="off")
+                col_m4.metric("⚠️ 目前維持率", f"{margin_ratio:.2f}%", "注意：市場波動可能導致風險", delta_color="off")
             else:
-                col_m3.metric("✅ 目前維持率", f"{margin_ratio:.2f}%", "安全：維持率處於健康水平", delta_color="normal")
+                col_m4.metric("✅ 目前維持率", f"{margin_ratio:.2f}%", "安全：維持率處於健康水平", delta_color="normal")
         else:
-            col_m3.metric("目前維持率", "0.00%")
+            col_m4.metric("目前維持率", "0.00%")
 
         st.write("👇 **請雙擊下方表格的「質押張數」欄位，設定您已向券商質押的庫存：**")
         edited_pledge = st.data_editor(
@@ -861,9 +866,10 @@ if not df.empty:
             column_config={
                 "質押張數": st.column_config.NumberColumn("質押張數 (雙擊編輯)", min_value=0.0, step=1.0, format="%.1f"),
                 "現價": st.column_config.NumberColumn("現價", format="%.2f"),
-                "質押市值 (元)": st.column_config.NumberColumn("質押市值 (元)", format="%.0f")
+                "質押市值 (元)": st.column_config.NumberColumn("質押市值 (元)", format="%.0f"),
+                "可借上限 (60%)": st.column_config.NumberColumn("可借上限 (60%)", format="%.0f") # 🎯 確保欄位格式
             },
-            disabled=["ETF 名稱", "總庫存 (張)", "現價", "質押市值 (元)"],
+            disabled=["ETF 名稱", "總庫存 (張)", "現價", "質押市值 (元)", "可借上限 (60%)"],
             use_container_width=True, hide_index=True
         )
         
