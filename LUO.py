@@ -24,7 +24,7 @@ st.markdown("""
     .news-item a { text-decoration: none; color: #1e3c72; transition: color 0.2s;}
     .news-item a:hover { text-decoration: underline; color: #d32f2f; }
 
-    /* 雙重雷達：壓縮體積 + 強制等高對齊 + 垂直置中 */
+    /* 雙重雷達 */
     .ex-div-box { background-color: #ffeaea; border: 1.5px solid #e06666; border-radius: 8px; padding: 10px; text-align: center; margin-bottom: 15px; height: 115px; display: flex; flex-direction: column; justify-content: center; box-shadow: 1px 1px 3px rgba(0,0,0,0.05); overflow-y: auto;}
     .ex-div-title { color: #cc0000; font-weight: bold; font-size: 13px; margin-bottom: 4px; }
     .ex-div-text { color: #783f04; font-size: 12px; font-weight: bold; line-height: 1.4; }
@@ -36,7 +36,6 @@ st.markdown("""
     /* 三拼損益與領息橫列大看板樣式 */
     .triple-box { background-color: #ffffff; border-radius: 12px; border: 1px solid #e0e0e0; padding: 15px; display: flex; flex-wrap: wrap; justify-content: space-around; align-items: center; margin-bottom: 20px; box-shadow: 2px 2px 8px rgba(0,0,0,0.04); gap: 10px; }
     .triple-col { flex: 1 1 30%; min-width: 140px; text-align: center; padding: 10px 0; }
-    .triple-divider { display: none; }
     .triple-title { font-size: 14px; color: #757575; font-weight: bold; margin-bottom: 5px; }
     .triple-val-r { font-size: 28px; font-weight: 900; color: #b71c1c; font-family: Arial, sans-serif; line-height: 1.1; }
     .triple-val-g { font-size: 28px; font-weight: 900; color: #2e7d32; font-family: Arial, sans-serif; line-height: 1.1; }
@@ -45,37 +44,16 @@ st.markdown("""
     .triple-pct-g { font-size: 14px; font-weight: bold; color: #2e7d32; margin-top: 5px; }
     .triple-sub-gold { font-size: 12px; font-weight: bold; color: #7f8c8d; margin-top: 5px; }
 
-    /* ⚡⚡ 專屬閃電特效：0.1秒極限持續瘋狂爆發 ⚡⚡ */
+    /* 閃電特效 */
     @keyframes lightning-strike {
-        0% {
-            box-shadow: 0 0 10px rgba(241, 196, 15, 0.5);
-            background-color: #fffdf5;
-            border-color: #f1c40f;
-            transform: scale(1);
-        }
-        50% {
-            box-shadow: 0 0 40px rgba(255, 235, 59, 1), inset 0 0 25px rgba(255, 235, 59, 0.9);
-            background-color: #ffffe0;
-            border-color: #ffeb3b;
-            transform: scale(1.03); /* 高頻震動放大 */
-        }
-        100% {
-            box-shadow: 0 0 10px rgba(241, 196, 15, 0.5);
-            background-color: #fffdf5;
-            border-color: #f1c40f;
-            transform: scale(1);
-        }
+        0% { box-shadow: 0 0 10px rgba(241, 196, 15, 0.5); background-color: #fffdf5; border-color: #f1c40f; transform: scale(1); }
+        50% { box-shadow: 0 0 40px rgba(255, 235, 59, 1), inset 0 0 25px rgba(255, 235, 59, 0.9); background-color: #ffffe0; border-color: #ffeb3b; transform: scale(1.03); }
+        100% { box-shadow: 0 0 10px rgba(241, 196, 15, 0.5); background-color: #fffdf5; border-color: #f1c40f; transform: scale(1); }
     }
-    .flash-gold-box {
-        background-color: #fffdf5;
-        border-radius: 12px;
-        padding: 15px;
-        border: 2px solid #f1c40f;
-        animation: lightning-strike 0.1s infinite; /* 0.1秒瘋狂連閃，沒有間斷 */
-    }
+    .flash-gold-box { background-color: #fffdf5; border-radius: 12px; padding: 15px; border: 2px solid #f1c40f; animation: lightning-strike 0.1s infinite; }
 
-    .alert-high { background-color: #ffebee; border: 2px solid #ef5350; border-left: 8px solid #d32f2f; padding: 15px; border-radius: 8px; margin-bottom: 15px; color: #b71c1c; font-size: 16px; font-weight: bold; animation: pulse-red 2s infinite;}
-    .alert-low { background-color: #e8f5e9; border: 2px solid #66bb6a; border-left: 8px solid #388e3c; padding: 15px; border-radius: 8px; margin-bottom: 15px; color: #1b5e20; font-size: 16px; font-weight: bold; animation: pulse-green 2s infinite;}
+    .alert-high { background-color: #ffebee; border: 2px solid #ef5350; border-left: 8px solid #d32f2f; padding: 15px; border-radius: 8px; margin-bottom: 15px; color: #b71c1c; font-size: 16px; font-weight: bold; }
+    .alert-low { background-color: #e8f5e9; border: 2px solid #66bb6a; border-left: 8px solid #388e3c; padding: 15px; border-radius: 8px; margin-bottom: 15px; color: #1b5e20; font-size: 16px; font-weight: bold; }
 
     .month-card { background-color: #e9ecef; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 10px; border: 1px solid #ced4da; }
     .month-title { font-size: 20px; font-weight: bold; color: #495057; }
@@ -83,13 +61,23 @@ st.markdown("""
     .month-sources { font-size: 14px; color: #6c757d; }
     
     div.stButton > button { font-weight: bold; border-radius: 8px; }
-    .secret-box { padding: 25px; border: 2px dashed #dc3545; border-radius: 12px; background-color: #fffafb; }
-    .net-worth-box { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; padding: 20px; border-radius: 10px; text-align: center; margin-top: 15px; }
 
     .upcoming-box { background-color: #fff4e6; border: 1px solid #ffd8a8; border-radius: 8px; padding: 8px 10px; text-align: center; margin-bottom: 15px; box-shadow: 1px 1px 3px rgba(0,0,0,0.05); }
     .upcoming-title { color: #d9480f; font-weight: bold; font-size: 13px; margin-bottom: 4px; }
     .upcoming-item { color: #862e01; font-size: 13px; font-weight: bold; margin-bottom: 2px; }
     .upcoming-price { font-size: 11px; color: #888; }
+    
+    .calc-box { background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; margin-bottom: 15px;}
+    .calc-title { color: #495057; font-weight: bold; font-size: 16px; margin-bottom: 10px; }
+    .calc-result-profit { font-size: 24px; font-weight: bold; color: #d32f2f; margin-top: 10px;}
+    .calc-result-loss { font-size: 24px; font-weight: bold; color: #388e3c; margin-top: 10px;}
+    .calc-result-info { font-size: 14px; color: #6c757d; margin-top: 5px;}
+    
+    /* ㊙️ 機密專區樣式 */
+    .secret-box { padding: 25px; border: 2px dashed #dc3545; border-radius: 12px; background-color: #fffafb; margin-bottom: 15px; box-shadow: 2px 2px 8px rgba(0,0,0,0.05); }
+    .net-worth-box { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; padding: 20px; border-radius: 10px; text-align: center; margin-top: 15px; box-shadow: 2px 2px 10px rgba(0,0,0,0.2); }
+    .net-worth-box h3 { color: #f8f9fa; font-size: 18px; margin-bottom: 5px; }
+    .net-worth-box h1 { color: #ffc107; font-size: 38px; font-weight: 900; margin: 0; text-shadow: 1px 1px 3px rgba(0,0,0,0.5); }
     </style>
     """, unsafe_allow_html=True)
 
@@ -154,13 +142,7 @@ def load_settings():
             with open(SETTINGS_FILE, 'r', encoding='utf-8') as f: return json.load(f)
         except: pass
     return {
-        "etfs": [
-            {"symbol": "0056.TW", "name": "0056 元大高股息", "holdings": 4.1, "cost": 41.11, "alert_high": 0.0, "alert_low": 0.0, "pledged_shares": 0.0},
-            {"symbol": "00891.TW", "name": "00891 中信關鍵半導體", "holdings": 5.0, "cost": 31.30, "alert_high": 0.0, "alert_low": 0.0, "pledged_shares": 0.0},
-            {"symbol": "00919.TW", "name": "00919 群益台灣精選高息", "holdings": 10.0, "cost": 23.04, "alert_high": 0.0, "alert_low": 0.0, "pledged_shares": 0.0},
-            {"symbol": "00927.TW", "name": "00927 群益半導體收益", "holdings": 6.0, "cost": 27.63, "alert_high": 0.0, "alert_low": 0.0, "pledged_shares": 0.0}
-        ],
-        "loan": {"months_paid": 1, "first_amount": 6000, "regular_amount": 15000, "total_months": 84},
+        "etfs": [], 
         "pledge": {"borrowed_amount": 0}
     }
 
@@ -168,10 +150,33 @@ def save_to_json(data):
     with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
-if 'my_data' not in st.session_state: st.session_state.my_data = load_settings()
+if 'my_data' not in st.session_state: 
+    st.session_state.my_data = load_settings()
 
+# --- 🎯 信貸跨月自動計算邏輯 ---
+now_str = datetime.now().strftime("%Y-%m")
 if 'loan' not in st.session_state.my_data:
-    st.session_state.my_data['loan'] = {"months_paid": 1, "first_amount": 6000, "regular_amount": 15000, "total_months": 84}
+    st.session_state.my_data['loan'] = {
+        "months_paid": 1, 
+        "regular_amount": 15000, 
+        "total_months": 84,
+        "last_updated_month": now_str # 記錄初始基準月份
+    }
+
+loan_data = st.session_state.my_data['loan']
+last_m = loan_data.get('last_updated_month', now_str)
+
+# 判斷是否已經跨月，若是，則自動增加期數
+if last_m != now_str:
+    y_curr, m_curr = map(int, now_str.split('-'))
+    y_last, m_last = map(int, last_m.split('-'))
+    diff_months = (y_curr - y_last) * 12 + (m_curr - m_last)
+    
+    if diff_months > 0:
+        loan_data['months_paid'] = min(loan_data['total_months'], loan_data.get('months_paid', 1) + diff_months)
+        loan_data['last_updated_month'] = now_str
+        save_to_json(st.session_state.my_data)
+
 if 'pledge' not in st.session_state.my_data:
     st.session_state.my_data['pledge'] = {"borrowed_amount": 0}
 for etf in st.session_state.my_data['etfs']:
@@ -231,6 +236,41 @@ def save_edits():
     st.session_state.my_data['etfs'] = temp_list
     save_to_json(st.session_state.my_data)
 
+def execute_trade():
+    trade_etf_name = st.session_state.calc_selected_etf
+    trade_type = st.session_state.calc_trade_type
+    trade_shares = st.session_state.calc_trade_shares
+    
+    for i, item in enumerate(st.session_state.my_data['etfs']):
+        if item['name'] == trade_etf_name:
+            current_holdings = item['holdings']
+            current_cost = item['cost']
+            current_price = df[df['名稱'] == trade_etf_name].iloc[0]['現價']
+            
+            if trade_type == "賣出 (計算已實現損益)":
+                actual_sell_shares = min(trade_shares, current_holdings)
+                new_holdings = current_holdings - actual_sell_shares
+                
+                if new_holdings <= 0:
+                    st.session_state.my_data['etfs'].pop(i)
+                    st.success(f"已全數賣出 {trade_etf_name}，並從庫存中移除！")
+                else:
+                    item['holdings'] = new_holdings
+                    st.success(f"成功賣出 {actual_sell_shares} 張 {trade_etf_name}！庫存剩餘 {new_holdings} 張。")
+                    
+            elif trade_type == "買進 (計算買入成本與新均價)":
+                buy_cost_total = current_price * trade_shares * 1000
+                new_total_shares = current_holdings + trade_shares
+                new_total_cost_val = (current_cost * current_holdings * 1000) + buy_cost_total
+                new_avg_cost = new_total_cost_val / (new_total_shares * 1000) if new_total_shares > 0 else 0
+                
+                item['holdings'] = new_total_shares
+                item['cost'] = round(new_avg_cost, 2)
+                st.success(f"成功買進 {trade_shares} 張 {trade_etf_name}！最新均價更新為 ${item['cost']}。")
+                
+            save_to_json(st.session_state.my_data)
+            break
+
 # 初始化按鈕狀態
 if 'show_us' not in st.session_state: st.session_state.show_us = False
 if 'show_tw' not in st.session_state: st.session_state.show_tw = False
@@ -239,8 +279,9 @@ if 'show_div_db' not in st.session_state: st.session_state.show_div_db = False
 if 'show_tech' not in st.session_state: st.session_state.show_tech = False
 if 'show_holdings' not in st.session_state: st.session_state.show_holdings = False
 if 'show_constituents' not in st.session_state: st.session_state.show_constituents = False 
-if 'show_secret' not in st.session_state: st.session_state.show_secret = False
 if 'show_pledge' not in st.session_state: st.session_state.show_pledge = False 
+# 機密專屬狀態
+if 'show_secret' not in st.session_state: st.session_state.show_secret = False
 if 'is_unlocked' not in st.session_state: st.session_state.is_unlocked = False
 
 def toggle_us(): st.session_state.show_us = not st.session_state.show_us
@@ -250,8 +291,8 @@ def toggle_div_db(): st.session_state.show_div_db = not st.session_state.show_di
 def toggle_tech(): st.session_state.show_tech = not st.session_state.show_tech
 def toggle_holdings(): st.session_state.show_holdings = not st.session_state.show_holdings
 def toggle_constituents(): st.session_state.show_constituents = not st.session_state.show_constituents
-def toggle_secret(): st.session_state.show_secret = not st.session_state.show_secret
 def toggle_pledge(): st.session_state.show_pledge = not st.session_state.show_pledge 
+def toggle_secret(): st.session_state.show_secret = not st.session_state.show_secret
 
 # --- 📡 抓取 ETF 焦點新聞 ---
 @st.cache_data(ttl=3600)
@@ -330,7 +371,7 @@ def render_macro_cards(data_dict, region_prefix):
 # --- 4. 核心數據計算 ---
 @st.cache_data(ttl=10)
 def fetch_data(etf_list):
-    if not etf_list: return pd.DataFrame(), pd.DataFrame(), 0, 0, 0, 0, [], [], [], {}
+    if not etf_list: return pd.DataFrame(), pd.DataFrame(), 0, 0, 0, 0, [], [], [], {i: {"amount": 0, "sources": []} for i in range(1, 13)}
     results, tech_results = [], []
     total_mkt, total_cost, total_div, total_today_pnl = 0, 0, 0, 0
     radar_ex, radar_pay, price_alerts = [], [], []
@@ -473,6 +514,7 @@ def fetch_data(etf_list):
             
             tech_results.append({
                 "ETF 名稱": display_name,
+                "股票張數": item['holdings'], 
                 "現價": round(curr_p, 2),
                 "今日損益": today_pnl_str,
                 "今日交易量": f"{vol:,.0f}" if vol > 0 else "無資料",
@@ -520,170 +562,171 @@ for i, etf in enumerate(upcoming_list):
         """, unsafe_allow_html=True)
 st.write("")
 
-if not df.empty:
-    
-    if price_alerts:
-        for alert in price_alerts:
-            if alert['type'] == "high":
-                st.markdown(f"<div class='alert-high'>🚨 突破停利高標：【{alert['name']}】 現價 ${alert['price']:.2f} 已突破您設定的 ${alert['target']}！</div>", unsafe_allow_html=True)
-            else:
-                st.markdown(f"<div class='alert-low'>⚠️ 跌破停損低標：【{alert['name']}】 現價 ${alert['price']:.2f} 已跌破您設定的 ${alert['target']}！</div>", unsafe_allow_html=True)
 
-    st.markdown("### 👾 羅小翔專用：雙重雷達戰情室")
-    col1, col2, _ = st.columns([1, 1, 1])
-    
-    with col1:
-        if radar_ex:
-            radar_ex = sorted(radar_ex, key=lambda x: x['days'])
-            ex_content = "".join([f"<div style='margin-bottom: 4px; font-weight:bold;'>標的 {r['symbol']} 將於 {r['date'][5:7]}/{r['date'][8:10]} 除息 (倒數 {r['days']} 天)</div>" for r in radar_ex])
-            st.markdown(f"<div class='ex-div-box'><div class='ex-div-title'>⚡ 除息雷達提醒 ⚡</div><div class='ex-div-text'>{ex_content}</div></div>", unsafe_allow_html=True)
+if price_alerts:
+    for alert in price_alerts:
+        if alert['type'] == "high":
+            st.markdown(f"<div class='alert-high'>🚨 突破停利高標：【{alert['name']}】 現價 ${alert['price']:.2f} 已突破您設定的 ${alert['target']}！</div>", unsafe_allow_html=True)
         else:
-            current_m = datetime.today().month
-            next_m = current_m + 1 if current_m < 12 else 1
-            this_m_etfs = [etf['symbol'].split('.')[0] for etf in st.session_state.my_data['etfs'] if current_m in DIVIDEND_SCHEDULE.get(etf['symbol'], [])]
-            next_m_etfs = [etf['symbol'].split('.')[0] for etf in st.session_state.my_data['etfs'] if next_m in DIVIDEND_SCHEDULE.get(etf['symbol'], [])]
-            
-            if this_m_etfs:
-                msg = f"本月 ({current_m}月) 預備除息標的：<br><span style='color:#d32f2f; font-size:16px;'>{', '.join(this_m_etfs)}</span><br><span style='font-size:11px; color:#888;'>雷達持續掃描官方公告中...</span>"
-            elif next_m_etfs:
-                msg = f"下個月 ({next_m}月) 預備除息標的：<br><span style='color:#d32f2f; font-size:16px;'>{', '.join(next_m_etfs)}</span><br><span style='font-size:11px; color:#888;'>雷達持續掃描官方公告中...</span>"
-            else:
-                msg = "目前無 20 天內已公告之除息<br><span style='font-size:11px; color:#888;'>近期亦無表定除息標的</span>"
-                
-            st.markdown(f" <div class='ex-div-box' style='background-color: #f4f6f8; border: 1.5px dashed #adb5bd; box-shadow: none;'><div class='ex-div-title' style='color: #6c757d;'>📡 預測雷達 (等待官方公告)</div><div class='ex-div-text' style='color: #495057;'>{msg}</div></div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='alert-low'>⚠️ 跌破停損低標：【{alert['name']}】 現價 ${alert['price']:.2f} 已跌破您設定的 ${alert['target']}！</div>", unsafe_allow_html=True)
 
-    with col2:
-        if radar_pay:
-            radar_pay = sorted(radar_pay, key=lambda x: x['days'])
-            pay_content = "".join([f"<div style='margin-bottom: 4px; font-weight:bold;'>標的 {r['symbol']} 股息約 ${r['amount']:,.0f} 將於 {r['date'][5:7]}/{r['date'][8:10]} 入帳 (倒數 {r['days']} 天)！</div>" for r in radar_pay])
-            st.markdown(f"<div class='pay-div-box'><div class='pay-div-title'>💰 領息雷達提醒 💰</div><div class='pay-div-text'>{pay_content}</div></div>", unsafe_allow_html=True)
-        else: 
-            st.markdown(f" <div class='pay-div-box' style='background-color: #fafafa; border: 1.5px dashed #ddd;'><div class='pay-div-title' style='color: #888;'>💰 領息雷達提醒 💰</div><div class='pay-div-text' style='color:#666;'>目前無 20 天內領息雷達提示</div></div>", unsafe_allow_html=True)
+st.markdown("### 👾 羅小翔專用：雙重雷達戰情室")
+col1, col2, _ = st.columns([1, 1, 1])
 
-    p_total = g_mkt - g_cost
-    r_total = (p_total / g_cost * 100) if g_cost != 0 else 0
-    prev_mkt = g_mkt - g_today_pnl
-    today_pct = (g_today_pnl / prev_mkt * 100) if prev_mkt != 0 else 0
-
-    today_val_str = f"+{g_today_pnl:,.0f}" if g_today_pnl >= 0 else f"{g_today_pnl:,.0f}"
-    today_pct_str = f"+{today_pct:.2f}%" if today_pct >= 0 else f"{today_pct:.2f}%"
-    today_c_val = "triple-val-r" if g_today_pnl >= 0 else "triple-val-g"
-    today_c_pct = "triple-pct-r" if g_today_pnl >= 0 else "triple-pct-g"
-
-    total_val_str = f"+{p_total:,.0f}" if p_total >= 0 else f"{p_total:,.0f}"
-    total_pct_str = f"+{r_total:.2f}%" if r_total >= 0 else f"{r_total:.2f}%"
-    total_c_val = "triple-val-r" if p_total >= 0 else "triple-val-g"
-    total_c_pct = "triple-pct-r" if p_total >= 0 else "triple-pct-g"
-
-    current_month_num = datetime.today().month
-    current_month_div_amount = monthly_calendar[current_month_num]["amount"]
-    current_month_div_str = f"${current_month_div_amount:,.0f}"
-    div_sources = monthly_calendar[current_month_num]["sources"]
-    if div_sources:
-        sources_str = "、".join([s.split(' ')[0] for s in div_sources]) 
-        sub_title = f"來自：{sources_str}"
+with col1:
+    if radar_ex:
+        radar_ex = sorted(radar_ex, key=lambda x: x['days'])
+        ex_content = "".join([f"<div style='margin-bottom: 4px; font-weight:bold;'>標的 {r['symbol']} 將於 {r['date'][5:7]}/{r['date'][8:10]} 除息 (倒數 {r['days']} 天)</div>" for r in radar_ex])
+        st.markdown(f"<div class='ex-div-box'><div class='ex-div-title'>⚡ 除息雷達提醒 ⚡</div><div class='ex-div-text'>{ex_content}</div></div>", unsafe_allow_html=True)
     else:
-        sub_title = "本月無現金流入預定"
+        current_m = datetime.today().month
+        next_m = current_m + 1 if current_m < 12 else 1
+        this_m_etfs = [etf['symbol'].split('.')[0] for etf in st.session_state.my_data['etfs'] if current_m in DIVIDEND_SCHEDULE.get(etf['symbol'], [])]
+        next_m_etfs = [etf['symbol'].split('.')[0] for etf in st.session_state.my_data['etfs'] if next_m in DIVIDEND_SCHEDULE.get(etf['symbol'], [])]
+        
+        if this_m_etfs:
+            msg = f"本月 ({current_m}月) 預備除息標的：<br><span style='color:#d32f2f; font-size:16px;'>{', '.join(this_m_etfs)}</span><br><span style='font-size:11px; color:#888;'>雷達持續掃描官方公告中...</span>"
+        elif next_m_etfs:
+            msg = f"下個月 ({next_m}月) 預備除息標的：<br><span style='color:#d32f2f; font-size:16px;'>{', '.join(next_m_etfs)}</span><br><span style='font-size:11px; color:#888;'>雷達持續掃描官方公告中...</span>"
+        else:
+            msg = "目前無 20 天內已公告之除息<br><span style='font-size:11px; color:#888;'>近期亦無表定除息標的</span>"
+            
+        st.markdown(f" <div class='ex-div-box' style='background-color: #f4f6f8; border: 1.5px dashed #adb5bd; box-shadow: none;'><div class='ex-div-title' style='color: #6c757d;'>📡 預測雷達 (等待官方公告)</div><div class='ex-div-text' style='color: #495057;'>{msg}</div></div>", unsafe_allow_html=True)
 
-    html_triple_pnl = f"""
-    <div class="triple-box">
-        <div class="triple-col">
-            <div class="triple-title">今日損益</div>
-            <div class="{today_c_val}">{today_val_str}</div>
-            <div class="{today_c_pct}">{today_pct_str}</div>
-        </div>
-        <div class="triple-col">
-            <div class="triple-title">累積損益</div>
-            <div class="{total_c_val}">{total_val_str}</div>
-            <div class="{total_c_pct}">{total_pct_str}</div>
-        </div>
-        <div class="triple-col flash-gold-box">
-            <div class="triple-title" style="color: #b48608; margin-bottom: 5px;">⚡ {current_month_num} 月預估領息總額</div>
-            <div class="triple-val-gold">{current_month_div_str}</div>
-            <div class="triple-sub-gold">{sub_title}</div>
-        </div>
+with col2:
+    if radar_pay:
+        radar_pay = sorted(radar_pay, key=lambda x: x['days'])
+        pay_content = "".join([f"<div style='margin-bottom: 4px; font-weight:bold;'>標的 {r['symbol']} 股息約 ${r['amount']:,.0f} 將於 {r['date'][5:7]}/{r['date'][8:10]} 入帳 (倒數 {r['days']} 天)！</div>" for r in radar_pay])
+        st.markdown(f"<div class='pay-div-box'><div class='pay-div-title'>💰 領息雷達提醒 💰</div><div class='pay-div-text'>{pay_content}</div></div>", unsafe_allow_html=True)
+    else: 
+        st.markdown(f" <div class='pay-div-box' style='background-color: #fafafa; border: 1.5px dashed #ddd;'><div class='pay-div-title' style='color: #888;'>💰 領息雷達提醒 💰</div><div class='pay-div-text' style='color:#666;'>目前無 20 天內領息雷達提示</div></div>", unsafe_allow_html=True)
+
+p_total = g_mkt - g_cost
+r_total = (p_total / g_cost * 100) if g_cost != 0 else 0
+prev_mkt = g_mkt - g_today_pnl
+today_pct = (g_today_pnl / prev_mkt * 100) if prev_mkt != 0 else 0
+
+today_val_str = f"+{g_today_pnl:,.0f}" if g_today_pnl >= 0 else f"{g_today_pnl:,.0f}"
+today_pct_str = f"+{today_pct:.2f}%" if today_pct >= 0 else f"{today_pct:.2f}%"
+today_c_val = "triple-val-r" if g_today_pnl >= 0 else "triple-val-g"
+today_c_pct = "triple-pct-r" if g_today_pnl >= 0 else "triple-pct-g"
+
+total_val_str = f"+{p_total:,.0f}" if p_total >= 0 else f"{p_total:,.0f}"
+total_pct_str = f"+{r_total:.2f}%" if r_total >= 0 else f"{r_total:.2f}%"
+total_c_val = "triple-val-r" if p_total >= 0 else "triple-val-g"
+total_c_pct = "triple-pct-r" if p_total >= 0 else "triple-pct-g"
+
+current_month_num = datetime.today().month
+current_month_div_amount = monthly_calendar[current_month_num]["amount"]
+current_month_div_str = f"${current_month_div_amount:,.0f}"
+div_sources = monthly_calendar[current_month_num]["sources"]
+if div_sources:
+    sources_str = "、".join([s.split(' ')[0] for s in div_sources]) 
+    sub_title = f"來自：{sources_str}"
+else:
+    sub_title = "本月無現金流入預定"
+
+html_triple_pnl = f"""
+<div class="triple-box">
+    <div class="triple-col">
+        <div class="triple-title">今日損益</div>
+        <div class="{today_c_val}">{today_val_str}</div>
+        <div class="{today_c_pct}">{today_pct_str}</div>
     </div>
-    """
-    st.markdown(html_triple_pnl, unsafe_allow_html=True)
+    <div class="triple-col">
+        <div class="triple-title">累積損益</div>
+        <div class="{total_c_val}">{total_val_str}</div>
+        <div class="{total_c_pct}">{total_pct_str}</div>
+    </div>
+    <div class="triple-col flash-gold-box">
+        <div class="triple-title" style="color: #b48608; margin-bottom: 5px;">⚡ {current_month_num} 月預估領息總額</div>
+        <div class="triple-val-gold">{current_month_div_str}</div>
+        <div class="triple-sub-gold">{sub_title}</div>
+    </div>
+</div>
+"""
+st.markdown(html_triple_pnl, unsafe_allow_html=True)
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric("股票總市值", f"${g_mkt:,.0f}")
-    c2.metric("投資總成本", f"${g_cost:,.0f}")
-    c3.metric("全年預估總領息", f"${sum([monthly_calendar[m]['amount'] for m in range(1, 13)]):,.0f}")
+c1, c2, c3 = st.columns(3)
+c1.metric("股票總市值", f"${g_mkt:,.0f}")
+c2.metric("投資總成本", f"${g_cost:,.0f}")
+c3.metric("全年預估總領息", f"${sum([monthly_calendar[m]['amount'] for m in range(1, 13)]):,.0f}")
+st.write("---")
+
+us_icon = "🌏"
+if "us" in macro_data and macro_data["us"]:
+    us_up = sum(1 for v in macro_data["us"].values() if v['diff'] >= 0)
+    us_down = len(macro_data["us"]) - us_up
+    us_icon = "🔴" if us_up >= us_down else "🟢"
+
+tw_icon = "🇹🇼"
+if "tw" in macro_data and macro_data["tw"]:
+    tw_up = sum(1 for v in macro_data["tw"].values() if v['diff'] >= 0)
+    tw_down = len(macro_data["tw"]) - tw_up
+    tw_icon = "🔴" if tw_up >= tw_down else "🟢"
+
+# 🎯 恢復為 3x3 九宮格排列，將「機密」按鈕放回去
+cols_btn_r1 = st.columns(3)
+cols_btn_r2 = st.columns(3)
+cols_btn_r3 = st.columns(3)
+
+b1_lbl, b1_typ = (f"🔽 收起美股指數 {us_icon}", "primary") if st.session_state.show_us else (f"{us_icon} 展開美股指數", "secondary")
+b2_lbl, b2_typ = (f"🔽 收起台股指數 {tw_icon}", "primary") if st.session_state.show_tw else (f"{tw_icon} 展開台股指數", "secondary")
+b3_lbl, b3_typ = ("🔽 收起每月領息", "primary") if st.session_state.show_calendar else ("📅 展開每月領息", "secondary")
+
+b4_lbl, b4_typ = ("🔽 收起除權息", "primary") if st.session_state.show_div_db else ("📂 展開除權息", "secondary")
+b5_lbl, b5_typ = ("🔽 收起股價監控", "primary") if st.session_state.show_tech else ("📡 展開股價監控", "secondary")
+b6_lbl, b6_typ = ("🔽 收起持股明細", "primary") if st.session_state.show_holdings else ("📊 展開持股明細", "secondary")
+
+b7_lbl, b7_typ = ("🔽 收起ETF成份股", "primary") if st.session_state.show_constituents else ("🧩 展開ETF成份股", "secondary")
+b8_lbl, b8_typ = ("🔽 收起質押專區", "primary") if st.session_state.show_pledge else ("🏦 展開質押專區", "secondary") 
+b9_lbl, b9_typ = ("🔽 收起機密面板", "primary") if st.session_state.show_secret else ("🔐 展開機密面板", "secondary")
+
+with cols_btn_r1[0]: st.button(b1_lbl, on_click=toggle_us, type=b1_typ, use_container_width=True)
+with cols_btn_r1[1]: st.button(b2_lbl, on_click=toggle_tw, type=b2_typ, use_container_width=True)
+with cols_btn_r1[2]: st.button(b3_lbl, on_click=toggle_calendar, type=b3_typ, use_container_width=True)
+
+with cols_btn_r2[0]: st.button(b4_lbl, on_click=toggle_div_db, type=b4_typ, use_container_width=True)
+with cols_btn_r2[1]: st.button(b5_lbl, on_click=toggle_tech, type=b5_typ, use_container_width=True)
+with cols_btn_r2[2]: st.button(b6_lbl, on_click=toggle_holdings, type=b6_typ, use_container_width=True)
+
+with cols_btn_r3[0]: st.button(b7_lbl, on_click=toggle_constituents, type=b7_typ, use_container_width=True) 
+with cols_btn_r3[1]: st.button(b8_lbl, on_click=toggle_pledge, type=b8_typ, use_container_width=True) 
+with cols_btn_r3[2]: st.button(b9_lbl, on_click=toggle_secret, type=b9_typ, use_container_width=True) 
+
+st.write("---")
+
+if st.session_state.show_us and "us" in macro_data and macro_data["us"]:
+    st.markdown("#### 🌏 關鍵美股指標")
+    render_macro_cards(macro_data["us"], "us")
+    st.write("")
+
+if st.session_state.show_tw and "tw" in macro_data and macro_data["tw"]:
+    st.markdown("#### 🇹🇼 關鍵台股點數")
+    render_macro_cards(macro_data["tw"], "tw")
     st.write("---")
-    
-    us_icon = "🌏"
-    if "us" in macro_data and macro_data["us"]:
-        us_up = sum(1 for v in macro_data["us"].values() if v['diff'] >= 0)
-        us_down = len(macro_data["us"]) - us_up
-        us_icon = "🔴" if us_up >= us_down else "🟢"
 
-    tw_icon = "🇹🇼"
-    if "tw" in macro_data and macro_data["tw"]:
-        tw_up = sum(1 for v in macro_data["tw"].values() if v['diff'] >= 0)
-        tw_down = len(macro_data["tw"]) - tw_up
-        tw_icon = "🔴" if tw_up >= tw_down else "🟢"
-
-    cols_btn_r1 = st.columns(3)
-    cols_btn_r2 = st.columns(3)
-    cols_btn_r3 = st.columns(3)
-    
-    b1_lbl, b1_typ = (f"🔽 收起美股指數 {us_icon}", "primary") if st.session_state.show_us else (f"{us_icon} 展開美股指數", "secondary")
-    b2_lbl, b2_typ = (f"🔽 收起台股指數 {tw_icon}", "primary") if st.session_state.show_tw else (f"{tw_icon} 展開台股指數", "secondary")
-    b3_lbl, b3_typ = ("🔽 收起每月領息", "primary") if st.session_state.show_calendar else ("📅 展開每月領息", "secondary")
-    
-    b4_lbl, b4_typ = ("🔽 收起除權息", "primary") if st.session_state.show_div_db else ("📂 展開除權息", "secondary")
-    b5_lbl, b5_typ = ("🔽 收起股價監控", "primary") if st.session_state.show_tech else ("📡 展開股價監控", "secondary")
-    b6_lbl, b6_typ = ("🔽 收起持股明細", "primary") if st.session_state.show_holdings else ("📊 展開持股明細", "secondary")
-    
-    b7_lbl, b7_typ = ("🔽 收起ETF成份股", "primary") if st.session_state.show_constituents else ("🧩 展開ETF成份股", "secondary")
-    b8_lbl, b8_typ = ("🔽 收起質押專區", "primary") if st.session_state.show_pledge else ("🏦 展開質押專區", "secondary") 
-    b9_lbl, b9_typ = ("🔽 收起機密", "primary") if st.session_state.show_secret else ("🔐 展開機密", "secondary")
-
-    with cols_btn_r1[0]: st.button(b1_lbl, on_click=toggle_us, type=b1_typ, use_container_width=True)
-    with cols_btn_r1[1]: st.button(b2_lbl, on_click=toggle_tw, type=b2_typ, use_container_width=True)
-    with cols_btn_r1[2]: st.button(b3_lbl, on_click=toggle_calendar, type=b3_typ, use_container_width=True)
-    
-    with cols_btn_r2[0]: st.button(b4_lbl, on_click=toggle_div_db, type=b4_typ, use_container_width=True)
-    with cols_btn_r2[1]: st.button(b5_lbl, on_click=toggle_tech, type=b5_typ, use_container_width=True)
-    with cols_btn_r2[2]: st.button(b6_lbl, on_click=toggle_holdings, type=b6_typ, use_container_width=True)
-    
-    with cols_btn_r3[0]: st.button(b7_lbl, on_click=toggle_constituents, type=b7_typ, use_container_width=True) 
-    with cols_btn_r3[1]: st.button(b8_lbl, on_click=toggle_pledge, type=b8_typ, use_container_width=True) 
-    with cols_btn_r3[2]: st.button(b9_lbl, on_click=toggle_secret, type=b9_typ, use_container_width=True)
-    
+if st.session_state.show_calendar:
+    st.markdown("#### 📅 1~12月 預估領息日曆")
+    month_options = [f"{m} 月" for m in range(1, 13)]
+    default_index = datetime.today().month - 1
+    selected_month_str = st.selectbox("請選擇您想查詢的月份：", month_options, index=default_index)
+    selected_month = int(selected_month_str.replace(" 月", ""))
+    data = monthly_calendar[selected_month]
+    sources_text = "、".join(data["sources"]) if data["sources"] else "本月無除息預定"
+    amount_text = f"${data['amount']:,.0f}" if data["amount"] > 0 else "$0"
+    col_space1, col_center, col_space2 = st.columns([1, 2, 1])
+    with col_center:
+        st.markdown(f"""
+        <div class='month-card'>
+            <div class='month-title'>{selected_month} 月預估領息</div>
+            <div class='month-amount'>{amount_text}</div>
+            <div class='month-sources'>ETF 來源：{sources_text}</div>
+        </div>
+        """, unsafe_allow_html=True)
     st.write("---")
 
-    if st.session_state.show_us and "us" in macro_data and macro_data["us"]:
-        st.markdown("#### 🌏 關鍵美股指標")
-        render_macro_cards(macro_data["us"], "us")
-        st.write("")
-
-    if st.session_state.show_tw and "tw" in macro_data and macro_data["tw"]:
-        st.markdown("#### 🇹🇼 關鍵台股點數")
-        render_macro_cards(macro_data["tw"], "tw")
-        st.write("---")
-
-    if st.session_state.show_calendar:
-        st.markdown("#### 📅 1~12月 預估領息日曆")
-        month_options = [f"{m} 月" for m in range(1, 13)]
-        default_index = datetime.today().month - 1
-        selected_month_str = st.selectbox("請選擇您想查詢的月份：", month_options, index=default_index)
-        selected_month = int(selected_month_str.replace(" 月", ""))
-        data = monthly_calendar[selected_month]
-        sources_text = "、".join(data["sources"]) if data["sources"] else "本月無除息預定"
-        amount_text = f"${data['amount']:,.0f}" if data["amount"] > 0 else "$0"
-        col_space1, col_center, col_space2 = st.columns([1, 2, 1])
-        with col_center:
-            st.markdown(f"""
-            <div class='month-card'>
-                <div class='month-title'>{selected_month} 月預估領息</div>
-                <div class='month-amount'>{amount_text}</div>
-                <div class='month-sources'>ETF 來源：{sources_text}</div>
-            </div>
-            """, unsafe_allow_html=True)
-        st.write("---")
-
+if not df.empty:
     if st.session_state.show_div_db:
         st.markdown("#### 📚 專屬 ETF 除權息時程總覽")
         db_list = []
@@ -724,9 +767,10 @@ if not df.empty:
             column_config={
                 "設定高標(停利)": st.column_config.NumberColumn("設定高標(停利)", help="雙擊輸入，超過觸發紅色警報", min_value=0.0, format="%.2f"),
                 "設定低標(停損)": st.column_config.NumberColumn("設定低標(停損)", help="雙擊輸入，低於觸發綠色警報", min_value=0.0, format="%.2f"),
-                "現價": st.column_config.NumberColumn("現價", format="%.2f")  
+                "現價": st.column_config.NumberColumn("現價", format="%.2f"),
+                "股票張數": st.column_config.NumberColumn("股票張數", format="%.1f") 
             },
-            disabled=["ETF 名稱", "現價", "今日損益", "今日交易量", "預估年化殖利率", "今日最高/最低", "52週最高/最低"],
+            disabled=["ETF 名稱", "股票張數", "現價", "今日損益", "今日交易量", "預估年化殖利率", "今日最高/最低", "52週最高/最低"],
             use_container_width=True, hide_index=True
         )
 
@@ -799,7 +843,6 @@ if not df.empty:
                 
         st.write("---")
 
-    # 🎯 [重點修改] 質押專區追加 60% 可借款上限邏輯
     if st.session_state.show_pledge:
         st.markdown("#### 🏦 股票質押專區 (維持率監控)")
         st.info("💡 股票質押後會從一般券商庫存消失。一般券商（如元大）最高可借出擔保品市值的 60%。請輸入已借入款項，系統將即時監控維持率！")
@@ -827,7 +870,7 @@ if not df.empty:
                 curr_p = 0
                 
             p_mkt = p_shares * 1000 * curr_p
-            p_limit = p_mkt * 0.6  # 🎯 計算單檔標的 60% 額度
+            p_limit = p_mkt * 0.6  
             total_pledge_mkt += p_mkt
             total_borrowable += p_limit
             
@@ -837,13 +880,12 @@ if not df.empty:
                 "質押張數": p_shares,
                 "現價": round(curr_p, 2),
                 "質押市值 (元)": round(p_mkt, 0),
-                "可借上限 (60%)": round(p_limit, 0) # 🎯 新增欄位顯示單檔可借 60% 金額
+                "可借上限 (60%)": round(p_limit, 0) 
             })
             
         pledge_df = pd.DataFrame(pledge_df_list)
         margin_ratio = (total_pledge_mkt / borrowed * 100) if borrowed > 0 else 0
         
-        # 🎯 調整為 4 欄式面板，明確顯示 60% 上限
         col_m1, col_m2, col_m3, col_m4 = st.columns(4)
         col_m1.metric("擔保品總市值", f"${total_pledge_mkt:,.0f}")
         col_m2.metric("🎯 總可借款上限 (60%)", f"${total_borrowable:,.0f}")
@@ -867,7 +909,7 @@ if not df.empty:
                 "質押張數": st.column_config.NumberColumn("質押張數 (雙擊編輯)", min_value=0.0, step=1.0, format="%.1f"),
                 "現價": st.column_config.NumberColumn("現價", format="%.2f"),
                 "質押市值 (元)": st.column_config.NumberColumn("質押市值 (元)", format="%.0f"),
-                "可借上限 (60%)": st.column_config.NumberColumn("可借上限 (60%)", format="%.0f") # 🎯 確保欄位格式
+                "可借上限 (60%)": st.column_config.NumberColumn("可借上限 (60%)", format="%.0f") 
             },
             disabled=["ETF 名稱", "總庫存 (張)", "現價", "質押市值 (元)", "可借上限 (60%)"],
             use_container_width=True, hide_index=True
@@ -888,12 +930,13 @@ if not df.empty:
 
         st.write("---")
 
+    # 🎯 專屬機密面板
     if st.session_state.show_secret:
         st.markdown("<div class='secret-box'>", unsafe_allow_html=True)
         st.markdown("#### 🔐 總司令專屬機密戰情區")
         
         if not st.session_state.is_unlocked:
-            st.warning("您即將進入機密區域，請輸入授權密碼。")
+            st.warning("您即將進入高度機密區域，請輸入授權密碼。")
             pwd = st.text_input("輸入 4 位數密碼：", type="password", key="secret_pwd")
             if st.button("解鎖 🔓"):
                 if pwd == "1030":
@@ -902,41 +945,117 @@ if not df.empty:
                 else:
                     st.error("密碼錯誤，拒絕存取。")
         else:
-            st.success("✅ 密碼正確，機密面板已解鎖！")
-            st.markdown("##### 💰 隱藏資產結算 (ETF)")
-            sc1, sc2 = st.columns(2)
-            sc1.metric("總投入本金 (成本)", f"${g_cost:,.0f}")
-            sc2.metric("總未實現淨利", f"${(g_mkt - g_cost):,.0f}", f"{(g_mkt - g_cost) / g_cost * 100:.2f}%")
-            st.write("---")
+            st.success("✅ 密碼正確，機密面板已解鎖！系統將會隨著時間推移自動推進信貸期數。")
             
-            st.markdown("##### 💳 信貸還款戰情 (7年 / 84期)")
-            loan_data = st.session_state.my_data['loan']
-            new_paid = st.slider("調整已繳納期數 (目前為第幾個月？)", min_value=1, max_value=84, value=int(loan_data['months_paid']))
-            if new_paid != loan_data['months_paid']:
+            st.markdown("##### 💳 信貸還款戰情 (每月 $15,000 / 7年共84期)")
+            
+            # 從存檔取出當前數據 (已透過跨月邏輯確保最新)
+            loan_info = st.session_state.my_data['loan']
+            
+            # 提供滑桿讓使用者可以手動微調，預設值為自動計算出的當前月
+            new_paid = st.slider("手動微調已繳納期數 (目前為第幾個月？)", min_value=1, max_value=84, value=int(loan_info['months_paid']))
+            if new_paid != loan_info['months_paid']:
                 st.session_state.my_data['loan']['months_paid'] = new_paid
                 save_to_json(st.session_state.my_data)
                 st.rerun()
 
-            total_loan = loan_data['first_amount'] + (loan_data['total_months'] - 1) * loan_data['regular_amount']
-            amount_paid = loan_data['first_amount'] + max(0, new_paid - 1) * loan_data['regular_amount']
+            total_loan = loan_info['total_months'] * loan_info['regular_amount']
+            amount_paid = new_paid * loan_info['regular_amount']
             remaining_balance = total_loan - amount_paid
-            remaining_months = loan_data['total_months'] - new_paid
+            remaining_months = loan_info['total_months'] - new_paid
             
             lc1, lc2, lc3 = st.columns(3)
             lc1.metric("信貸合約總額", f"${total_loan:,.0f}")
             lc2.metric("已繳納本息總額", f"${amount_paid:,.0f}", f"已繳 {new_paid} 期", delta_color="off")
             lc3.metric("剩餘未繳餘額", f"${remaining_balance:,.0f}", f"剩餘 {remaining_months} 期", delta_color="inverse")
-            st.progress(new_paid / loan_data['total_months'])
+            st.progress(new_paid / loan_info['total_months'])
             
             true_net_worth = g_mkt - remaining_balance
             st.markdown(f"<div class='net-worth-box'><h3>👑 總司令真實淨資產 (ETF 總市值 - 信貸剩餘餘額)</h3><h1>${true_net_worth:,.0f}</h1></div>", unsafe_allow_html=True)
+            
             st.write("")
-            if st.button("🔐 重新上鎖並關閉"):
+            if st.button("🔐 重新上鎖並關閉", use_container_width=True):
                 st.session_state.is_unlocked = False
                 st.session_state.show_secret = False
                 st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
         st.write("---")
+
+else:
+    if st.session_state.show_div_db or st.session_state.show_tech or st.session_state.show_holdings or st.session_state.show_constituents or st.session_state.show_pledge or st.session_state.show_secret:
+        st.info("⚠️ 目前尚無持股資料。請至下方「⚙️ 標的管理」新增您的庫存！")
+
+st.write("---")
+
+# 🎯 買賣損益試算面板與執行交易功能
+with st.expander("💰 買賣損益試算器", expanded=False):
+    st.markdown("<div class='calc-title'>依照即時現價，試算買進或賣出後的損益狀況，並可直接寫入庫存！</div>", unsafe_allow_html=True)
+    
+    if not df.empty:
+        calc_options = [row['名稱'] for _, row in df.iterrows()]
+        
+        # 建立專屬 session_state 變數，避免執行後數值亂跳
+        if 'calc_selected_etf' not in st.session_state: st.session_state.calc_selected_etf = calc_options[0]
+        if 'calc_trade_type' not in st.session_state: st.session_state.calc_trade_type = "賣出 (計算已實現損益)"
+        if 'calc_trade_shares' not in st.session_state: st.session_state.calc_trade_shares = 1.0
+        
+        st.selectbox("選擇要操作的庫存標的：", calc_options, key="calc_selected_etf")
+        
+        target_row = df[df['名稱'] == st.session_state.calc_selected_etf].iloc[0]
+        current_price = target_row['現價']
+        current_cost = target_row['均價']
+        current_holdings = target_row['張數']
+        
+        st.info(f"📍 **{st.session_state.calc_selected_etf}** | 目前庫存：{current_holdings} 張 | 庫存均價：${current_cost:.2f} | 系統即時現價：${current_price:.2f}")
+        
+        col_c1, col_c2 = st.columns(2)
+        with col_c1:
+            st.radio("交易動作：", ["賣出 (計算已實現損益)", "買進 (計算買入成本與新均價)"], key="calc_trade_type")
+        with col_c2:
+            st.number_input("輸入交易張數", min_value=0.1, step=1.0, key="calc_trade_shares")
+            
+        if st.session_state.calc_trade_type == "賣出 (計算已實現損益)":
+            trade_shares_display = st.session_state.calc_trade_shares
+            if trade_shares_display > current_holdings:
+                st.warning(f"⚠️ 賣出張數 ({trade_shares_display}) 大於目前庫存 ({current_holdings})，將以全數出清試算並執行。")
+                trade_shares_display = current_holdings
+                
+            realized_profit = (current_price - current_cost) * trade_shares_display * 1000
+            
+            st.markdown("<div class='calc-box'>", unsafe_allow_html=True)
+            st.write(f"📝 試算賣出 **{trade_shares_display}** 張")
+            if realized_profit > 0:
+                st.markdown(f"🎉 預估已實現損益 (賺)：<div class='calc-result-profit'>+${realized_profit:,.0f}</div>", unsafe_allow_html=True)
+            elif realized_profit < 0:
+                st.markdown(f"📉 預估已實現損益 (賠)：<div class='calc-result-loss'>-${abs(realized_profit):,.0f}</div>", unsafe_allow_html=True)
+            else:
+                st.markdown(f"⚖️ 預估已實現損益：<div style='font-size: 24px; font-weight: bold; margin-top: 10px;'>$0</div>", unsafe_allow_html=True)
+                
+            st.markdown(f"<div class='calc-result-info'>*不含手續費與證交稅，成交價以系統抓取之現價 ${current_price:.2f} 計算</div>", unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+            
+            # 🎯 執行按鈕
+            st.button("💾 確認賣出並更新庫存", type="primary", use_container_width=True, on_click=execute_trade)
+            
+        else: # 買進
+            trade_shares_display = st.session_state.calc_trade_shares
+            buy_cost_total = current_price * trade_shares_display * 1000
+            new_total_shares = current_holdings + trade_shares_display
+            new_total_cost_val = (current_cost * current_holdings * 1000) + buy_cost_total
+            new_avg_cost = new_total_cost_val / (new_total_shares * 1000) if new_total_shares > 0 else 0
+            
+            st.markdown("<div class='calc-box'>", unsafe_allow_html=True)
+            st.write(f"📝 試算買進 **{trade_shares_display}** 張")
+            st.markdown(f"💸 預估買入總花費：<div style='font-size: 24px; font-weight: bold; margin-top: 10px;'>${buy_cost_total:,.0f}</div>", unsafe_allow_html=True)
+            st.markdown(f"🎯 買入後全新均價：<div style='font-size: 20px; font-weight: bold; color: #1e3c72; margin-top: 10px;'>${new_avg_cost:.2f}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='calc-result-info'>*總庫存將變為 {new_total_shares} 張。不含手續費，成交價以系統抓取之現價 ${current_price:.2f} 計算</div>", unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+            
+            # 🎯 執行按鈕
+            st.button("💾 確認買進並更新庫存", type="primary", use_container_width=True, on_click=execute_trade)
+            
+    else:
+        st.warning("請先在下方「標的管理」新增庫存，才能進行試算喔！")
 
 st.write("---")
 
@@ -948,7 +1067,7 @@ with bot_c1:
         st.rerun()
 
 with bot_c2:
-    with st.expander("⚙️ 標的管理 (新增 / 修改 / 刪除)", expanded=False):
+    with st.expander("⚙️ 標的管理 (新增 / 修改 / 刪除)", expanded=True):
         
         st.markdown("#### ➕ 新增標的 (股票/ETF)")
         
@@ -968,29 +1087,24 @@ with bot_c2:
         
         st.button("確認新增", key="btn_add_bot", use_container_width=True, on_click=add_new_etf_bot)
 
-        st.write("---")
+        if st.session_state.my_data['etfs']:
+            st.write("---")
+            st.markdown("#### 📝 庫存修改與刪除")
+            
+            for i, item in enumerate(st.session_state.my_data['etfs']):
+                with st.expander(f"📍 {item['name']}"):
+                    col_e1, col_e2 = st.columns(2)
+                    with col_e1:
+                        st.number_input("張數", value=float(item['holdings']), step=1.0, key=f"edit_h_{i}")
+                    with col_e2:
+                        st.number_input("均價", value=float(item['cost']), step=0.1, key=f"edit_c_{i}")
 
-        st.markdown("#### 📝 庫存修改與刪除")
-        
-        for i, item in enumerate(st.session_state.my_data['etfs']):
-            with st.expander(f"📍 {item['name']}"):
-                col_e1, col_e2 = st.columns(2)
-                with col_e1:
-                    st.number_input("張數", value=float(item['holdings']), step=1.0, key=f"edit_h_{i}")
-                with col_e2:
-                    st.number_input("均價", value=float(item['cost']), step=0.1, key=f"edit_c_{i}")
+                    st.button(f"🗑️ 刪除 {item['name']}", key=f"del_{i}", on_click=delete_etf, args=(i,), use_container_width=True)
 
-                st.button(f"🗑️ 刪除 {item['name']}", key=f"del_{i}", on_click=delete_etf, args=(i,), use_container_width=True)
-
-        st.button("💾 儲存所有修改", use_container_width=True, type="primary", on_click=save_edits)
+            st.button("💾 儲存所有修改", use_container_width=True, type="primary", on_click=save_edits)
 
 with bot_c3:
-    auto_refresh = st.checkbox("開啟股價自動更新 (每 10 秒)", value=False, help="開啟後網頁將每 10 秒重新整理台股最新報價。")
-
-if auto_refresh:
-    time.sleep(10)
-    fetch_data.clear()
-    st.rerun()
+    st.write("") # 移除自動更新功能，避免畫面反灰卡死
 
 st.write("---")
 st.markdown("### 📈 持股歷史股價趨勢 (近 30 日)")
@@ -1045,4 +1159,4 @@ if current_etfs:
             st.error(f"圖表產生失敗：{e}")
             st.info("提示：請確認網路連線正常或 ETF 代碼是否正確。")
 else:
-    st.info("目前庫存中沒有標的。")
+    st.info("目前庫存中沒有標的。請由上方「標的管理」面板新增您的愛股！")
