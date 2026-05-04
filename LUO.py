@@ -158,6 +158,8 @@ if 'my_data' not in st.session_state:
 
 # --- 🎯 信貸跨月自動計算邏輯 ---
 now_str = datetime.now().strftime("%Y-%m")
+
+# 1. 自己的核心信貸
 if 'loan' not in st.session_state.my_data:
     st.session_state.my_data['loan'] = {
         "months_paid": 1, 
@@ -178,6 +180,29 @@ if last_m != now_str:
         loan_data['months_paid'] = min(loan_data['total_months'], loan_data.get('months_paid', 1) + diff_months)
         loan_data['last_updated_month'] = now_str
         save_to_json(st.session_state.my_data)
+
+# 2. 別人欠的彰銀信貸
+if 'loan_chb' not in st.session_state.my_data:
+    st.session_state.my_data['loan_chb'] = {
+        "months_paid": 21, 
+        "regular_amount": 0, 
+        "total_months": 60,
+        "last_updated_month": now_str 
+    }
+
+loan_chb_data = st.session_state.my_data['loan_chb']
+last_m_chb = loan_chb_data.get('last_updated_month', now_str)
+
+if last_m_chb != now_str:
+    y_curr, m_curr = map(int, now_str.split('-'))
+    y_last, m_last = map(int, last_m_chb.split('-'))
+    diff_months = (y_curr - y_last) * 12 + (m_curr - m_last)
+    
+    if diff_months > 0:
+        loan_chb_data['months_paid'] = min(loan_chb_data['total_months'], loan_chb_data.get('months_paid', 21) + diff_months)
+        loan_chb_data['last_updated_month'] = now_str
+        save_to_json(st.session_state.my_data)
+
 
 if 'pledge' not in st.session_state.my_data:
     st.session_state.my_data['pledge'] = {"borrowed_amount": 0}
@@ -414,12 +439,20 @@ def fetch_data(etf_list):
             shares = item['holdings'] * 1000
             mkt_val = shares * curr_p
             cost_val = shares * item['cost']
-            profit = mkt_val - cost_val
+            
+            # 券商真實成本估算 (扣除手續費與證交稅) 
+            sell_cost_estimate = mkt_val * 0.00235
+            profit = mkt_val - cost_val - sell_cost_estimate
             roi = (profit / cost_val * 100) if cost_val != 0 else 0
             
-            today_profit = shares * (curr_p - prev_close)
+            # 今日漲跌與損益計算
+            today_diff = curr_p - prev_close
+            today_profit = shares * today_diff
+            today_pct_change = (today_diff / prev_close * 100) if prev_close else 0
+            
             total_today_pnl += today_profit
             today_pnl_str = f"+${today_profit:,.0f}" if today_profit >= 0 else f"-${abs(today_profit):,.0f}"
+            today_pct_str = f"+{today_pct_change:.2f}%" if today_pct_change >= 0 else f"{today_pct_change:.2f}%"
 
             a_high = float(item.get('alert_high', 0.0))
             a_low = float(item.get('alert_low', 0.0))
@@ -495,7 +528,8 @@ def fetch_data(etf_list):
                             for d, r in post_ex.iterrows():
                                 t_days += 1
                                 if r['High'] >= target_price:
-                                    fill_status = f"{t_days} 天"
+                                    # ✅ 這裡新增了具體的填息完成日期
+                                    fill_status = f"{d.month}/{d.day} 填息完成 ({t_days}天)"
                                     filled = True
                                     break
                             if not filled:
@@ -518,6 +552,7 @@ def fetch_data(etf_list):
                 "股票張數": item['holdings'], 
                 "現價": round(curr_p, 2),
                 "今日損益": today_pnl_str,
+                "今日漲跌幅": today_pct_str, 
                 "今日交易量": f"{vol:,.0f}" if vol > 0 else "無資料",
                 "預估年化殖利率": f"{est_yield:.2f}%",
                 "今日最高/最低": f"${day_high:.2f} / ${day_low:.2f}",
@@ -602,8 +637,9 @@ with col2:
     else: 
         st.markdown(f" <div class='pay-div-box' style='background-color: #fafafa; border: 1.5px dashed #ddd;'><div class='pay-div-title' style='color: #888;'>💰 領息雷達提醒 💰</div><div class='pay-div-text' style='color:#666;'>目前無 20 天內領息雷達提示</div></div>", unsafe_allow_html=True)
 
-p_total = g_mkt - g_cost
-r_total = (p_total / g_cost * 100) if g_cost != 0 else 0
+# 重新計算總損益
+total_net_profit = df['損益'].sum() if not df.empty else 0
+r_total = (total_net_profit / g_cost * 100) if g_cost != 0 else 0
 prev_mkt = g_mkt - g_today_pnl
 today_pct = (g_today_pnl / prev_mkt * 100) if prev_mkt != 0 else 0
 
@@ -612,10 +648,10 @@ today_pct_str = f"+{today_pct:.2f}%" if today_pct >= 0 else f"{today_pct:.2f}%"
 today_c_val = "triple-val-r" if g_today_pnl >= 0 else "triple-val-g"
 today_c_pct = "triple-pct-r" if g_today_pnl >= 0 else "triple-pct-g"
 
-total_val_str = f"+{p_total:,.0f}" if p_total >= 0 else f"{p_total:,.0f}"
+total_val_str = f"+{total_net_profit:,.0f}" if total_net_profit >= 0 else f"{total_net_profit:,.0f}"
 total_pct_str = f"+{r_total:.2f}%" if r_total >= 0 else f"{r_total:.2f}%"
-total_c_val = "triple-val-r" if p_total >= 0 else "triple-val-g"
-total_c_pct = "triple-pct-r" if p_total >= 0 else "triple-pct-g"
+total_c_val = "triple-val-r" if total_net_profit >= 0 else "triple-val-g"
+total_c_pct = "triple-pct-r" if total_net_profit >= 0 else "triple-pct-g"
 
 current_month_num = datetime.today().month
 current_month_div_amount = monthly_calendar[current_month_num]["amount"]
@@ -635,7 +671,7 @@ html_triple_pnl = f"""
         <div class="{today_c_pct}">{today_pct_str}</div>
     </div>
     <div class="triple-col">
-        <div class="triple-title">累積損益</div>
+        <div class="triple-title">累積預估淨損益 (已扣手續費/稅)</div>
         <div class="{total_c_val}">{total_val_str}</div>
         <div class="{total_c_pct}">{total_pct_str}</div>
     </div>
@@ -758,9 +794,9 @@ if not df.empty:
             return ''
 
         try:
-            styled_df_tech = df_tech.style.map(color_profit_loss, subset=['今日損益'])
+            styled_df_tech = df_tech.style.map(color_profit_loss, subset=['今日損益', '今日漲跌幅'])
         except AttributeError:
-            styled_df_tech = df_tech.style.applymap(color_profit_loss, subset=['今日損益'])
+            styled_df_tech = df_tech.style.applymap(color_profit_loss, subset=['今日損益', '今日漲跌幅'])
 
         edited_tech = st.data_editor(
             styled_df_tech,
@@ -770,7 +806,7 @@ if not df.empty:
                 "現價": st.column_config.NumberColumn("現價", format="%.2f"),
                 "股票張數": st.column_config.NumberColumn("股票張數", format="%.1f") 
             },
-            disabled=["ETF 名稱", "股票張數", "現價", "今日損益", "今日交易量", "預估年化殖利率", "今日最高/最低", "52週最高/最低"],
+            disabled=["ETF 名稱", "股票張數", "現價", "今日損益", "今日漲跌幅", "今日交易量", "預估年化殖利率", "今日最高/最低", "52週最高/最低"],
             use_container_width=True, hide_index=True
         )
 
@@ -795,10 +831,10 @@ if not df.empty:
         for _, row in df.iterrows():
             p_color = "red" if row['損益'] >= 0 else "green"; roi_str = f"{row['報酬率']:+.2f}%"
             status_badge = "✅ 已公告" if row['已公告'] else "⏳ 依前次估算"
-            with st.expander(f"💎 {row['名稱']} | 報酬: :{p_color}[{roi_str}]", expanded=True):
+            with st.expander(f"💎 {row['名稱']} | 預估淨報酬: :{p_color}[{roi_str}]", expanded=True):
                 col_l, col_m, col_r = st.columns(3)
                 with col_l: st.write(f"張數: **{row['張數']}**"); st.write(f"現價: **{row['現價']:.2f}**"); st.caption(f"均價: {row['均價']:.2f}")
-                with col_m: st.markdown(f"市值: **${row['市值']:,.0f}**"); st.markdown(f"損益: :{p_color}[**${row['損益']:,.0f}**]")
+                with col_m: st.markdown(f"市值: **${row['市值']:,.0f}**"); st.markdown(f"預估淨利: :{p_color}[**${row['損益']:,.0f}**]")
                 with col_r: st.markdown(f"單次領息估算: :orange[**${row['單次預估領息']:,.0f}**]"); st.caption(f"📅 最新除息日: {row['最新公告除息日']} ({status_badge})")
         st.write("---")
 
@@ -947,7 +983,8 @@ if not df.empty:
         else:
             st.success("✅ 密碼正確，機密面板已解鎖！系統將會隨著時間推移自動推進信貸期數。")
             
-            st.markdown("##### 💳 信貸還款戰情 (每月 $15,000 / 7年共84期)")
+            # --- 1. 自己繳納的核心信貸 ---
+            st.markdown("##### 💳 核心信貸還款戰情 (每月 $15,000 / 7年共84期 | 📅 每月繳款日：14號，下期 5/14)")
             
             # 從存檔取出當前數據 (已透過跨月邏輯確保最新)
             loan_info = st.session_state.my_data['loan']
@@ -970,8 +1007,39 @@ if not df.empty:
             lc3.metric("剩餘未繳餘額", f"${remaining_balance:,.0f}", f"剩餘 {remaining_months} 期", delta_color="inverse")
             st.progress(new_paid / loan_info['total_months'])
             
-            true_net_worth = g_mkt - remaining_balance
-            st.markdown(f"<div class='net-worth-box'><h3>👑 總司令真實淨資產 (ETF 總市值 - 信貸剩餘餘額)</h3><h1>${true_net_worth:,.0f}</h1></div>", unsafe_allow_html=True)
+            st.write("---")
+            
+            # --- 2. 別人欠的彰銀信貸 ---
+            st.markdown("##### 🤝 應收帳款戰情：彰化銀行信貸 (別人欠我的) | 📅 期間：2026/04/05 ~ 2029/04/05")
+            loan_chb_info = st.session_state.my_data['loan_chb']
+            
+            # 設定對方每月應還金額 (因為您沒提到對方月繳多少，所以設計成可以自行輸入)
+            chb_amount = st.number_input("💸 設定對方每月應還金額 (元)：", min_value=0, value=int(loan_chb_info.get('regular_amount', 0)), step=1000)
+            if chb_amount != loan_chb_info.get('regular_amount', 0):
+                st.session_state.my_data['loan_chb']['regular_amount'] = chb_amount
+                save_to_json(st.session_state.my_data)
+                st.rerun()
+
+            new_paid_chb = st.slider("手動微調對方已還期數 (總期數 60 期)", min_value=0, max_value=60, value=int(loan_chb_info['months_paid']))
+            if new_paid_chb != loan_chb_info['months_paid']:
+                st.session_state.my_data['loan_chb']['months_paid'] = new_paid_chb
+                save_to_json(st.session_state.my_data)
+                st.rerun()
+
+            total_loan_chb = loan_chb_info['total_months'] * chb_amount
+            amount_paid_chb = new_paid_chb * chb_amount
+            remaining_balance_chb = total_loan_chb - amount_paid_chb
+            remaining_months_chb = loan_chb_info['total_months'] - new_paid_chb
+            
+            cc1, cc2, cc3 = st.columns(3)
+            cc1.metric("彰銀信貸總額", f"${total_loan_chb:,.0f}")
+            cc2.metric("對方已還總額", f"${amount_paid_chb:,.0f}", f"已還 {new_paid_chb} 期", delta_color="normal")
+            cc3.metric("對方剩餘未還 (應收款)", f"${remaining_balance_chb:,.0f}", f"剩餘 {remaining_months_chb} 期", delta_color="normal")
+            st.progress(new_paid_chb / loan_chb_info['total_months'] if loan_chb_info['total_months'] > 0 else 0)
+
+            # --- 淨資產計算更新 (資產 + 應收帳款 - 負債) ---
+            true_net_worth = g_mkt - remaining_balance + remaining_balance_chb
+            st.markdown(f"<div class='net-worth-box'><h3>👑 總司令真實淨資產 (ETF市值 - 負債 + 應收帳款)</h3><h1>${true_net_worth:,.0f}</h1></div>", unsafe_allow_html=True)
             
             st.write("")
             if st.button("🔐 重新上鎖並關閉", use_container_width=True):

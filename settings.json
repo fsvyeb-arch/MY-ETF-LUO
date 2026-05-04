@@ -22,7 +22,7 @@
             "symbol": "00919.TW",
             "name": "00919 群益台灣精選高息",
             "holdings": 8.0,
-            "cost": 23.04,
+            "cost": 23.05,
             "alert_high": 0.0,
             "alert_low": 0.0,
             "pledged_shares": 10.0
@@ -31,19 +31,10 @@
             "symbol": "00927.TW",
             "name": "00927 群益半導體收益",
             "holdings": 6.0,
-            "cost": 30.97,
+            "cost": 27.63,
             "alert_high": 0.0,
             "alert_low": 0.0,
             "pledged_shares": 6.0
-        },
-        {
-            "symbol": "00981A.TW",
-            "name": "00981A 主動統一台股增長",
-            "holdings": 0.0,
-            "cost": 0.0,
-            "alert_high": 0.0,
-            "alert_low": 0.0,
-            "pledged_shares": 0.0
         },
         {
             "symbol": "00878.TW",
@@ -63,5 +54,11 @@
     },
     "pledge": {
         "borrowed_amount": 0
+    },
+    "loan_chb": {
+        "months_paid": 21,
+        "regular_amount": 5300,
+        "total_months": 60,
+        "last_updated_month": "2026-05"
     }
 }
