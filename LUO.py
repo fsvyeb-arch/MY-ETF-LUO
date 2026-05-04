@@ -103,7 +103,11 @@ PASSIVE_ETFS = {
     "00679B": "00679B 元大美債20年", "00687B": "00687B 國泰20年美債", "00720B": "00720B 元大投資級公司債",
     "00751B": "00751B 元大AAA至A公司債", "00937B": "00937B 群益ESG投等債20+", "00772B": "00772B 中信高評級公司債",
     "00773B": "00773B 中信優先金融債", "00780B": "00780B 國泰A級金融債", "00795B": "00795B 中信美國公債20年",
-    "2330": "2330 台積電", "2454": "2454 聯發科", "2317": "2317 鴻海"
+    "2330": "2330 台積電", "2454": "2454 聯發科", "2317": "2317 鴻海",
+    # -- 新增清單區 --
+    "00631L": "00631L 元大台灣50正2", "00673R": "00673R 期元大S&P原油反1", 
+    "00632R": "00632R 元大台灣50反1", "009819": "009819 中信數據及電力", 
+    "00712": "00712 復華富時不動產"
 }
 
 ACTIVE_ETFS = {
@@ -111,6 +115,12 @@ ACTIVE_ETFS = {
     "00403A": "00403A 主動統一台股升級50",
     "00999A": "00999A 主動野村臺灣動能",
     "00401A": "00401A 主動摩根台灣鑫收",
+    # -- 新增清單區 --
+    "00992A": "00992A 主動群益科技創新",
+    "00400A": "00400A 主動國泰動能高息",
+    "00997A": "00997A 主動群益美國增長",
+    "00988A": "00988A 主動統一全球創新",
+    "00994A": "00994A 主動第一金台股優",
 }
 
 ETF_NAME_DB = {**PASSIVE_ETFS, **ACTIVE_ETFS}
@@ -147,7 +157,7 @@ def load_settings():
     return {
         "etfs": [], 
         "pledge": {"borrowed_amount": 0},
-        "watchlist": [] # 新增自選股觀察清單存檔區
+        "watchlist": [] 
     }
 
 def save_to_json(data):
@@ -456,6 +466,82 @@ def fetch_watchlist_data(wl_list):
                 "狀態": status_light
             })
         except Exception: continue
+    return pd.DataFrame(results)
+
+# --- 🎯 抓取自選股除權息資料 ---
+@st.cache_data(ttl=3600)
+def fetch_watchlist_dividend(wl_list):
+    if not wl_list: return pd.DataFrame()
+    results = []
+    today = datetime.today()
+    for item in wl_list:
+        sym = item['symbol']
+        try:
+            tk = yf.Ticker(sym)
+            hist = tk.history(period='1y') 
+            
+            is_announced, div_amount, ex_date, pay_date = False, 0.0, "待官方公告", "待官方公告"
+            
+            cfg = DIVIDEND_DB.get(sym)
+            if cfg:
+                div_amount = cfg['v']
+                ex_date = cfg['d']
+                pay_date = cfg['p']
+                is_announced = True
+            else:
+                actions = tk.actions
+                if not actions.empty:
+                    latest = actions.sort_index(ascending=False).head(1)
+                    div_amount = float(latest['Dividends'].values[0]) 
+                    last_ex_date_obj = latest.index[0].replace(tzinfo=None)
+                    if last_ex_date_obj.date() >= today.date():
+                        ex_date = last_ex_date_obj.strftime('%Y-%m-%d')
+                        pay_date = (last_ex_date_obj + timedelta(days=28)).strftime('%Y-%m-%d') 
+                        is_announced = True
+
+            fill_status = "-"
+            try:
+                divs = tk.dividends
+                if not divs.empty and not hist.empty:
+                    now_ts = pd.Timestamp.now(tz=divs.index.tzinfo) if divs.index.tzinfo else pd.Timestamp.now()
+                    past_divs = divs[divs.index < now_ts].sort_index(ascending=False)
+                    
+                    if not past_divs.empty:
+                        last_ex_date = past_divs.index[0]
+                        pre_ex = hist[hist.index < last_ex_date]
+                        post_ex = hist[hist.index >= last_ex_date]
+                        
+                        if not pre_ex.empty and not post_ex.empty:
+                            target_price = pre_ex['Close'].iloc[-1]
+                            filled = False
+                            t_days = 0
+                            for d, r in post_ex.iterrows():
+                                t_days += 1
+                                if r['High'] >= target_price:
+                                    fill_status = f"{d.month}/{d.day} 填息完成 ({t_days}天)"
+                                    filled = True
+                                    break
+                            if not filled:
+                                fill_status = f"未填息 ({t_days}天)"
+            except Exception:
+                pass
+
+            months = DIVIDEND_SCHEDULE.get(sym, [])
+            freq = "月配息" if len(months)==12 else "季配息" if len(months)==4 else "半年配" if len(months)==2 else "年配息" if len(months)==1 else "未知"
+
+            results.append({
+                "類別": "👀 自選",
+                "ETF 名稱": item['name'], 
+                "配息頻率": freq, 
+                "配息月份": "、".join(map(str, months)) + " 月" if months else "未設定",
+                "狀態": "✅ 已公告" if is_announced else "⏳ 依前次估算", 
+                "除息日": ex_date, 
+                "發放日": pay_date, 
+                "每股金額": f"${div_amount:.3f}",
+                "最新填息紀錄": fill_status
+            })
+        except Exception:
+            continue
     return pd.DataFrame(results)
 
 # --- 4. 核心數據計算 ---
@@ -827,14 +913,18 @@ if st.session_state.show_calendar:
         """, unsafe_allow_html=True)
     st.write("---")
 
-if not df.empty:
-    if st.session_state.show_div_db:
-        st.markdown("#### 📚 專屬 ETF 除權息時程總覽")
-        db_list = []
+# --- 📂 展開除權息 ---
+if st.session_state.show_div_db:
+    st.markdown("#### 📚 專屬 ETF 與自選股 除權息時程總覽")
+    db_list = []
+    
+    # 處理庫存資料
+    if not df.empty:
         for _, row in df.iterrows():
             sym = row['代號']; months = DIVIDEND_SCHEDULE.get(sym, [])
             freq = "月配息" if len(months)==12 else "季配息" if len(months)==4 else "半年配" if len(months)==2 else "年配息" if len(months)==1 else "未知"
             db_list.append({
+                "類別": "💼 庫存",
                 "ETF 名稱": row['名稱'], 
                 "配息頻率": freq, 
                 "配息月份": "、".join(map(str, months)) + " 月" if months else "未設定",
@@ -844,18 +934,36 @@ if not df.empty:
                 "每股金額": f"${row['每股配息']:.3f}",
                 "最新填息紀錄": row['最新填息紀錄']
             })
-        st.dataframe(pd.DataFrame(db_list), use_container_width=True, hide_index=True)
-        st.write("---")
+            
+    df_port_div = pd.DataFrame(db_list)
+    
+    # 抓取自選股除權息資料
+    df_wl_div = fetch_watchlist_dividend(st.session_state.my_data.get('watchlist', []))
+    
+    final_div_df = pd.DataFrame()
+    if not df_port_div.empty and not df_wl_div.empty:
+        final_div_df = pd.concat([df_port_div, df_wl_div], ignore_index=True)
+    elif not df_wl_div.empty:
+        final_div_df = df_wl_div
+    elif not df_port_div.empty:
+        final_div_df = df_port_div
+        
+    if not final_div_df.empty:
+        st.dataframe(final_div_df, use_container_width=True, hide_index=True)
+    else:
+        st.info("目前尚無庫存或自選股，因此無除權息資料可顯示。")
+        
+    st.write("---")
 
-    if st.session_state.show_tech:
+# --- 📡 展開股價監控 ---
+if st.session_state.show_tech:
+    if not df.empty:
         st.markdown("#### 📡 庫存價格區間監控與技術分析 (👉 雙擊表格數值設定警報，設 0 代表關閉)")
         
         def color_profit_loss(val):
             if isinstance(val, str):
-                if val.startswith('+'):
-                    return 'color: #d32f2f; font-weight: bold;' 
-                elif val.startswith('-'):
-                    return 'color: #388e3c; font-weight: bold;' 
+                if val.startswith('+'): return 'color: #d32f2f; font-weight: bold;' 
+                elif val.startswith('-'): return 'color: #388e3c; font-weight: bold;' 
             return ''
 
         try:
@@ -889,51 +997,56 @@ if not df.empty:
             save_to_json(st.session_state.my_data)
             st.cache_data.clear()
             st.rerun()
-            
-        st.write("---")
+    else:
+        st.markdown("#### 📡 庫存價格區間監控")
+        st.info("目前無庫存標的。")
         
-        # --- 整合在展開股價監控內的自選股區域 ---
-        st.markdown("#### 👀 自選股觀察清單")
-        st.caption("追蹤您尚未入手、正在觀察的標的")
-        
-        col_w1, col_w2, col_w3 = st.columns([2, 2, 1])
-        with col_w1:
-            st.text_input("輸入代碼 (不需手打 .TW)", placeholder="例如: 2330", key="add_sym_wl", on_change=auto_fill_wl_name)
-        with col_w2:
-            st.text_input("自定義名稱", placeholder="例如: 2330 台積電", key="add_name_wl")
-        with col_w3:
-            st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
-            st.button("➕ 加入名單", key="btn_add_wl", on_click=add_new_wl, use_container_width=True)
-
-        wl_df = fetch_watchlist_data(st.session_state.my_data.get('watchlist', []))
-        if not wl_df.empty:
-            def color_diff(val):
-                if isinstance(val, str) and '%' in val:
-                    if val.startswith('+'): return 'color: #d32f2f; font-weight: bold;'
-                    elif val.startswith('-'): return 'color: #388e3c; font-weight: bold;'
-                elif isinstance(val, (int, float)):
-                    if val > 0: return 'color: #d32f2f; font-weight: bold;'
-                    elif val < 0: return 'color: #388e3c; font-weight: bold;'
-                return ''
-            
-            try:
-                styled_wl = wl_df.style.map(color_diff, subset=['漲跌', '漲跌幅'])
-            except AttributeError:
-                styled_wl = wl_df.style.applymap(color_diff, subset=['漲跌', '漲跌幅'])
-                
-            st.dataframe(styled_wl, use_container_width=True, hide_index=True)
-            
-            with st.expander("🗑️ 管理與刪除自選股"):
-                for i, item in enumerate(st.session_state.my_data['watchlist']):
-                    cols_wl_del = st.columns([3, 1, 6])
-                    cols_wl_del[0].markdown(f"📍 **{item['name']}**")
-                    cols_wl_del[1].button("刪除", key=f"del_wl_{i}", on_click=delete_wl, args=(i,), use_container_width=True)
-        else:
-            st.info("目前尚無自選股。請在上方輸入代碼新增您的觀察名單！")
-
-        st.write("---")
+    st.write("---")
     
-    if st.session_state.show_holdings:
+    # --- 整合在展開股價監控內的自選股區域 ---
+    st.markdown("#### 👀 自選股觀察清單")
+    st.caption("追蹤您尚未入手、正在觀察的標的")
+    
+    col_w1, col_w2, col_w3 = st.columns([2, 2, 1])
+    with col_w1:
+        st.text_input("輸入代碼 (不需手打 .TW)", placeholder="例如: 2330", key="add_sym_wl", on_change=auto_fill_wl_name)
+    with col_w2:
+        st.text_input("自定義名稱", placeholder="例如: 2330 台積電", key="add_name_wl")
+    with col_w3:
+        st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+        st.button("➕ 加入名單", key="btn_add_wl", on_click=add_new_wl, use_container_width=True)
+
+    wl_df = fetch_watchlist_data(st.session_state.my_data.get('watchlist', []))
+    if not wl_df.empty:
+        def color_diff(val):
+            if isinstance(val, str) and '%' in val:
+                if val.startswith('+'): return 'color: #d32f2f; font-weight: bold;'
+                elif val.startswith('-'): return 'color: #388e3c; font-weight: bold;'
+            elif isinstance(val, (int, float)):
+                if val > 0: return 'color: #d32f2f; font-weight: bold;'
+                elif val < 0: return 'color: #388e3c; font-weight: bold;'
+            return ''
+        
+        try:
+            styled_wl = wl_df.style.map(color_diff, subset=['漲跌', '漲跌幅'])
+        except AttributeError:
+            styled_wl = wl_df.style.applymap(color_diff, subset=['漲跌', '漲跌幅'])
+            
+        st.dataframe(styled_wl, use_container_width=True, hide_index=True)
+        
+        with st.expander("🗑️ 管理與刪除自選股"):
+            for i, item in enumerate(st.session_state.my_data['watchlist']):
+                cols_wl_del = st.columns([3, 1, 6])
+                cols_wl_del[0].markdown(f"📍 **{item['name']}**")
+                cols_wl_del[1].button("刪除", key=f"del_wl_{i}", on_click=delete_wl, args=(i,), use_container_width=True)
+    else:
+        st.info("目前尚無自選股。請在上方輸入代碼新增您的觀察名單！")
+
+    st.write("---")
+
+# --- 📊 展開持股明細 ---
+if st.session_state.show_holdings:
+    if not df.empty:
         st.markdown("#### 📊 持股動態明細")
         for _, row in df.iterrows():
             p_color = "red" if row['損益'] >= 0 else "green"; roi_str = f"{row['報酬率']:+.2f}%"
@@ -943,9 +1056,13 @@ if not df.empty:
                 with col_l: st.write(f"張數: **{row['張數']}**"); st.write(f"現價: **{row['現價']:.2f}**"); st.caption(f"均價: {row['均價']:.2f}")
                 with col_m: st.markdown(f"市值: **${row['市值']:,.0f}**"); st.markdown(f"預估淨利: :{p_color}[**${row['損益']:,.0f}**]")
                 with col_r: st.markdown(f"單次領息估算: :orange[**${row['單次預估領息']:,.0f}**]"); st.caption(f"📅 最新除息日: {row['最新公告除息日']} ({status_badge})")
-        st.write("---")
+    else:
+        st.info("⚠️ 目前尚無持股資料。請至下方「⚙️ 標的管理」新增您的庫存！")
+    st.write("---")
 
-    if st.session_state.show_constituents:
+# --- 🧩 展開ETF成份股 ---
+if st.session_state.show_constituents:
+    if not df.empty:
         st.markdown("#### 🧩 專屬庫存 ETF 核心成分股佔比")
         st.caption("已開啟「直接顯示比例」模式。透過圓餅圖檢視成分股，可協助您避免資金過度集中於單一個股，降低系統性風險。")
         
@@ -983,10 +1100,13 @@ if not df.empty:
             with c_cols[idx % 3]:
                 st.markdown(f"<div style='font-weight:900; color:#1e3c72; font-size:16px; margin-bottom:5px; margin-top:15px;'>🛡️ {name}</div>", unsafe_allow_html=True)
                 st.altair_chart(chart, use_container_width=True)
-                
-        st.write("---")
+    else:
+        st.info("⚠️ 目前尚無持股資料。請至下方「⚙️ 標的管理」新增您的庫存！")
+    st.write("---")
 
-    if st.session_state.show_pledge:
+# --- 🏦 展開質押專區 ---
+if st.session_state.show_pledge:
+    if not df.empty:
         st.markdown("#### 🏦 股票質押專區 (維持率監控)")
         st.info("💡 股票質押後會從一般券商庫存消失。一般券商（如元大）最高可借出擔保品市值的 60%。請輸入已借入款項，系統將即時監控維持率！")
         
@@ -1070,97 +1190,92 @@ if not df.empty:
         if has_p_changes:
             save_to_json(st.session_state.my_data)
             st.rerun()
+    else:
+        st.info("⚠️ 目前尚無持股資料，無法進行質押計算。")
+    st.write("---")
 
-        st.write("---")
-
-    # 🎯 專屬機密面板
-    if st.session_state.show_secret:
-        st.markdown("<div class='secret-box'>", unsafe_allow_html=True)
-        st.markdown("#### 🔐 總司令專屬機密戰情區")
+# --- 🔐 展開機密面板 ---
+if st.session_state.show_secret:
+    st.markdown("<div class='secret-box'>", unsafe_allow_html=True)
+    st.markdown("#### 🔐 總司令專屬機密戰情區")
+    
+    if not st.session_state.is_unlocked:
+        st.warning("您即將進入高度機密區域，請輸入授權密碼。")
+        pwd = st.text_input("輸入 4 位數密碼：", type="password", key="secret_pwd")
+        if st.button("解鎖 🔓"):
+            if pwd == "1030":
+                st.session_state.is_unlocked = True
+                st.rerun()
+            else:
+                st.error("密碼錯誤，拒絕存取。")
+    else:
+        st.success("✅ 密碼正確，機密面板已解鎖！系統將會隨著時間推移自動推進信貸期數。")
         
-        if not st.session_state.is_unlocked:
-            st.warning("您即將進入高度機密區域，請輸入授權密碼。")
-            pwd = st.text_input("輸入 4 位數密碼：", type="password", key="secret_pwd")
-            if st.button("解鎖 🔓"):
-                if pwd == "1030":
-                    st.session_state.is_unlocked = True
-                    st.rerun()
-                else:
-                    st.error("密碼錯誤，拒絕存取。")
-        else:
-            st.success("✅ 密碼正確，機密面板已解鎖！系統將會隨著時間推移自動推進信貸期數。")
-            
-            # --- 1. 自己繳納的核心信貸 ---
-            st.markdown("##### 💳 核心信貸還款戰情 (每月 $15,000 / 7年共84期 | 📅 每月繳款日：14號，下期 5/14)")
-            
-            # 從存檔取出當前數據 (已透過跨月邏輯確保最新)
-            loan_info = st.session_state.my_data['loan']
-            
-            # 提供滑桿讓使用者可以手動微調，預設值為自動計算出的當前月
-            new_paid = st.slider("手動微調已繳納期數 (目前為第幾個月？)", min_value=1, max_value=84, value=int(loan_info['months_paid']))
-            if new_paid != loan_info['months_paid']:
-                st.session_state.my_data['loan']['months_paid'] = new_paid
-                save_to_json(st.session_state.my_data)
-                st.rerun()
+        # --- 1. 自己繳納的核心信貸 ---
+        st.markdown("##### 💳 核心信貸還款戰情 (每月 $15,000 / 7年共84期 | 📅 每月繳款日：14號，下期 5/14)")
+        
+        # 從存檔取出當前數據 (已透過跨月邏輯確保最新)
+        loan_info = st.session_state.my_data['loan']
+        
+        # 提供滑桿讓使用者可以手動微調，預設值為自動計算出的當前月
+        new_paid = st.slider("手動微調已繳納期數 (目前為第幾個月？)", min_value=1, max_value=84, value=int(loan_info['months_paid']))
+        if new_paid != loan_info['months_paid']:
+            st.session_state.my_data['loan']['months_paid'] = new_paid
+            save_to_json(st.session_state.my_data)
+            st.rerun()
 
-            total_loan = loan_info['total_months'] * loan_info['regular_amount']
-            amount_paid = new_paid * loan_info['regular_amount']
-            remaining_balance = total_loan - amount_paid
-            remaining_months = loan_info['total_months'] - new_paid
-            
-            lc1, lc2, lc3 = st.columns(3)
-            lc1.metric("信貸合約總額", f"${total_loan:,.0f}")
-            lc2.metric("已繳納本息總額", f"${amount_paid:,.0f}", f"已繳 {new_paid} 期", delta_color="off")
-            lc3.metric("剩餘未繳餘額", f"${remaining_balance:,.0f}", f"剩餘 {remaining_months} 期", delta_color="inverse")
-            st.progress(new_paid / loan_info['total_months'])
-            
-            st.write("---")
-            
-            # --- 2. 別人欠的彰銀信貸 ---
-            st.markdown("##### 🤝 應收帳款戰情：彰化銀行信貸 (別人欠我的) | 📅 期間：2026/04/05 ~ 2029/04/05")
-            loan_chb_info = st.session_state.my_data['loan_chb']
-            
-            # 設定對方每月應還金額 (因為您沒提到對方月繳多少，所以設計成可以自行輸入)
-            chb_amount = st.number_input("💸 設定對方每月應還金額 (元)：", min_value=0, value=int(loan_chb_info.get('regular_amount', 0)), step=1000)
-            if chb_amount != loan_chb_info.get('regular_amount', 0):
-                st.session_state.my_data['loan_chb']['regular_amount'] = chb_amount
-                save_to_json(st.session_state.my_data)
-                st.rerun()
-
-            new_paid_chb = st.slider("手動微調對方已還期數 (總期數 60 期)", min_value=0, max_value=60, value=int(loan_chb_info['months_paid']))
-            if new_paid_chb != loan_chb_info['months_paid']:
-                st.session_state.my_data['loan_chb']['months_paid'] = new_paid_chb
-                save_to_json(st.session_state.my_data)
-                st.rerun()
-
-            total_loan_chb = loan_chb_info['total_months'] * chb_amount
-            amount_paid_chb = new_paid_chb * chb_amount
-            remaining_balance_chb = total_loan_chb - amount_paid_chb
-            remaining_months_chb = loan_chb_info['total_months'] - new_paid_chb
-            
-            cc1, cc2, cc3 = st.columns(3)
-            cc1.metric("彰銀信貸總額", f"${total_loan_chb:,.0f}")
-            cc2.metric("對方已還總額", f"${amount_paid_chb:,.0f}", f"已還 {new_paid_chb} 期", delta_color="normal")
-            cc3.metric("對方剩餘未還 (應收款)", f"${remaining_balance_chb:,.0f}", f"剩餘 {remaining_months_chb} 期", delta_color="normal")
-            st.progress(new_paid_chb / loan_chb_info['total_months'] if loan_chb_info['total_months'] > 0 else 0)
-
-            # --- 淨資產計算更新 (資產 + 應收帳款 - 負債) ---
-            true_net_worth = g_mkt - remaining_balance + remaining_balance_chb
-            st.markdown(f"<div class='net-worth-box'><h3>👑 總司令真實淨資產 (ETF市值 - 負債 + 應收帳款)</h3><h1>${true_net_worth:,.0f}</h1></div>", unsafe_allow_html=True)
-            
-            st.write("")
-            if st.button("🔐 重新上鎖並關閉", use_container_width=True):
-                st.session_state.is_unlocked = False
-                st.session_state.show_secret = False
-                st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
+        total_loan = loan_info['total_months'] * loan_info['regular_amount']
+        amount_paid = new_paid * loan_info['regular_amount']
+        remaining_balance = total_loan - amount_paid
+        remaining_months = loan_info['total_months'] - new_paid
+        
+        lc1, lc2, lc3 = st.columns(3)
+        lc1.metric("信貸合約總額", f"${total_loan:,.0f}")
+        lc2.metric("已繳納本息總額", f"${amount_paid:,.0f}", f"已繳 {new_paid} 期", delta_color="off")
+        lc3.metric("剩餘未繳餘額", f"${remaining_balance:,.0f}", f"剩餘 {remaining_months} 期", delta_color="inverse")
+        st.progress(new_paid / loan_info['total_months'])
+        
         st.write("---")
+        
+        # --- 2. 別人欠的彰銀信貸 ---
+        st.markdown("##### 🤝 應收帳款戰情：彰化銀行信貸 (別人欠我的) | 📅 期間：2026/04/05 ~ 2029/04/05")
+        loan_chb_info = st.session_state.my_data['loan_chb']
+        
+        # 設定對方每月應還金額 (因為您沒提到對方月繳多少，所以設計成可以自行輸入)
+        chb_amount = st.number_input("💸 設定對方每月應還金額 (元)：", min_value=0, value=int(loan_chb_info.get('regular_amount', 0)), step=1000)
+        if chb_amount != loan_chb_info.get('regular_amount', 0):
+            st.session_state.my_data['loan_chb']['regular_amount'] = chb_amount
+            save_to_json(st.session_state.my_data)
+            st.rerun()
 
-else:
-    if st.session_state.show_div_db or st.session_state.show_tech or st.session_state.show_holdings or st.session_state.show_constituents or st.session_state.show_pledge or st.session_state.show_secret:
-        st.info("⚠️ 目前尚無持股資料。請至下方「⚙️ 標的管理」新增您的庫存！")
+        new_paid_chb = st.slider("手動微調對方已還期數 (總期數 60 期)", min_value=0, max_value=60, value=int(loan_chb_info['months_paid']))
+        if new_paid_chb != loan_chb_info['months_paid']:
+            st.session_state.my_data['loan_chb']['months_paid'] = new_paid_chb
+            save_to_json(st.session_state.my_data)
+            st.rerun()
 
-st.write("---")
+        total_loan_chb = loan_chb_info['total_months'] * chb_amount
+        amount_paid_chb = new_paid_chb * chb_amount
+        remaining_balance_chb = total_loan_chb - amount_paid_chb
+        remaining_months_chb = loan_chb_info['total_months'] - new_paid_chb
+        
+        cc1, cc2, cc3 = st.columns(3)
+        cc1.metric("彰銀信貸總額", f"${total_loan_chb:,.0f}")
+        cc2.metric("對方已還總額", f"${amount_paid_chb:,.0f}", f"已還 {new_paid_chb} 期", delta_color="normal")
+        cc3.metric("對方剩餘未還 (應收款)", f"${remaining_balance_chb:,.0f}", f"剩餘 {remaining_months_chb} 期", delta_color="normal")
+        st.progress(new_paid_chb / loan_chb_info['total_months'] if loan_chb_info['total_months'] > 0 else 0)
+
+        # --- 淨資產計算更新 (資產 + 應收帳款 - 負債) ---
+        true_net_worth = g_mkt - remaining_balance + remaining_balance_chb
+        st.markdown(f"<div class='net-worth-box'><h3>👑 總司令真實淨資產 (ETF市值 - 負債 + 應收帳款)</h3><h1>${true_net_worth:,.0f}</h1></div>", unsafe_allow_html=True)
+        
+        st.write("")
+        if st.button("🔐 重新上鎖並關閉", use_container_width=True):
+            st.session_state.is_unlocked = False
+            st.session_state.show_secret = False
+            st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.write("---")
 
 # 🎯 買賣損益試算面板與執行交易功能
 with st.expander("💰 買賣損益試算器", expanded=False):
@@ -1240,6 +1355,7 @@ bot_c1, bot_c2, bot_c3 = st.columns([2, 5, 3])
 with bot_c1:
     if st.button("🔄 手動重新整理股價", use_container_width=True):
         fetch_data.clear()
+        fetch_watchlist_dividend.clear()
         st.rerun()
 
 with bot_c2:
@@ -1355,4 +1471,5 @@ else:
 if st.session_state.auto_refresh_mode == "✅ USE (開啟)":
     time.sleep(5)
     fetch_data.clear()
+    fetch_watchlist_dividend.clear()
     st.rerun()
