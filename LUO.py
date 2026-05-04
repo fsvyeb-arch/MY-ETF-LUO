@@ -97,7 +97,6 @@ st.markdown("""
 # --- 2. 系統設定與資料庫 ---
 SETTINGS_FILE = 'settings.json'
 
-# 戰情報告：被動式 ETF 資料庫
 PASSIVE_ETFS = {
     "0050": "0050 元大台灣50", "006208": "006208 富邦台50", "00692": "00692 富邦公司治理", 
     "00850": "00850 元大台灣ESG永續", "00922": "00922 國泰台灣領袖50", "00923": "00923 群益台ESG低碳50",
@@ -117,7 +116,6 @@ PASSIVE_ETFS = {
     "2330": "2330 台積電", "2454": "2454 聯發科", "2317": "2317 鴻海"
 }
 
-# 戰情報告：主動式 ETF 資料庫 (2026年熱門精選)
 ACTIVE_ETFS = {
     "00981A": "00981A 主動統一台股增長",
     "00403A": "00403A 主動統一台股升級50",
@@ -125,7 +123,6 @@ ACTIVE_ETFS = {
     "00401A": "00401A 主動摩根台灣鑫收",
 }
 
-# 整合兩大軍火庫供系統自動帶入使用
 ETF_NAME_DB = {**PASSIVE_ETFS, **ACTIVE_ETFS}
 
 DIVIDEND_SCHEDULE = {
@@ -139,7 +136,6 @@ DIVIDEND_DB = {
     "00927.TW": {"v": 0.94, "d": "2026-04-18", "p": "2026-05-15"}  
 }
 
-# 戰情室專屬：熱門 ETF 核心成分股資料庫
 ETF_CONSTITUENTS_DB = {
     "0056.TW": [{"name": "鴻海", "weight": 6.5}, {"name": "聯發科", "weight": 5.2}, {"name": "聯詠", "weight": 4.8}, {"name": "中信金", "weight": 4.5}, {"name": "聯電", "weight": 4.1}, {"name": "其他", "weight": 74.9}],
     "00878.TW": [{"name": "聯發科", "weight": 5.5}, {"name": "國泰金", "weight": 5.1}, {"name": "富邦金", "weight": 4.9}, {"name": "廣達", "weight": 4.5}, {"name": "聯電", "weight": 4.2}, {"name": "其他", "weight": 75.8}],
@@ -228,7 +224,7 @@ def save_edits():
     st.session_state.my_data['etfs'] = temp_list
     save_to_json(st.session_state.my_data)
 
-# 初始化所有按鈕的開關狀態
+# 初始化按鈕狀態
 if 'show_us' not in st.session_state: st.session_state.show_us = False
 if 'show_tw' not in st.session_state: st.session_state.show_tw = False
 if 'show_calendar' not in st.session_state: st.session_state.show_calendar = False
@@ -275,7 +271,7 @@ def fetch_etf_news():
     return news_list
 
 # --- 📈 抓取美台股大盤指標 ---
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=300) 
 def fetch_macro_data():
     tickers = {
         "us": {"道瓊工業": "^DJI", "那斯達克": "^IXIC", "費城半導體": "^SOX", "輝達 NVIDIA": "NVDA", "台積電 ADR": "TSM"},
@@ -323,7 +319,7 @@ def render_macro_cards(data_dict, region_prefix):
         idx += 1
 
 # --- 4. 核心數據計算 ---
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=10)
 def fetch_data(etf_list):
     if not etf_list: return pd.DataFrame(), pd.DataFrame(), 0, 0, 0, 0, [], [], [], {}
     results, tech_results = [], []
@@ -338,9 +334,32 @@ def fetch_data(etf_list):
             hist = tk.history(period='1y') 
             if hist.empty: continue
             
-            curr_p = hist['Close'].iloc[-1]
-            prev_close = hist['Close'].iloc[-2] if len(hist) >= 2 else curr_p
+            rt_curr = tk.fast_info.get('lastPrice')
+            curr_p = rt_curr if rt_curr is not None else hist['Close'].iloc[-1]
             
+            rt_prev = tk.fast_info.get('previousClose')
+            prev_close = rt_prev if rt_prev is not None else (hist['Close'].iloc[-2] if len(hist) >= 2 else curr_p)
+            
+            rt_dh = tk.fast_info.get('dayHigh')
+            day_high = rt_dh if rt_dh is not None else hist['High'].iloc[-1]
+            
+            rt_dl = tk.fast_info.get('dayLow')
+            day_low = rt_dl if rt_dl is not None else hist['Low'].iloc[-1]
+            
+            rt_vol = tk.fast_info.get('lastVolume')
+            vol = rt_vol if rt_vol is not None else hist['Volume'].iloc[-1]
+            
+            year_high = tk.fast_info.get('yearHigh', 0)
+            year_low = tk.fast_info.get('yearLow', 0)
+
+            if curr_p > prev_close:
+                status_light = "🔴"
+            elif curr_p < prev_close:
+                status_light = "🟢"
+            else:
+                status_light = "⚪"
+            display_name = f"{status_light} {item['name']}"
+
             shares = item['holdings'] * 1000
             mkt_val = shares * curr_p
             cost_val = shares * item['cost']
@@ -349,12 +368,7 @@ def fetch_data(etf_list):
             
             today_profit = shares * (curr_p - prev_close)
             total_today_pnl += today_profit
-            
-            vol = tk.fast_info.get('lastVolume', 0)
-            day_high = tk.fast_info.get('dayHigh', 0)
-            day_low = tk.fast_info.get('dayLow', 0)
-            year_high = tk.fast_info.get('yearHigh', 0)
-            year_low = tk.fast_info.get('yearLow', 0)
+            today_pnl_str = f"+${today_profit:,.0f}" if today_profit >= 0 else f"-${abs(today_profit):,.0f}"
 
             a_high = float(item.get('alert_high', 0.0))
             a_low = float(item.get('alert_low', 0.0))
@@ -449,13 +463,15 @@ def fetch_data(etf_list):
             })
             
             tech_results.append({
-                "ETF 名稱": item['name'], "現價": round(curr_p, 2),
+                "ETF 名稱": display_name,
+                "現價": round(curr_p, 2),
                 "今日交易量": f"{vol:,.0f}" if vol > 0 else "無資料",
                 "預估年化殖利率": f"{est_yield:.2f}%",
                 "今日最高/最低": f"${day_high:.2f} / ${day_low:.2f}",
                 "52週最高/最低": f"${year_high:.2f} / ${year_low:.2f}",
                 "設定高標(停利)": a_high,
-                "設定低標(停損)": a_low
+                "設定低標(停損)": a_low,
+                "今日損益": today_pnl_str
             })
             
         except Exception as e: continue
@@ -561,7 +577,6 @@ if not df.empty:
     else:
         sub_title = "本月無現金流入預定"
 
-    # 🎯 手機排版優化版 ＋ ⚡ 專屬閃電特效 (加在第三個框框)
     html_triple_pnl = f"""
     <div class="triple-box">
         <div class="triple-col">
@@ -601,29 +616,24 @@ if not df.empty:
         tw_down = len(macro_data["tw"]) - tw_up
         tw_icon = "🔴" if tw_up >= tw_down else "🟢"
 
-    # 🎯 雙層陣列排版：上下兩排，每排 4 顆按鈕
     cols_btn_r1 = st.columns(4)
     cols_btn_r2 = st.columns(4)
     
-    # 第一排按鈕
     b1_lbl, b1_typ = (f"🔽 收起美股指數 {us_icon}", "primary") if st.session_state.show_us else (f"{us_icon} 展開美股指數", "secondary")
     b2_lbl, b2_typ = (f"🔽 收起台股指數 {tw_icon}", "primary") if st.session_state.show_tw else (f"{tw_icon} 展開台股指數", "secondary")
     b3_lbl, b3_typ = ("🔽 收起每月領息", "primary") if st.session_state.show_calendar else ("📅 展開每月領息", "secondary")
     b4_lbl, b4_typ = ("🔽 收起除權息", "primary") if st.session_state.show_div_db else ("📂 展開除權息", "secondary")
     
-    # 第二排按鈕
     b5_lbl, b5_typ = ("🔽 收起股價監控", "primary") if st.session_state.show_tech else ("📡 展開股價監控", "secondary")
     b6_lbl, b6_typ = ("🔽 收起持股明細", "primary") if st.session_state.show_holdings else ("📊 展開持股明細", "secondary")
     b7_lbl, b7_typ = ("🔽 收起ETF成份股", "primary") if st.session_state.show_constituents else ("🧩 展開ETF成份股", "secondary")
     b8_lbl, b8_typ = ("🔽 收起機密", "primary") if st.session_state.show_secret else ("🔐 展開機密", "secondary")
 
-    # 部署第一排
     with cols_btn_r1[0]: st.button(b1_lbl, on_click=toggle_us, type=b1_typ, use_container_width=True)
     with cols_btn_r1[1]: st.button(b2_lbl, on_click=toggle_tw, type=b2_typ, use_container_width=True)
     with cols_btn_r1[2]: st.button(b3_lbl, on_click=toggle_calendar, type=b3_typ, use_container_width=True)
     with cols_btn_r1[3]: st.button(b4_lbl, on_click=toggle_div_db, type=b4_typ, use_container_width=True)
     
-    # 部署第二排
     with cols_btn_r2[0]: st.button(b5_lbl, on_click=toggle_tech, type=b5_typ, use_container_width=True)
     with cols_btn_r2[1]: st.button(b6_lbl, on_click=toggle_holdings, type=b6_typ, use_container_width=True)
     with cols_btn_r2[2]: st.button(b7_lbl, on_click=toggle_constituents, type=b7_typ, use_container_width=True) 
@@ -682,21 +692,38 @@ if not df.empty:
 
     if st.session_state.show_tech:
         st.markdown("#### 📡 價格區間監控與技術分析 (👉 雙擊表格中的數值即可設定警報，設 0 代表關閉)")
+        
+        # 🎯 [重點修改] 針對「今日損益」欄位設定紅綠顏色與粗體
+        def color_profit_loss(val):
+            if isinstance(val, str):
+                if val.startswith('+'):
+                    return 'color: #d32f2f; font-weight: bold;' # 賺錢顯示紅色
+                elif val.startswith('-'):
+                    return 'color: #388e3c; font-weight: bold;' # 虧錢顯示綠色
+            return ''
+
+        # 套用 Pandas Styler 樣式 (相容不同 Pandas 版本)
+        try:
+            styled_df_tech = df_tech.style.map(color_profit_loss, subset=['今日損益'])
+        except AttributeError:
+            styled_df_tech = df_tech.style.applymap(color_profit_loss, subset=['今日損益'])
+
+        # 傳入上好色的 styled_df_tech
         edited_tech = st.data_editor(
-            df_tech,
+            styled_df_tech,
             column_config={
                 "設定高標(停利)": st.column_config.NumberColumn("設定高標(停利)", help="雙擊輸入，超過觸發紅色警報", min_value=0.0, format="%.2f"),
                 "設定低標(停損)": st.column_config.NumberColumn("設定低標(停損)", help="雙擊輸入，低於觸發綠色警報", min_value=0.0, format="%.2f"),
             },
-            disabled=["ETF 名稱", "現價", "今日交易量", "預估年化殖利率", "今日最高/最低", "52週最高/最低"],
+            disabled=["ETF 名稱", "現價", "今日交易量", "預估年化殖利率", "今日最高/最低", "52週最高/最低", "今日損益"],
             use_container_width=True, hide_index=True
         )
 
         has_changes = False
         for _, row in edited_tech.iterrows():
-            name = row['ETF 名稱']
+            display_name = row['ETF 名稱']
             for etf in st.session_state.my_data['etfs']:
-                if etf['name'] == name:
+                if etf['name'] in display_name:
                     if etf.get('alert_high', 0.0) != row['設定高標(停利)'] or etf.get('alert_low', 0.0) != row['設定低標(停損)']:
                         etf['alert_high'] = row['設定高標(停利)']
                         etf['alert_low'] = row['設定低標(停損)']
@@ -813,21 +840,18 @@ if not df.empty:
 
 st.write("---")
 
-# 🎯 將手動更新按鈕、綜合管理選單、自動更新勾選框並排 (3欄式佈局)
 bot_c1, bot_c2, bot_c3 = st.columns([2, 5, 3])
 
 with bot_c1:
     if st.button("🔄 手動重新整理股價", use_container_width=True):
-        st.cache_data.clear()
+        fetch_data.clear()
         st.rerun()
 
 with bot_c2:
     with st.expander("⚙️ 標的管理 (新增 / 修改 / 刪除)", expanded=False):
         
-        # --- 區塊 1：新增標的 ---
         st.markdown("#### ➕ 新增標的 (股票/ETF)")
         
-        # 初始化 Widget State (防止報錯)
         if "add_name_bot" not in st.session_state: st.session_state.add_name_bot = ""
         if "add_sym_bot" not in st.session_state: st.session_state.add_sym_bot = ""
         if "add_h_bot" not in st.session_state: st.session_state.add_h_bot = 0.0
@@ -842,12 +866,10 @@ with bot_c2:
         with col_add2:
             st.number_input("均價", step=0.1, key="add_c_bot")
         
-        # 綁定 Callback 函數 (新增並清空)
         st.button("確認新增", key="btn_add_bot", use_container_width=True, on_click=add_new_etf_bot)
 
         st.write("---")
 
-        # --- 區塊 2：庫存修改與刪除 ---
         st.markdown("#### 📝 庫存修改與刪除")
         
         for i, item in enumerate(st.session_state.my_data['etfs']):
@@ -863,11 +885,11 @@ with bot_c2:
         st.button("💾 儲存所有修改", use_container_width=True, type="primary", on_click=save_edits)
 
 with bot_c3:
-    auto_refresh = st.checkbox("開啟股價自動更新 (每 60 秒)", value=False, help="開啟後網頁將會每分鐘自動重新整理最新報價。")
+    auto_refresh = st.checkbox("開啟股價自動更新 (每 10 秒)", value=False, help="開啟後網頁將每 10 秒重新整理台股最新報價。")
 
 if auto_refresh:
-    time.sleep(60)
-    st.cache_data.clear()
+    time.sleep(10)
+    fetch_data.clear()
     st.rerun()
 
 st.write("---")
