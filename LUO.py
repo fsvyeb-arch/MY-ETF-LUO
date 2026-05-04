@@ -78,6 +78,9 @@ st.markdown("""
     .net-worth-box { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; padding: 20px; border-radius: 10px; text-align: center; margin-top: 15px; box-shadow: 2px 2px 10px rgba(0,0,0,0.2); }
     .net-worth-box h3 { color: #f8f9fa; font-size: 18px; margin-bottom: 5px; }
     .net-worth-box h1 { color: #ffc107; font-size: 38px; font-weight: 900; margin: 0; text-shadow: 1px 1px 3px rgba(0,0,0,0.5); }
+    
+    /* 自動更新控制區樣式 */
+    .auto-refresh-box { background-color: #f0f7ff; border: 1px solid #cce5ff; border-radius: 8px; padding: 15px; text-align: center; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -160,13 +163,12 @@ if 'loan' not in st.session_state.my_data:
         "months_paid": 1, 
         "regular_amount": 15000, 
         "total_months": 84,
-        "last_updated_month": now_str # 記錄初始基準月份
+        "last_updated_month": now_str 
     }
 
 loan_data = st.session_state.my_data['loan']
 last_m = loan_data.get('last_updated_month', now_str)
 
-# 判斷是否已經跨月，若是，則自動增加期數
 if last_m != now_str:
     y_curr, m_curr = map(int, now_str.split('-'))
     y_last, m_last = map(int, last_m.split('-'))
@@ -280,7 +282,6 @@ if 'show_tech' not in st.session_state: st.session_state.show_tech = False
 if 'show_holdings' not in st.session_state: st.session_state.show_holdings = False
 if 'show_constituents' not in st.session_state: st.session_state.show_constituents = False 
 if 'show_pledge' not in st.session_state: st.session_state.show_pledge = False 
-# 機密專屬狀態
 if 'show_secret' not in st.session_state: st.session_state.show_secret = False
 if 'is_unlocked' not in st.session_state: st.session_state.is_unlocked = False
 
@@ -665,7 +666,6 @@ if "tw" in macro_data and macro_data["tw"]:
     tw_down = len(macro_data["tw"]) - tw_up
     tw_icon = "🔴" if tw_up >= tw_down else "🟢"
 
-# 🎯 恢復為 3x3 九宮格排列，將「機密」按鈕放回去
 cols_btn_r1 = st.columns(3)
 cols_btn_r2 = st.columns(3)
 cols_btn_r3 = st.columns(3)
@@ -1059,6 +1059,7 @@ with st.expander("💰 買賣損益試算器", expanded=False):
 
 st.write("---")
 
+# 🎯 最底層操作列 (手動更新 + 標的管理 + 自動更新開關)
 bot_c1, bot_c2, bot_c3 = st.columns([2, 5, 3])
 
 with bot_c1:
@@ -1104,7 +1105,22 @@ with bot_c2:
             st.button("💾 儲存所有修改", use_container_width=True, type="primary", on_click=save_edits)
 
 with bot_c3:
-    st.write("") # 移除自動更新功能，避免畫面反灰卡死
+    st.markdown("<div class='auto-refresh-box'>", unsafe_allow_html=True)
+    st.markdown("#### ⚡ 系統自動更新")
+    st.caption("開啟後每 5 秒自動重整抓取最新即時股價")
+    
+    # 初始化預設狀態
+    if 'auto_refresh_mode' not in st.session_state:
+        st.session_state.auto_refresh_mode = "❌ NO USE (關閉)"
+        
+    auto_update = st.radio(
+        "即時更新 (每 5 秒)", 
+        ["❌ NO USE (關閉)", "✅ USE (開啟)"], 
+        key="auto_refresh_mode",
+        horizontal=True,
+        label_visibility="collapsed"
+    )
+    st.markdown("</div>", unsafe_allow_html=True)
 
 st.write("---")
 st.markdown("### 📈 持股歷史股價趨勢 (近 30 日)")
@@ -1160,3 +1176,9 @@ if current_etfs:
             st.info("提示：請確認網路連線正常或 ETF 代碼是否正確。")
 else:
     st.info("目前庫存中沒有標的。請由上方「標的管理」面板新增您的愛股！")
+
+# 🎯 放在腳本最底層的自動更新執行邏輯
+if st.session_state.auto_refresh_mode == "✅ USE (開啟)":
+    time.sleep(5)
+    fetch_data.clear()
+    st.rerun()
