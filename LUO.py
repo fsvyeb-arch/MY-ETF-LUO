@@ -86,7 +86,6 @@ st.markdown("""
     .secret-box { padding: 25px; border: 2px dashed #dc3545; border-radius: 12px; background-color: #fffafb; }
     .net-worth-box { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; padding: 20px; border-radius: 10px; text-align: center; margin-top: 15px; }
 
-    /* 即將掛牌 ETF 樣式 (體積縮小版) */
     .upcoming-box { background-color: #fff4e6; border: 1px solid #ffd8a8; border-radius: 8px; padding: 8px 10px; text-align: center; margin-bottom: 15px; box-shadow: 1px 1px 3px rgba(0,0,0,0.05); }
     .upcoming-title { color: #d9480f; font-weight: bold; font-size: 13px; margin-bottom: 4px; }
     .upcoming-item { color: #862e01; font-size: 13px; font-weight: bold; margin-bottom: 2px; }
@@ -156,12 +155,13 @@ def load_settings():
         except: pass
     return {
         "etfs": [
-            {"symbol": "0056.TW", "name": "0056 元大高股息", "holdings": 4.1, "cost": 41.11, "alert_high": 0.0, "alert_low": 0.0},
-            {"symbol": "00891.TW", "name": "00891 中信關鍵半導體", "holdings": 5.0, "cost": 31.30, "alert_high": 0.0, "alert_low": 0.0},
-            {"symbol": "00919.TW", "name": "00919 群益台灣精選高息", "holdings": 10.0, "cost": 23.04, "alert_high": 0.0, "alert_low": 0.0},
-            {"symbol": "00927.TW", "name": "00927 群益半導體收益", "holdings": 6.0, "cost": 27.63, "alert_high": 0.0, "alert_low": 0.0}
+            {"symbol": "0056.TW", "name": "0056 元大高股息", "holdings": 4.1, "cost": 41.11, "alert_high": 0.0, "alert_low": 0.0, "pledged_shares": 0.0},
+            {"symbol": "00891.TW", "name": "00891 中信關鍵半導體", "holdings": 5.0, "cost": 31.30, "alert_high": 0.0, "alert_low": 0.0, "pledged_shares": 0.0},
+            {"symbol": "00919.TW", "name": "00919 群益台灣精選高息", "holdings": 10.0, "cost": 23.04, "alert_high": 0.0, "alert_low": 0.0, "pledged_shares": 0.0},
+            {"symbol": "00927.TW", "name": "00927 群益半導體收益", "holdings": 6.0, "cost": 27.63, "alert_high": 0.0, "alert_low": 0.0, "pledged_shares": 0.0}
         ],
-        "loan": {"months_paid": 1, "first_amount": 6000, "regular_amount": 15000, "total_months": 84}
+        "loan": {"months_paid": 1, "first_amount": 6000, "regular_amount": 15000, "total_months": 84},
+        "pledge": {"borrowed_amount": 0}
     }
 
 def save_to_json(data):
@@ -169,9 +169,16 @@ def save_to_json(data):
         json.dump(data, f, indent=4, ensure_ascii=False)
 
 if 'my_data' not in st.session_state: st.session_state.my_data = load_settings()
+
+# 確保新功能欄位存在
 if 'loan' not in st.session_state.my_data:
     st.session_state.my_data['loan'] = {"months_paid": 1, "first_amount": 6000, "regular_amount": 15000, "total_months": 84}
-    save_to_json(st.session_state.my_data)
+if 'pledge' not in st.session_state.my_data:
+    st.session_state.my_data['pledge'] = {"borrowed_amount": 0}
+for etf in st.session_state.my_data['etfs']:
+    if 'pledged_shares' not in etf:
+        etf['pledged_shares'] = 0.0
+save_to_json(st.session_state.my_data)
 
 # --- 🚀 Callback 函數區 ---
 def auto_fill_etf_name():
@@ -194,7 +201,7 @@ def add_new_etf_bot():
         
         st.session_state.my_data['etfs'].append({
             "symbol": final_symbol, "name": new_name, 
-            "holdings": new_h, "cost": new_c, "alert_high": 0.0, "alert_low": 0.0
+            "holdings": new_h, "cost": new_c, "alert_high": 0.0, "alert_low": 0.0, "pledged_shares": 0.0
         })
         save_to_json(st.session_state.my_data)
         
@@ -219,7 +226,8 @@ def save_edits():
             "holdings": h_val,
             "cost": c_val,
             "alert_high": item.get('alert_high', 0.0),
-            "alert_low": item.get('alert_low', 0.0)
+            "alert_low": item.get('alert_low', 0.0),
+            "pledged_shares": item.get('pledged_shares', 0.0)
         })
     st.session_state.my_data['etfs'] = temp_list
     save_to_json(st.session_state.my_data)
@@ -233,6 +241,7 @@ if 'show_tech' not in st.session_state: st.session_state.show_tech = False
 if 'show_holdings' not in st.session_state: st.session_state.show_holdings = False
 if 'show_constituents' not in st.session_state: st.session_state.show_constituents = False 
 if 'show_secret' not in st.session_state: st.session_state.show_secret = False
+if 'show_pledge' not in st.session_state: st.session_state.show_pledge = False # 🎯 新增質押狀態
 if 'is_unlocked' not in st.session_state: st.session_state.is_unlocked = False
 
 def toggle_us(): st.session_state.show_us = not st.session_state.show_us
@@ -243,6 +252,7 @@ def toggle_tech(): st.session_state.show_tech = not st.session_state.show_tech
 def toggle_holdings(): st.session_state.show_holdings = not st.session_state.show_holdings
 def toggle_constituents(): st.session_state.show_constituents = not st.session_state.show_constituents
 def toggle_secret(): st.session_state.show_secret = not st.session_state.show_secret
+def toggle_pledge(): st.session_state.show_pledge = not st.session_state.show_pledge # 🎯 質押 Toggle
 
 # --- 📡 抓取 ETF 焦點新聞 ---
 @st.cache_data(ttl=3600)
@@ -465,13 +475,13 @@ def fetch_data(etf_list):
             tech_results.append({
                 "ETF 名稱": display_name,
                 "現價": round(curr_p, 2),
+                "今日損益": today_pnl_str,
                 "今日交易量": f"{vol:,.0f}" if vol > 0 else "無資料",
                 "預估年化殖利率": f"{est_yield:.2f}%",
                 "今日最高/最低": f"${day_high:.2f} / ${day_low:.2f}",
                 "52週最高/最低": f"${year_high:.2f} / ${year_low:.2f}",
                 "設定高標(停利)": a_high,
-                "設定低標(停損)": a_low,
-                "今日損益": today_pnl_str
+                "設定低標(停損)": a_low
             })
             
         except Exception as e: continue
@@ -616,28 +626,32 @@ if not df.empty:
         tw_down = len(macro_data["tw"]) - tw_up
         tw_icon = "🔴" if tw_up >= tw_down else "🟢"
 
-    cols_btn_r1 = st.columns(4)
-    cols_btn_r2 = st.columns(4)
+    # 🎯 [重點修改] 改為 3 行 x 3 列的九宮格排版
+    cols_btn_r1 = st.columns(3)
+    cols_btn_r2 = st.columns(3)
+    cols_btn_r3 = st.columns(3)
     
     b1_lbl, b1_typ = (f"🔽 收起美股指數 {us_icon}", "primary") if st.session_state.show_us else (f"{us_icon} 展開美股指數", "secondary")
     b2_lbl, b2_typ = (f"🔽 收起台股指數 {tw_icon}", "primary") if st.session_state.show_tw else (f"{tw_icon} 展開台股指數", "secondary")
     b3_lbl, b3_typ = ("🔽 收起每月領息", "primary") if st.session_state.show_calendar else ("📅 展開每月領息", "secondary")
     b4_lbl, b4_typ = ("🔽 收起除權息", "primary") if st.session_state.show_div_db else ("📂 展開除權息", "secondary")
-    
     b5_lbl, b5_typ = ("🔽 收起股價監控", "primary") if st.session_state.show_tech else ("📡 展開股價監控", "secondary")
     b6_lbl, b6_typ = ("🔽 收起持股明細", "primary") if st.session_state.show_holdings else ("📊 展開持股明細", "secondary")
     b7_lbl, b7_typ = ("🔽 收起ETF成份股", "primary") if st.session_state.show_constituents else ("🧩 展開ETF成份股", "secondary")
-    b8_lbl, b8_typ = ("🔽 收起機密", "primary") if st.session_state.show_secret else ("🔐 展開機密", "secondary")
+    b8_lbl, b8_typ = ("🔽 收起質押專區", "primary") if st.session_state.show_pledge else ("🏦 展開質押專區", "secondary") # 🎯 質押按鈕
+    b9_lbl, b9_typ = ("🔽 收起機密", "primary") if st.session_state.show_secret else ("🔐 展開機密", "secondary")
 
     with cols_btn_r1[0]: st.button(b1_lbl, on_click=toggle_us, type=b1_typ, use_container_width=True)
     with cols_btn_r1[1]: st.button(b2_lbl, on_click=toggle_tw, type=b2_typ, use_container_width=True)
     with cols_btn_r1[2]: st.button(b3_lbl, on_click=toggle_calendar, type=b3_typ, use_container_width=True)
-    with cols_btn_r1[3]: st.button(b4_lbl, on_click=toggle_div_db, type=b4_typ, use_container_width=True)
     
-    with cols_btn_r2[0]: st.button(b5_lbl, on_click=toggle_tech, type=b5_typ, use_container_width=True)
-    with cols_btn_r2[1]: st.button(b6_lbl, on_click=toggle_holdings, type=b6_typ, use_container_width=True)
-    with cols_btn_r2[2]: st.button(b7_lbl, on_click=toggle_constituents, type=b7_typ, use_container_width=True) 
-    with cols_btn_r2[3]: st.button(b8_lbl, on_click=toggle_secret, type=b8_typ, use_container_width=True)
+    with cols_btn_r2[0]: st.button(b4_lbl, on_click=toggle_div_db, type=b4_typ, use_container_width=True)
+    with cols_btn_r2[1]: st.button(b5_lbl, on_click=toggle_tech, type=b5_typ, use_container_width=True)
+    with cols_btn_r2[2]: st.button(b6_lbl, on_click=toggle_holdings, type=b6_typ, use_container_width=True)
+    
+    with cols_btn_r3[0]: st.button(b7_lbl, on_click=toggle_constituents, type=b7_typ, use_container_width=True) 
+    with cols_btn_r3[1]: st.button(b8_lbl, on_click=toggle_pledge, type=b8_typ, use_container_width=True) # 🎯 質押功能
+    with cols_btn_r3[2]: st.button(b9_lbl, on_click=toggle_secret, type=b9_typ, use_container_width=True)
     
     st.write("---")
 
@@ -693,29 +707,27 @@ if not df.empty:
     if st.session_state.show_tech:
         st.markdown("#### 📡 價格區間監控與技術分析 (👉 雙擊表格中的數值即可設定警報，設 0 代表關閉)")
         
-        # 🎯 [重點修改] 針對「今日損益」欄位設定紅綠顏色與粗體
         def color_profit_loss(val):
             if isinstance(val, str):
                 if val.startswith('+'):
-                    return 'color: #d32f2f; font-weight: bold;' # 賺錢顯示紅色
+                    return 'color: #d32f2f; font-weight: bold;' 
                 elif val.startswith('-'):
-                    return 'color: #388e3c; font-weight: bold;' # 虧錢顯示綠色
+                    return 'color: #388e3c; font-weight: bold;' 
             return ''
 
-        # 套用 Pandas Styler 樣式 (相容不同 Pandas 版本)
         try:
             styled_df_tech = df_tech.style.map(color_profit_loss, subset=['今日損益'])
         except AttributeError:
             styled_df_tech = df_tech.style.applymap(color_profit_loss, subset=['今日損益'])
 
-        # 傳入上好色的 styled_df_tech
         edited_tech = st.data_editor(
             styled_df_tech,
             column_config={
                 "設定高標(停利)": st.column_config.NumberColumn("設定高標(停利)", help="雙擊輸入，超過觸發紅色警報", min_value=0.0, format="%.2f"),
                 "設定低標(停損)": st.column_config.NumberColumn("設定低標(停損)", help="雙擊輸入，低於觸發綠色警報", min_value=0.0, format="%.2f"),
+                "現價": st.column_config.NumberColumn("現價", format="%.2f")  
             },
-            disabled=["ETF 名稱", "現價", "今日交易量", "預估年化殖利率", "今日最高/最低", "52週最高/最低", "今日損益"],
+            disabled=["ETF 名稱", "現價", "今日損益", "今日交易量", "預估年化殖利率", "今日最高/最低", "52週最高/最低"],
             use_container_width=True, hide_index=True
         )
 
@@ -786,6 +798,88 @@ if not df.empty:
                 st.markdown(f"<div style='font-weight:900; color:#1e3c72; font-size:16px; margin-bottom:5px; margin-top:15px;'>🛡️ {name}</div>", unsafe_allow_html=True)
                 st.altair_chart(chart, use_container_width=True)
                 
+        st.write("---")
+
+    # 🎯 [重點修改] 新增質押功能專區
+    if st.session_state.show_pledge:
+        st.markdown("#### 🏦 股票質押專區 (維持率監控)")
+        st.info("💡 股票質押後會從一般券商庫存消失，請在此設定已質押的張數與借入金額，系統將自動為您即時監控維持率！")
+        
+        pledge_data = st.session_state.my_data['pledge']
+        borrowed = st.number_input("💸 輸入已借入款項總額 (元)", min_value=0, value=int(pledge_data.get('borrowed_amount', 0)), step=10000)
+        
+        if borrowed != pledge_data.get('borrowed_amount', 0):
+            st.session_state.my_data['pledge']['borrowed_amount'] = borrowed
+            save_to_json(st.session_state.my_data)
+            st.rerun()
+
+        pledge_df_list = []
+        total_pledge_mkt = 0
+        for item in st.session_state.my_data['etfs']:
+            sym = item['symbol']
+            name = item['name']
+            h_total = item['holdings']
+            p_shares = item.get('pledged_shares', 0.0)
+            
+            try:
+                curr_p = df[df['代號'] == sym]['現價'].values[0]
+            except:
+                curr_p = 0
+                
+            p_mkt = p_shares * 1000 * curr_p
+            total_pledge_mkt += p_mkt
+            
+            pledge_df_list.append({
+                "ETF 名稱": name,
+                "總庫存 (張)": h_total,
+                "質押張數": p_shares,
+                "現價": round(curr_p, 2),
+                "質押市值 (元)": round(p_mkt, 0)
+            })
+            
+        pledge_df = pd.DataFrame(pledge_df_list)
+        margin_ratio = (total_pledge_mkt / borrowed * 100) if borrowed > 0 else 0
+        
+        col_m1, col_m2, col_m3 = st.columns(3)
+        col_m1.metric("質押總市值", f"${total_pledge_mkt:,.0f}")
+        col_m2.metric("借入款項總額", f"${borrowed:,.0f}")
+        
+        if borrowed > 0:
+            if margin_ratio < 130:
+                col_m3.metric("🚨 目前維持率", f"{margin_ratio:.2f}%", "危險：低於 130% 將面臨斷頭", delta_color="inverse")
+                st.error("🚨 警告：您的維持率已跌破 130%，請盡速補繳保證金或償還部分借款！")
+            elif margin_ratio < 160:
+                col_m3.metric("⚠️ 目前維持率", f"{margin_ratio:.2f}%", "注意：市場波動可能導致風險", delta_color="off")
+            else:
+                col_m3.metric("✅ 目前維持率", f"{margin_ratio:.2f}%", "安全：維持率處於健康水平", delta_color="normal")
+        else:
+            col_m3.metric("目前維持率", "0.00%")
+
+        st.write("👇 **請雙擊下方表格的「質押張數」欄位，設定您已向券商質押的庫存：**")
+        edited_pledge = st.data_editor(
+            pledge_df,
+            column_config={
+                "質押張數": st.column_config.NumberColumn("質押張數 (雙擊編輯)", min_value=0.0, step=1.0, format="%.1f"),
+                "現價": st.column_config.NumberColumn("現價", format="%.2f"),
+                "質押市值 (元)": st.column_config.NumberColumn("質押市值 (元)", format="%.0f")
+            },
+            disabled=["ETF 名稱", "總庫存 (張)", "現價", "質押市值 (元)"],
+            use_container_width=True, hide_index=True
+        )
+        
+        has_p_changes = False
+        for _, row in edited_pledge.iterrows():
+            p_name = row['ETF 名稱']
+            new_p_shares = row['質押張數']
+            for etf in st.session_state.my_data['etfs']:
+                if etf['name'] == p_name and etf.get('pledged_shares', 0.0) != new_p_shares:
+                    etf['pledged_shares'] = new_p_shares
+                    has_p_changes = True
+                    break
+        if has_p_changes:
+            save_to_json(st.session_state.my_data)
+            st.rerun()
+
         st.write("---")
 
     if st.session_state.show_secret:
