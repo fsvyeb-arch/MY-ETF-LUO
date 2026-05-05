@@ -62,7 +62,7 @@
         "total_months": 84
     },
     "pledge": {
-        "borrowed_amount": 0
+        "borrowed_amount": 200000
     },
     "loan_chb": {
         "months_paid": 21,
@@ -74,6 +74,10 @@
         {
             "symbol": "00878.TW",
             "name": "00878 國泰永續高股息"
+        },
+        {
+            "symbol": "0050.TW",
+            "name": "0050 元大台灣50"
         }
     ],
     "custom_divs": {

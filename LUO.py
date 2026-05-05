@@ -717,11 +717,27 @@ def fetch_data(etf_list, custom_divs):
                 "最新填息紀錄": fill_status, "基金規模": cap_str
             })
             
+            # 🔥 升級：自動判斷並寫入配息月份標籤
+            months_to_pay = DIVIDEND_SCHEDULE.get(item['symbol'], [])
+            if months_to_pay:
+                if len(months_to_pay) == 12: month_tag = "月配息"
+                else: month_tag = ",".join(map(str, months_to_pay)) + "月"
+            else:
+                month_tag = "-"
+                
             tech_results.append({
-                "ETF 名稱": display_name, "股票張數": item['holdings'], "現價": round(curr_p, 2),
-                "今日損益": today_pnl_str, "今日漲跌幅": today_pct_str, "今日交易量": f"{vol:,.0f}" if vol > 0 else "無資料",
-                "預估年化殖利率": f"{est_yield:.2f}%", "今日最高/最低": f"${day_high:.2f} / ${day_low:.2f}",
-                "52週最高/最低": f"${year_high:.2f} / ${year_low:.2f}", "設定高標(停利)": a_high, "設定低標(停損)": a_low
+                "ETF 名稱": display_name, 
+                "配息月份": month_tag, 
+                "股票張數": item['holdings'], 
+                "現價": round(curr_p, 2),
+                "今日損益": today_pnl_str, 
+                "今日漲跌幅": today_pct_str, 
+                "今日交易量": f"{vol:,.0f}" if vol > 0 else "無資料",
+                "年殖利率": f"{est_yield:.2f}%", 
+                "今日最高/最低": f"${day_high:.2f} / ${day_low:.2f}",
+                "52週最高/最低": f"${year_high:.2f} / ${year_low:.2f}", 
+                "設定高標(停利)": a_high, 
+                "設定低標(停損)": a_low
             })
             
         except Exception as e: continue
@@ -1094,11 +1110,19 @@ if st.session_state.show_tech:
                 if val.startswith('+'): return 'color: #d32f2f; font-weight: bold;' 
                 elif val.startswith('-'): return 'color: #388e3c; font-weight: bold;' 
             return ''
+            
+        def color_months(val):
+            if not isinstance(val, str): return ''
+            if val == '1,4,7,10月': return 'background-color: #e3f2fd; color: #1565c0; font-weight: bold; text-align: center;' 
+            if val == '2,5,8,11月': return 'background-color: #f3e5f5; color: #6a1b9a; font-weight: bold; text-align: center;' 
+            if val == '3,6,9,12月': return 'background-color: #e8f5e9; color: #2e7d32; font-weight: bold; text-align: center;' 
+            if val == '月配息': return 'background-color: #fff8e1; color: #f57f17; font-weight: bold; text-align: center;' 
+            return 'color: #555; text-align: center;'
 
         try:
-            styled_df_tech = df_tech.style.map(color_profit_loss, subset=['今日損益', '今日漲跌幅'])
+            styled_df_tech = df_tech.style.map(color_profit_loss, subset=['今日損益', '今日漲跌幅']).map(color_months, subset=['配息月份'])
         except AttributeError:
-            styled_df_tech = df_tech.style.applymap(color_profit_loss, subset=['今日損益', '今日漲跌幅'])
+            styled_df_tech = df_tech.style.applymap(color_profit_loss, subset=['今日損益', '今日漲跌幅']).applymap(color_months, subset=['配息月份'])
 
         edited_tech = st.data_editor(
             styled_df_tech,
@@ -1108,7 +1132,7 @@ if st.session_state.show_tech:
                 "現價": st.column_config.NumberColumn("現價", format="%.2f"),
                 "股票張數": st.column_config.NumberColumn("股票張數", format="%.1f") 
             },
-            disabled=["ETF 名稱", "股票張數", "現價", "今日損益", "今日漲跌幅", "今日交易量", "預估年化殖利率", "今日最高/最低", "52週最高/最低"],
+            disabled=["ETF 名稱", "配息月份", "股票張數", "現價", "今日損益", "今日漲跌幅", "今日交易量", "年殖利率", "今日最高/最低", "52週最高/最低"],
             use_container_width=True, hide_index=True
         )
 
@@ -1448,7 +1472,6 @@ if st.session_state.show_secret:
         total_income_this_month = sum(i['amount'] for i in curr_month_incomes)
         
         # 👻 已經徹底刪除舊版固定收入的干擾，完全只依照明細加總！
-        # 如果為了徹底清除設定檔裡的舊垃圾，我們順便在這裡把它歸零：
         if 'monthly_income' in pf_data:
             pf_data['monthly_income'] = 0 
 
@@ -1462,7 +1485,7 @@ if st.session_state.show_secret:
         else:
             bc3.metric("本月剩餘可用餘額", f"${remaining_budget:,.0f}", "⚠️ 已超支", delta_color="inverse")
 
-        st.write("**📊 本月明細清單 (支援直接修改與選取刪除)**")
+        st.write("**📊 本月明細清單 (若要刪除，請在最左側「🗑️ 刪除」欄位打勾後按下更新按鈕)**")
         tab_in, tab_ex = st.tabs(["💰 收入明細", "💸 支出明細"])
         
         with tab_in:
@@ -1470,29 +1493,34 @@ if st.session_state.show_secret:
                 df_incomes = pd.DataFrame(curr_month_incomes).sort_values(by="date", ascending=False)
                 df_incomes = df_incomes.rename(columns={"date": "日期", "item": "項目", "amount": "金額"})
                 
+                # 💡 核心升級：直接加入一個實體的刪除勾選欄位
+                df_incomes.insert(0, "🗑️ 刪除", False) 
+                
                 edited_incomes = st.data_editor(
-                    df_incomes, num_rows="dynamic", use_container_width=True, hide_index=True, key="income_editor"
+                    df_incomes, 
+                    num_rows="dynamic", 
+                    use_container_width=True, 
+                    hide_index=True, 
+                    key="income_editor",
+                    column_config={
+                        "🗑️ 刪除": st.column_config.CheckboxColumn("打勾刪除此筆", default=False)
+                    }
                 )
                 
-                if st.button("💾 更新 / 刪除收入清單", use_container_width=True):
-                    # 1. 保留其他月份的資料
+                if st.button("💾 確認更新 / 刪除勾選的收入", use_container_width=True):
                     other_month_incomes = [i for i in pf_data['incomes'] if not i['date'].startswith(curr_month_str)]
-                    
-                    # 2. 核心修正：將編輯後的表格轉回清單（會自動排除已在介面刪除的列）
                     updated_curr = []
                     for _, row in edited_incomes.iterrows():
-                        # 過濾掉空值行，並確保內容完整
+                        # 只要您有打勾，這筆資料就會被拋棄（等同刪除）
+                        if row.get("🗑️ 刪除", False): 
+                            continue 
+                            
                         if pd.notna(row['日期']) and pd.notna(row['項目']) and pd.notna(row['金額']):
-                            updated_curr.append({
-                                "date": str(row['日期']),
-                                "item": str(row['項目']),
-                                "amount": int(row['金額'])
-                            })
+                            updated_curr.append({"date": str(row['日期']), "item": str(row['項目']), "amount": int(row['金額'])})
                     
-                    # 3. 重新寫入資料庫
                     pf_data['incomes'] = other_month_incomes + updated_curr
                     save_to_json(st.session_state.my_data)
-                    st.success("收入清單已成功更新！")
+                    st.success("✅ 收入清單已成功更新！")
                     st.rerun()
             else:
                 st.info("本月尚無任何收入紀錄。")
@@ -1502,28 +1530,34 @@ if st.session_state.show_secret:
                 df_expenses = pd.DataFrame(curr_month_expenses).sort_values(by="date", ascending=False)
                 df_expenses = df_expenses.rename(columns={"date": "日期", "item": "項目", "amount": "金額"})
                 
+                # 💡 核心升級：直接加入一個實體的刪除勾選欄位
+                df_expenses.insert(0, "🗑️ 刪除", False)
+                
                 edited_expenses = st.data_editor(
-                    df_expenses, num_rows="dynamic", use_container_width=True, hide_index=True, key="expense_editor"
+                    df_expenses, 
+                    num_rows="dynamic", 
+                    use_container_width=True, 
+                    hide_index=True, 
+                    key="expense_editor",
+                    column_config={
+                        "🗑️ 刪除": st.column_config.CheckboxColumn("打勾刪除此筆", default=False)
+                    }
                 )
                 
-                if st.button("💾 更新 / 刪除支出清單", use_container_width=True):
-                    # 1. 保留其他月份的資料
+                if st.button("💾 確認更新 / 刪除勾選的支出", use_container_width=True):
                     other_month_expenses = [e for e in pf_data['expenses'] if not e['date'].startswith(curr_month_str)]
-                    
-                    # 2. 核心修正：將編輯後的表格轉回清單
                     updated_curr = []
                     for _, row in edited_expenses.iterrows():
+                        # 只要您有打勾，這筆資料就會被拋棄（等同刪除）
+                        if row.get("🗑️ 刪除", False):
+                            continue 
+                            
                         if pd.notna(row['日期']) and pd.notna(row['項目']) and pd.notna(row['金額']):
-                            updated_curr.append({
-                                "date": str(row['日期']),
-                                "item": str(row['項目']),
-                                "amount": int(row['金額'])
-                            })
+                            updated_curr.append({"date": str(row['日期']), "item": str(row['項目']), "amount": int(row['金額'])})
                     
-                    # 3. 重新寫入資料庫
                     pf_data['expenses'] = other_month_expenses + updated_curr
                     save_to_json(st.session_state.my_data)
-                    st.success("支出清單已成功更新！")
+                    st.success("✅ 支出清單已成功更新！")
                     st.rerun()
             else:
                 st.info("本月尚無任何支出紀錄。")
