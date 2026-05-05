@@ -214,7 +214,9 @@ def load_settings():
         "pledge": {"borrowed_amount": 0},
         "watchlist": [],
         "custom_divs": {
-            "00878.TW": {"v": 0.660, "d": "2026-05-18", "p": "2026-06-15"}
+            "00891.TW": {"v": 1.250, "d": "2026-05-20", "p": "2026-06-15"},
+            "00878.TW": {"v": 0.510, "d": "2026-05-18", "p": "2026-06-12"},
+            "00982A.TW": {"v": 0.377, "d": "2026-05-21", "p": "2026-06-18"}
         },
         "personal_finance": {"incomes": [], "expenses": []}
     }
@@ -224,6 +226,10 @@ def load_settings():
                 data = json.load(f)
                 for k, v in default_data.items():
                     if k not in data: data[k] = v
+                
+                # 🔥 強制將程式碼中的手動配息資料更新進你的存檔中
+                data['custom_divs'].update(default_data['custom_divs'])
+                
                 return data
         except: pass
     return default_data
@@ -400,52 +406,85 @@ def toggle_pledge(): st.session_state.show_pledge = not st.session_state.show_pl
 def toggle_secret(): st.session_state.show_secret = not st.session_state.show_secret
 
 # ==============================================================================
-# 🔥 [方案 A] 台灣證券交易所 (TWSE) 官方 API：除權息預告表 (TWT49U)
+# 🔥 [升級版] 台灣證券交易所 (TWSE) + 櫃買中心 (TPEx) 官方除權息預告
 # ==============================================================================
 @st.cache_data(ttl=10800) 
-def fetch_twse_upcoming_dividends():
+def fetch_taiwan_upcoming_dividends():
     """
-    批次抓取 TWSE 官方的「近期即將除權息」名單 (TWT49U)。
+    批次抓取 TWSE (上市) 與 TPEx (上櫃) 的「近期即將除權息」名單，確保所有 ETF 不漏接。
     """
-    twse_div_data = {}
+    tw_div_data = {}
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+    
+    # 1. 抓取 TWSE (上市) TWT49U
     try:
-        url = "https://www.twse.com.tw/exchangeReport/TWT49U?response=json"
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-        res = requests.get(url, headers=headers, timeout=5)
+        url_twse = "https://www.twse.com.tw/exchangeReport/TWT49U?response=json"
+        res = requests.get(url_twse, headers=headers, timeout=5)
         data = res.json()
         
         if data.get('stat') == 'OK':
             import re
             for row in data.get('data', []):
-                if len(row) < 3: continue
-                date_str = str(row[0])      
-                symbol = str(row[1]).strip() 
-                
-                match = re.search(r'(\d+)年(\d+)月(\d+)日', date_str)
-                if match:
-                    tw_year, month, day = match.groups()
-                    ex_date = f"{int(tw_year) + 1911}-{month.zfill(2)}-{day.zfill(2)}"
+                if len(row) >= 8: # TWSE 現金股利通常在 index 7 或 8
+                    date_str = str(row[0])      
+                    symbol = str(row[1]).strip() 
                     
-                    amount = 0.0
-                    try:
-                        for idx in range(len(row)-1, 3, -1):
-                            val_str = str(row[idx]).replace(',', '').strip()
-                            if '.' in val_str and val_str.replace('.', '', 1).isdigit():
-                                amount = float(val_str)
-                                if amount > 0: break
-                    except: pass
-                    
-                    pay_date_obj = datetime.strptime(ex_date, '%Y-%m-%d') + timedelta(days=28)
-                    pay_date = pay_date_obj.strftime('%Y-%m-%d')
-                    
-                    twse_div_data[symbol] = {
-                        "ex_date": ex_date,
-                        "pay_date": pay_date,
-                        "amount": amount
-                    }
+                    match = re.search(r'(\d+)年(\d+)月(\d+)日', date_str)
+                    if match:
+                        tw_year, month, day = match.groups()
+                        ex_date = f"{int(tw_year) + 1911}-{month.zfill(2)}-{day.zfill(2)}"
+                        
+                        amount = 0.0
+                        # 精準抓取現金股利欄位 (Index 7)
+                        cash_div_str = str(row[7]).replace(',', '').strip()
+                        if cash_div_str and cash_div_str.replace('.', '', 1).isdigit():
+                            amount = float(cash_div_str)
+                        
+                        pay_date_obj = datetime.strptime(ex_date, '%Y-%m-%d') + timedelta(days=28)
+                        pay_date = pay_date_obj.strftime('%Y-%m-%d')
+                        
+                        tw_div_data[symbol] = {
+                            "ex_date": ex_date,
+                            "pay_date": pay_date,
+                            "amount": amount
+                        }
     except Exception as e:
         pass
-    return twse_div_data
+
+    # 2. 抓取 TPEx (上櫃) 除權息預告
+    try:
+        url_tpex = "https://www.tpex.org.tw/web/stock/exright/preAnnounce/PrePost_result.php?l=zh-tw&o=json"
+        res_tpex = requests.get(url_tpex, headers=headers, timeout=5)
+        data_tpex = res_tpex.json()
+        if 'aaData' in data_tpex:
+            for row in data_tpex['aaData']:
+                if len(row) >= 6:
+                    date_str = str(row[0]) # 格式: 113/05/17
+                    symbol = str(row[1]).strip()
+                    
+                    parts = date_str.split('/')
+                    if len(parts) == 3:
+                        tw_year, month, day = parts
+                        ex_date = f"{int(tw_year) + 1911}-{month.zfill(2)}-{day.zfill(2)}"
+                        
+                        amount = 0.0
+                        # TPEx 現金股利通常在 index 5
+                        cash_div_str = str(row[5]).replace(',', '').strip()
+                        if cash_div_str and cash_div_str.replace('.', '', 1).isdigit():
+                            amount = float(cash_div_str)
+                            
+                        pay_date_obj = datetime.strptime(ex_date, '%Y-%m-%d') + timedelta(days=28)
+                        pay_date = pay_date_obj.strftime('%Y-%m-%d')
+                        
+                        tw_div_data[symbol] = {
+                            "ex_date": ex_date,
+                            "pay_date": pay_date,
+                            "amount": amount
+                        }
+    except Exception as e:
+        pass
+        
+    return tw_div_data
 
 # ==============================================================================
 # 🔥 獨立快取的「基金規模探測器」
@@ -466,7 +505,7 @@ def get_fund_size(symbol):
         pass
     return None
 
-# --- 🎯 抓取除權息資料 (結合 TWSE 與 Yahoo) ---
+# --- 🎯 抓取除權息資料 (結合 官方預告 與 Yahoo) ---
 @st.cache_data(ttl=43200)
 def get_div_data(symbol, custom_div_info=None):
     is_announced = False
@@ -477,8 +516,7 @@ def get_div_data(symbol, custom_div_info=None):
     status_msg = "⏳ 依前次估算"
     
     clean_sym = symbol.replace('.TW', '')
-    
-    twse_data = fetch_twse_upcoming_dividends()
+    taiwan_div_data = fetch_taiwan_upcoming_dividends()
     
     try:
         tk = yf.Ticker(symbol)
@@ -490,39 +528,53 @@ def get_div_data(symbol, custom_div_info=None):
             ex_date = custom_div_info['d']
             pay_date = custom_div_info['p']
             is_announced = True
-            status_msg = "✅ 已公告 (手動)"
             
-        # 🚀 優先權 2：TWSE 台灣證券交易所 API
-        elif clean_sym in twse_data:
+            ex_date_obj = datetime.strptime(ex_date, '%Y-%m-%d')
+            if ex_date_obj.date() >= today.date():
+                status_msg = "✅ 已公告 (手動)"
+            else:
+                status_msg = "✅ 前次紀錄 (手動)"
+            
+        # 🚀 優先權 2：官方除權息預告 (TWSE + TPEx)
+        elif clean_sym in taiwan_div_data:
             is_announced = True
-            ex_date = twse_data[clean_sym]['ex_date']
-            pay_date = twse_data[clean_sym]['pay_date']
-            twse_amount = twse_data[clean_sym]['amount']
-            status_msg = "✅ 已公告 (TWSE)"
+            ex_date = taiwan_div_data[clean_sym]['ex_date']
+            pay_date = taiwan_div_data[clean_sym]['pay_date']
+            official_amount = taiwan_div_data[clean_sym]['amount']
             
-            if twse_amount > 0:
-                div_amount = twse_amount
+            if official_amount > 0:
+                div_amount = official_amount
             else:
                 actions = tk.actions
                 if not actions.empty:
                     latest = actions.sort_index(ascending=False).head(1)
                     div_amount = float(latest['Dividends'].values[0])
                     
-        # 📡 優先權 3：常規 Yahoo Finance API
+            ex_date_obj = datetime.strptime(ex_date, '%Y-%m-%d')
+            if ex_date_obj.date() >= today.date():
+                status_msg = "✅ 已公告 (台灣官方)"
+            else:
+                status_msg = "✅ 前次配息 (台灣官方)"
+                    
+        # 📡 優先權 3：常規 Yahoo Finance API (🔥 完全移除過期重置限制)
         else:
-            actions = tk.actions
-            if not actions.empty:
-                latest = actions.sort_index(ascending=False).head(1)
-                div_amount = float(latest['Dividends'].values[0]) 
-                last_ex_date_obj = latest.index[0].replace(tzinfo=None)
+            divs = tk.dividends
+            if not divs.empty:
+                latest_div = divs.sort_index(ascending=False).head(1)
+                div_amount = float(latest_div.values[0]) 
+                last_ex_date_obj = latest_div.index[0].replace(tzinfo=None)
                 
+                ex_date = last_ex_date_obj.strftime('%Y-%m-%d')
+                pay_date = (last_ex_date_obj + timedelta(days=28)).strftime('%Y-%m-%d') 
+                is_announced = True
+                
+                # 依據日期是否已過，動態給予正確的標籤
                 if last_ex_date_obj.date() >= today.date():
-                    ex_date = last_ex_date_obj.strftime('%Y-%m-%d')
-                    pay_date = (last_ex_date_obj + timedelta(days=28)).strftime('%Y-%m-%d') 
-                    is_announced = True
-                    status_msg = "✅ 已公告 (Yahoo)"
+                    status_msg = "✅ 已公告 (近期)"
+                else:
+                    status_msg = "✅ 前次配息紀錄"
 
-        # 填息計算
+        # 填息計算邏輯保持不變
         hist = tk.history(period='1y')
         divs = tk.dividends
         if not divs.empty and not hist.empty:
@@ -1146,10 +1198,17 @@ if st.session_state.show_tech:
                         etf['alert_low'] = row['設定低標(停損)']
                         has_changes = True
                     break
+                    
         if has_changes:
             save_to_json(st.session_state.my_data)
             st.cache_data.clear()
             st.rerun()
+
+        # 👇 依照要求，將「詳細持股清單與內扣費率」移到股價監控這裡的下方
+        st.write("")
+        st.markdown("#### 📊 詳細持股清單與內扣費率")
+        st.dataframe(df.style.format({"現價":"{:.2f}", "均價":"{:.2f}", "市值":"{:,.0f}", "損益":"{:,.0f}"}), use_container_width=True, hide_index=True)
+
     else:
         st.markdown("#### 📡 庫存價格區間監控")
         st.info("目前無庫存標的。")
@@ -1209,9 +1268,6 @@ if st.session_state.show_holdings:
                 with col_l: st.write(f"張數: **{row['張數']}**"); st.write(f"現價: **{row['現價']:.2f}**"); st.caption(f"均價: {row['均價']:.2f}")
                 with col_m: st.markdown(f"市值: **${row['市值']:,.0f}**"); st.markdown(f"預估淨利: :{p_color}[**${row['損益']:,.0f}**]")
                 with col_r: st.markdown(f"單次領息估算: :orange[**${row['單次預估領息']:,.0f}**]"); st.caption(f"📅 最新除息日: {row['最新公告除息日']} ({status_badge})")
-        
-        st.markdown("#### 📊 詳細持股清單與內扣費率")
-        st.dataframe(df.style.format({"現價":"{:.2f}", "均價":"{:.2f}", "市值":"{:,.0f}", "損益":"{:,.0f}"}), use_container_width=True, hide_index=True)
     else:
         st.info("⚠️ 目前尚無持股資料。請至下方「⚙️ 標的管理」新增您的庫存！")
     st.write("---")
@@ -1650,7 +1706,7 @@ with bot_c1:
     if st.button("🔄 手動重新整理股價", use_container_width=True):
         fetch_data.clear()
         fetch_watchlist_dividend.clear()
-        fetch_twse_upcoming_dividends.clear() # 讓系統也能強制更新 TWSE 資訊
+        fetch_taiwan_upcoming_dividends.clear() # 已更新：讓系統也能強制更新雙軌官方資訊
         st.rerun()
 
 with bot_c2:
