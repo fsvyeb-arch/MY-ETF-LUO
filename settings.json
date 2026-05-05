@@ -35,6 +35,15 @@
             "alert_high": 0.0,
             "alert_low": 0.0,
             "pledged_shares": 6.0
+        },
+        {
+            "symbol": "00982A.TW",
+            "name": "00982A 群益台灣精選強棒主動式",
+            "holdings": 1.0,
+            "cost": 22.06,
+            "alert_high": 0.0,
+            "alert_low": 0.0,
+            "pledged_shares": 0.0
         }
     ],
     "loan": {
@@ -60,10 +69,6 @@
         {
             "symbol": "00878.TW",
             "name": "00878 國泰永續高股息"
-        },
-        {
-            "symbol": "00982A.TW",
-            "name": "00982A 群益台灣精選強棒主動式"
         }
     ],
     "custom_divs": {

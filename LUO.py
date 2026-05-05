@@ -117,7 +117,7 @@ ETF_FULL_DATABASE = {
     "00878": ["國泰永續ESG高股息", [2, 5, 8, 11], "0.25%", "0.035%"],
     "00881": ["國泰台灣5G+", [1, 8], "0.4%", "0.035%"],
     "00888": ["永豐台灣ESG永續優質", [1, 4, 7, 10], "0.25%", "0.03%"],
-    "00891": ["中信關鍵半導體", [1, 4, 7, 10], "0.4%", "0.035%"],
+    "00891": ["中信關鍵半導體", [2, 5, 8, 11], "0.4%", "0.035%"],
     "00892": ["富邦台灣核心半導體", [], "0.4%", "0.035%"],
     "00894": ["中信特選小資高價30", [2, 5, 8, 11], "0.4%", "0.035%"],
     "00896": ["中信綠能及電動車", [3, 6, 9, 12], "0.4%", "0.035%"],
@@ -274,7 +274,6 @@ if last_m_chb != now_str:
         loan_chb_data['last_updated_month'] = now_str
         save_to_json(st.session_state.my_data)
 
-
 if 'pledge' not in st.session_state.my_data: st.session_state.my_data['pledge'] = {"borrowed_amount": 0}
 for etf in st.session_state.my_data['etfs']:
     if 'pledged_shares' not in etf: etf['pledged_shares'] = 0.0
@@ -319,7 +318,6 @@ def save_edits():
     st.session_state.my_data['etfs'] = temp_list
     save_to_json(st.session_state.my_data)
 
-# --- 自選股 Callback ---
 def auto_fill_wl_name():
     raw_sym = st.session_state.get('add_sym_wl', '')
     clean_sym = raw_sym.strip().upper().replace(".TW", "")
@@ -471,6 +469,33 @@ def render_macro_cards(data_dict, region_prefix):
             st.markdown(html, unsafe_allow_html=True)
         idx += 1
 
+# ==============================================================================
+# 🔥 新增功能：獨立快取的「基金規模探測器」
+# Yahoo 的 fast_info 經常遺漏 ETF 市值，我們改用 24 小時一次的深度探測，不拖慢系統！
+# ==============================================================================
+@st.cache_data(ttl=86400) # 一天只抓一次
+def get_fund_size(symbol):
+    try:
+        tk = yf.Ticker(symbol)
+        
+        # 1. 嘗試直接抓 fast_info 的 marketCap
+        cap = tk.fast_info.get('marketCap')
+        if cap and cap > 0: return cap
+        
+        # 2. 如果沒有，嘗試用 總發行股數 * 現價 推算
+        shares = tk.fast_info.get('shares')
+        price = tk.fast_info.get('lastPrice') or tk.fast_info.get('previousClose')
+        if shares and price: return shares * price
+        
+        # 3. 再沒有，才去撈比較慢的 .info 裡面的 totalAssets 或 marketCap
+        info = tk.info
+        cap = info.get('totalAssets') or info.get('marketCap')
+        if cap and cap > 0: return cap
+        
+    except Exception:
+        pass
+    return None
+
 # --- 🎯 抓取自選股資料 ---
 @st.cache_data(ttl=10)
 def fetch_watchlist_data(wl_list):
@@ -499,10 +524,6 @@ def fetch_watchlist_data(wl_list):
         except Exception: continue
     return pd.DataFrame(results)
 
-# ==============================================================================
-# 🔥 重裝引擎：處理「除權息與填息」
-# 導入 custom_div_info 參數，允許總司令手動覆蓋設定！
-# ==============================================================================
 @st.cache_data(ttl=86400)
 def get_div_data(symbol, custom_div_info=None):
     is_announced, div_amount, ex_date, pay_date = False, 0.0, "待官方公告", "待官方公告"
@@ -558,7 +579,7 @@ def get_div_data(symbol, custom_div_info=None):
     return is_announced, div_amount, ex_date, pay_date, fill_status
 
 
-# --- 🎯 抓取自選股除權息資料 (含新增的資本額) ---
+# --- 🎯 抓取自選股除權息資料 ---
 @st.cache_data(ttl=86400)
 def fetch_watchlist_dividend(wl_list, custom_divs):
     if not wl_list: return pd.DataFrame()
@@ -566,11 +587,10 @@ def fetch_watchlist_dividend(wl_list, custom_divs):
     for item in wl_list:
         sym = item['symbol']
         try:
-            tk = yf.Ticker(sym)
-            cap_raw = tk.fast_info.get('marketCap')
-            cap_str = f"{cap_raw / 100000000:.2f} 億" if cap_raw else "未提供"
+            # 使用我們新寫好的獨立快取函數抓取基金規模
+            cap_raw = get_fund_size(sym)
+            cap_str = f"{cap_raw / 100000000:.2f} 億" if cap_raw else "系統無資料"
 
-            # 傳遞覆蓋資料
             custom_info = custom_divs.get(sym)
             is_announced, div_amount, ex_date, pay_date, fill_status = get_div_data(sym, custom_info)
             
@@ -578,7 +598,7 @@ def fetch_watchlist_dividend(wl_list, custom_divs):
             freq = "月配息" if len(months)==12 else "季配息" if len(months)==4 else "半年配" if len(months)==2 else "年配息" if len(months)==1 else "未知"
 
             results.append({
-                "類別": "👀 自選", "ETF 名稱": item['name'], "資本額": cap_str,  
+                "類別": "👀 自選", "ETF 名稱": item['name'], "基金規模": cap_str,  
                 "配息頻率": freq, "配息月份": "、".join(map(str, months)) + " 月" if months else "未設定",
                 "狀態": "✅ 已公告" if is_announced else "⏳ 依前次估算", 
                 "除息日": ex_date, "發放日": pay_date, "每股金額": f"${div_amount:.3f}", "最新填息紀錄": fill_status
@@ -588,7 +608,7 @@ def fetch_watchlist_dividend(wl_list, custom_divs):
     return pd.DataFrame(results)
 
 
-# --- 4. 核心數據計算 (含新增的資本額) ---
+# --- 4. 核心數據計算 ---
 @st.cache_data(ttl=10)
 def fetch_data(etf_list, custom_divs):
     if not etf_list: return pd.DataFrame(), pd.DataFrame(), 0, 0, 0, 0, [], [], [], {i: {"amount": 0, "sources": []} for i in range(1, 13)}
@@ -602,8 +622,9 @@ def fetch_data(etf_list, custom_divs):
         try:
             tk = yf.Ticker(item['symbol'])
             
-            cap_raw = tk.fast_info.get('marketCap')
-            cap_str = f"{cap_raw / 100000000:.2f} 億" if cap_raw else "未提供"
+            # 使用獨立快取函數抓取基金規模
+            cap_raw = get_fund_size(item['symbol'])
+            cap_str = f"{cap_raw / 100000000:.2f} 億" if cap_raw else "系統無資料"
 
             hist = tk.history(period='5d') 
             if hist.empty: continue
@@ -652,7 +673,6 @@ def fetch_data(etf_list, custom_divs):
             if a_high > 0 and curr_p >= a_high: price_alerts.append({"name": item['name'], "price": curr_p, "target": a_high, "type": "high"})
             if a_low > 0 and curr_p <= a_low: price_alerts.append({"name": item['name'], "price": curr_p, "target": a_low, "type": "low"})
 
-            # 傳遞覆蓋資料
             custom_info = custom_divs.get(item['symbol'])
             is_announced, div_amount, ex_date, pay_date, fill_status = get_div_data(item['symbol'], custom_info)
 
@@ -695,7 +715,7 @@ def fetch_data(etf_list, custom_divs):
                 "經理費": fee_info["經理費"], "保管費": fee_info["保管費"], 
                 "單次預估領息": shares * div_amount, "每股配息": div_amount,
                 "最新公告除息日": ex_date, "預估發放日": pay_date, "已公告": is_announced,
-                "最新填息紀錄": fill_status, "資本額": cap_str
+                "最新填息紀錄": fill_status, "基金規模": cap_str
             })
             
             tech_results.append({
@@ -709,7 +729,6 @@ def fetch_data(etf_list, custom_divs):
         
     return pd.DataFrame(results), pd.DataFrame(tech_results), total_mkt, total_cost, total_div, total_today_pnl, radar_ex, radar_pay, price_alerts, monthly_calendar
 
-# 傳遞手動覆蓋資料庫進行計算
 df, df_tech, g_mkt, g_cost, g_div, g_today_pnl, radar_ex, radar_pay, price_alerts, monthly_calendar = fetch_data(st.session_state.my_data['etfs'], st.session_state.my_data.get('custom_divs', {}))
 macro_data = fetch_macro_data()
 
@@ -909,17 +928,16 @@ if st.session_state.show_calendar:
         """, unsafe_allow_html=True)
     st.write("---")
 
-# --- 📂 展開除權息 (加入了資本額顯示 與 總司令手動覆蓋面板) ---
+# --- 📂 展開除權息 ---
 if st.session_state.show_div_db:
     
     col_d1, col_d2 = st.columns([7, 3])
     with col_d1:
         st.markdown("#### 📚 專屬 ETF 與自選股 除權息時程總覽")
     with col_d2:
-        # 🔥 按鈕優化：加入 Spinner 與全域清除，解決按了沒反應的錯覺
         if st.button("🔄 強制抓取最新公告", type="primary", use_container_width=True):
             with st.spinner("🚀 強制清洗快取並重新連線抓取中..."):
-                time.sleep(0.6) # 微小延遲讓使用者感受到重新載入的過程
+                time.sleep(0.6)
                 st.cache_data.clear() 
             st.session_state.update_success = "已強制重新抓取最新資料！"
             st.rerun()
@@ -933,7 +951,7 @@ if st.session_state.show_div_db:
             db_list.append({
                 "類別": "💼 庫存",
                 "ETF 名稱": row['名稱'], 
-                "資本額": row.get('資本額', '未提供'),  
+                "基金規模": row.get('基金規模', '系統無資料'),
                 "配息頻率": freq, 
                 "配息月份": "、".join(map(str, months)) + " 月" if months else "未設定",
                 "狀態": "✅ 已公告" if row['已公告'] else "⏳ 依前次估算", 
@@ -959,7 +977,7 @@ if st.session_state.show_div_db:
     else:
         st.info("目前尚無庫存或自選股，因此無除權息資料可顯示。")
         
-    # 🔥 總司令專屬手動覆蓋面板 (再也不用怕寫死代碼或 Yahoo 更新太慢)
+    # 🔥 總司令專屬手動覆蓋面板
     with st.expander("🛠️ 總司令專屬：手動配息覆蓋面板 (修正 Yahoo 資料庫延遲)", expanded=False):
         st.caption("💡 投信剛公告但系統尚未抓到時，可直接在下方表格雙擊修改，按下儲存即可全站套用！(代號務必加上 .TW)")
         
@@ -1037,7 +1055,7 @@ if st.session_state.show_tech:
         
     st.write("---")
     
-    # --- 整合在展開股價監控內的自選股區域 ---
+    # --- 自選股區域 ---
     st.markdown("#### 👀 自選股觀察清單")
     st.caption("追蹤您尚未入手、正在觀察的標的")
     
