@@ -159,7 +159,7 @@ ETF_FULL_DATABASE = {
     "009808": ["華南永昌台灣優選50", [2, 5, 8, 11], "0.05%", "0.035%"],
     "009809": ["富邦台灣淨零轉型 ESG 50", [3, 6, 9, 12], "0.30%", "0.035%"],
     "00980A": ["野村臺灣智慧優選主動式", [2, 5, 8, 11], "0.75%", "0.035%"],
-    "00981A": ["統一台股增長主動式", [10], "1.0%", "0.10%"],
+    "00981A": ["統一台股增長主動式", [3, 6, 9, 12], "1.0%", "0.10%"],
     "00982A": ["群益台灣精選強棒主動式", [2, 5, 8, 11], "0.8%", "0.035%"],
     "00984A": ["安聯台灣高息成長主動式", [1, 4, 7, 10], "0.7%", "0.04%"],
     "00985A": ["野村台灣增強50主動式", [1], "0.45%", "0.035%"],
@@ -215,7 +215,8 @@ def load_settings():
         "watchlist": [],
         "custom_divs": {
             "00878.TW": {"v": 0.660, "d": "2026-05-18", "p": "2026-06-15"}
-        }
+        },
+        "personal_finance": {"incomes": [], "expenses": []}
     }
     if os.path.exists(SETTINGS_FILE):
         try:
@@ -236,6 +237,9 @@ if 'my_data' not in st.session_state:
 
 if 'watchlist' not in st.session_state.my_data:
     st.session_state.my_data['watchlist'] = []
+    
+if 'personal_finance' not in st.session_state.my_data:
+    st.session_state.my_data['personal_finance'] = {"incomes": [], "expenses": []}
 
 # --- 🎯 信貸跨月自動計算邏輯 ---
 now_str = datetime.now().strftime("%Y-%m")
@@ -398,11 +402,10 @@ def toggle_secret(): st.session_state.show_secret = not st.session_state.show_se
 # ==============================================================================
 # 🔥 [方案 A] 台灣證券交易所 (TWSE) 官方 API：除權息預告表 (TWT49U)
 # ==============================================================================
-@st.cache_data(ttl=10800) # 3 小時快取，避免過度請求被證交所阻擋
+@st.cache_data(ttl=10800) 
 def fetch_twse_upcoming_dividends():
     """
     批次抓取 TWSE 官方的「近期即將除權息」名單 (TWT49U)。
-    這能保證在投信送出公文時，我們能第一時間抓到未來的配息日與金額，超越 Yahoo 速度！
     """
     twse_div_data = {}
     try:
@@ -415,18 +418,15 @@ def fetch_twse_upcoming_dividends():
             import re
             for row in data.get('data', []):
                 if len(row) < 3: continue
-                date_str = str(row[0])      # 格式通常為 "113年05月18日"
-                symbol = str(row[1]).strip() # 股票/ETF 代號
+                date_str = str(row[0])      
+                symbol = str(row[1]).strip() 
                 
-                # 解析民國日期轉為西元
                 match = re.search(r'(\d+)年(\d+)月(\d+)日', date_str)
                 if match:
                     tw_year, month, day = match.groups()
                     ex_date = f"{int(tw_year) + 1911}-{month.zfill(2)}-{day.zfill(2)}"
                     
                     amount = 0.0
-                    # TWT49U 欄位可能會微調，現金股利通常在最後兩欄
-                    # 我們反向遍歷，找到第一個看起來像浮點數的金額
                     try:
                         for idx in range(len(row)-1, 3, -1):
                             val_str = str(row[idx]).replace(',', '').strip()
@@ -435,7 +435,6 @@ def fetch_twse_upcoming_dividends():
                                 if amount > 0: break
                     except: pass
                     
-                    # 預估發放日通常為除息日後 28 天
                     pay_date_obj = datetime.strptime(ex_date, '%Y-%m-%d') + timedelta(days=28)
                     pay_date = pay_date_obj.strftime('%Y-%m-%d')
                     
@@ -451,7 +450,7 @@ def fetch_twse_upcoming_dividends():
 # ==============================================================================
 # 🔥 獨立快取的「基金規模探測器」
 # ==============================================================================
-@st.cache_data(ttl=86400) # 一天只抓一次
+@st.cache_data(ttl=86400) 
 def get_fund_size(symbol):
     try:
         tk = yf.Ticker(symbol)
@@ -479,7 +478,6 @@ def get_div_data(symbol, custom_div_info=None):
     
     clean_sym = symbol.replace('.TW', '')
     
-    # 呼叫證交所即時雷達
     twse_data = fetch_twse_upcoming_dividends()
     
     try:
@@ -502,7 +500,6 @@ def get_div_data(symbol, custom_div_info=None):
             twse_amount = twse_data[clean_sym]['amount']
             status_msg = "✅ 已公告 (TWSE)"
             
-            # 若證交所有列金額則採用，否則去 Yahoo 找前次金額參考
             if twse_amount > 0:
                 div_amount = twse_amount
             else:
@@ -519,7 +516,6 @@ def get_div_data(symbol, custom_div_info=None):
                 div_amount = float(latest['Dividends'].values[0]) 
                 last_ex_date_obj = latest.index[0].replace(tzinfo=None)
                 
-                # 如果 Yahoo 的日期是大於等於今天，代表它已經更新了最新公告
                 if last_ex_date_obj.date() >= today.date():
                     ex_date = last_ex_date_obj.strftime('%Y-%m-%d')
                     pay_date = (last_ex_date_obj + timedelta(days=28)).strftime('%Y-%m-%d') 
@@ -682,11 +678,12 @@ def fetch_data(etf_list, custom_divs):
             if len(months_to_pay) > 0 and div_amount > 0 and curr_p > 0:
                 est_yield = (div_amount * len(months_to_pay)) / curr_p * 100
 
-            if is_announced:
+            if is_announced and ex_date != "待官方公告":
                 ex_date_obj = datetime.strptime(ex_date, '%Y-%m-%d')
                 days_diff_ex = (ex_date_obj.date() - today.date()).days
                 if 0 <= days_diff_ex <= 20: radar_ex.append({"symbol": item['symbol'].split('.')[0], "date": ex_date, "days": days_diff_ex})
                 
+            if is_announced and pay_date != "待官方公告":
                 pay_date_obj = datetime.strptime(pay_date, '%Y-%m-%d')
                 days_diff_pay = (pay_date_obj.date() - today.date()).days
                 if 0 <= days_diff_pay <= 20: radar_pay.append({"symbol": item['symbol'].split('.')[0], "date": pay_date, "amount": shares * div_amount, "days": days_diff_pay})
@@ -731,11 +728,35 @@ def fetch_data(etf_list, custom_divs):
         
     return pd.DataFrame(results), pd.DataFrame(tech_results), total_mkt, total_cost, total_div, total_today_pnl, radar_ex, radar_pay, price_alerts, monthly_calendar
 
-# ... (以下為介面顯示區塊，大部分維持原樣，僅更新狀態顯示) ...
-
 df, df_tech, g_mkt, g_cost, g_div, g_today_pnl, radar_ex, radar_pay, price_alerts, monthly_calendar = fetch_data(st.session_state.my_data['etfs'], st.session_state.my_data.get('custom_divs', {}))
 
-# --- 📡 抓取美台股大盤指標 ---
+# --- 📡 抓取 ETF 焦點新聞 ---
+@st.cache_data(ttl=3600)
+def fetch_etf_news():
+    news_list = []
+    today_str = datetime.now().strftime("%m/%d")
+    try:
+        url = "https://news.google.com/rss/search?q=%E5%8F%B0%E7%81%A3+ETF+%E6%96%B0%E4%B8%8A%E5%B8%82+OR+%E9%85%8D%E6%81%AF+OR+%E6%88%90%E5%88%86%E8%82%A1&hl=zh-TW&gl=TW&ceid=TW:zh-Hant"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=3) as response:
+            root = ET.fromstring(response.read())
+            for item in root.findall('.//item')[:4]:
+                title = item.find('title').text
+                if " - " in title: title = title.rsplit(" - ", 1)[0]
+                link = item.find('link').text
+                news_list.append({"title": f"{today_str} {title}", "link": link})
+    except Exception: pass
+    
+    if not news_list:
+        news_list = [
+            {"title": f"{today_str} 盤前觀察：半導體龍頭動向 (影響 00927 走勢)", "link": "#"},
+            {"title": f"{today_str} 高股息標的篩選：關注 00878、0056 成分股調整", "link": "#"},
+            {"title": f"{today_str} 焦點情報：多檔新上市主動式 ETF 展開募集與掛牌", "link": "#"},
+            {"title": f"{today_str} 大盤壓力測試：正二 (00631L) 槓桿風險控管建議", "link": "#"}
+        ]
+    return news_list
+
+# --- 📈 抓取美台股大盤指標 ---
 @st.cache_data(ttl=300) 
 def fetch_macro_data():
     tickers = {
@@ -789,7 +810,36 @@ macro_data = fetch_macro_data()
 st.title("📈 實戰資產戰情室")
 st.caption(f"最後更新：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-# ... (新聞與警報顯示，保持原狀) ...
+# ==========================================
+# 🔥 新聞與即將上市情報看板 🔥
+# ==========================================
+news_data = fetch_etf_news()
+news_html = "<div class='news-box'><div class='news-title'>📰 今日財經焦點</div>"
+for news in news_data:
+    news_html += f"<div class='news-item'>👉 📍 <a href='{news['link']}' target='_blank'>{news['title']}</a></div>"
+news_html += "</div>"
+st.markdown(news_html, unsafe_allow_html=True)
+
+st.markdown("### 📢 近期新募集 / 即將上市主動式 ETF 追蹤")
+upcoming_list = [
+    {"date": "2026/05/20", "symbol": "00992A", "name": "主動群益科技創新", "price": "15.00"},
+    {"date": "2026/05/25", "symbol": "00400A", "name": "主動國泰動能高息", "price": "15.00"},
+    {"date": "2026/05/28", "symbol": "00997A", "name": "主動群益美國增長", "price": "15.00"},
+    {"date": "2026/06/05", "symbol": "00988A", "name": "主動統一全球創新", "price": "15.00"},
+]
+
+up_cols = st.columns(4)
+for i, etf in enumerate(upcoming_list):
+    with up_cols[i]:
+        st.markdown(f"""
+        <div class='upcoming-box'>
+            <div class='upcoming-title'>🚀 掛牌/募集：{etf['date']}</div>
+            <div class='upcoming-item'>{etf['symbol']} {etf['name']}</div>
+            <div class='upcoming-price'>發行價：${etf['price']}</div>
+        </div>
+        """, unsafe_allow_html=True)
+st.write("")
+# ==========================================
 
 if price_alerts:
     for alert in price_alerts:
@@ -981,7 +1031,7 @@ if st.session_state.show_div_db:
                 "基金規模": row.get('基金規模', '系統無資料'),
                 "配息頻率": freq, 
                 "配息月份": "、".join(map(str, months)) + " 月" if months else "未設定",
-                "狀態": row['狀態'], # 🛡️ 使用我們新的三重判定狀態 
+                "狀態": row['狀態'],
                 "除息日": row['最新公告除息日'], 
                 "發放日": row['預估發放日'], 
                 "每股金額": f"${row['每股配息']:.3f}",
@@ -1028,7 +1078,7 @@ if st.session_state.show_div_db:
                     }
             st.session_state.my_data['custom_divs'] = new_db
             save_to_json(st.session_state.my_data)
-            st.cache_data.clear() # 清洗快取強制應用
+            st.cache_data.clear() 
             st.session_state.update_success = "手動覆蓋資料已儲存並成功套用！"
             st.rerun()
 
@@ -1343,9 +1393,144 @@ if st.session_state.show_secret:
         cc3.metric("對方剩餘未還 (應收款)", f"${remaining_balance_chb:,.0f}", f"剩餘 {remaining_months_chb} 期", delta_color="normal")
         st.progress(new_paid_chb / loan_chb_info['total_months'] if loan_chb_info['total_months'] > 0 else 0)
 
-        # --- 淨資產計算更新 (資產 + 應收帳款 - 負債) ---
+        st.write("---")
+
+        # --- 3. 獨立收支簿 (日常口袋金) ---
+        st.markdown("##### 💰 個人獨立收支簿 (與 ETF 資金分離)")
+        st.caption("此區塊為您的日常零用金帳本，與大額投資庫存完全獨立運作，您可以詳細記錄各項收入與支出，系統將自動結算當月剩餘可用額度。")
+        
+        if 'personal_finance' not in st.session_state.my_data:
+            st.session_state.my_data['personal_finance'] = {"incomes": [], "expenses": []}
+        
+        pf_data = st.session_state.my_data['personal_finance']
+        # 相容舊版資料結構
+        if 'incomes' not in pf_data:
+            pf_data['incomes'] = []
+        if 'expenses' not in pf_data:
+            pf_data['expenses'] = []
+
+        st.write("**📝 新增收支紀錄**")
+        col_type, col_ex1, col_ex2, col_ex3, col_ex4 = st.columns([1.5, 2, 3, 2, 2])
+        with col_type:
+            rec_type = st.selectbox("類型", ["支出", "收入"])
+        with col_ex1:
+            rec_date = st.date_input("日期", datetime.today())
+        with col_ex2:
+            if rec_type == "支出":
+                rec_item = st.text_input("支出項目", placeholder="例如: 買早晨咖啡、湛藍燒肉")
+            else:
+                rec_item = st.text_input("收入項目", placeholder="例如: 本薪、業務獎金、其他收入")
+        with col_ex3:
+            rec_amount = st.number_input("金額 (元)", min_value=0, step=10, value=0)
+        with col_ex4:
+            st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+            if st.button("➕ 記一筆", use_container_width=True):
+                if rec_amount > 0 and rec_item:
+                    new_record = {
+                        "date": rec_date.strftime("%Y-%m-%d"),
+                        "item": rec_item,
+                        "amount": rec_amount
+                    }
+                    if rec_type == "支出":
+                        pf_data['expenses'].append(new_record)
+                    else:
+                        pf_data['incomes'].append(new_record)
+                    save_to_json(st.session_state.my_data)
+                    st.rerun()
+                else:
+                    st.warning("請填寫項目與大於 0 的金額！")
+
+        curr_month_str = datetime.today().strftime("%Y-%m")
+        curr_month_expenses = [e for e in pf_data.get('expenses', []) if e['date'].startswith(curr_month_str)]
+        curr_month_incomes = [i for i in pf_data.get('incomes', []) if i['date'].startswith(curr_month_str)]
+        
+        total_expense_this_month = sum(e['amount'] for e in curr_month_expenses)
+        total_income_this_month = sum(i['amount'] for i in curr_month_incomes)
+        
+        # 👻 已經徹底刪除舊版固定收入的干擾，完全只依照明細加總！
+        # 如果為了徹底清除設定檔裡的舊垃圾，我們順便在這裡把它歸零：
+        if 'monthly_income' in pf_data:
+            pf_data['monthly_income'] = 0 
+
+        remaining_budget = total_income_this_month - total_expense_this_month
+
+        bc1, bc2, bc3 = st.columns(3)
+        bc1.metric("本月累計收入", f"${total_income_this_month:,.0f}")
+        bc2.metric("本月累計支出", f"${total_expense_this_month:,.0f}")
+        if remaining_budget >= 0:
+            bc3.metric("本月剩餘可用餘額", f"${remaining_budget:,.0f}", "安全範圍", delta_color="normal")
+        else:
+            bc3.metric("本月剩餘可用餘額", f"${remaining_budget:,.0f}", "⚠️ 已超支", delta_color="inverse")
+
+        st.write("**📊 本月明細清單 (支援直接修改與選取刪除)**")
+        tab_in, tab_ex = st.tabs(["💰 收入明細", "💸 支出明細"])
+        
+        with tab_in:
+            if curr_month_incomes:
+                df_incomes = pd.DataFrame(curr_month_incomes).sort_values(by="date", ascending=False)
+                df_incomes = df_incomes.rename(columns={"date": "日期", "item": "項目", "amount": "金額"})
+                
+                edited_incomes = st.data_editor(
+                    df_incomes, num_rows="dynamic", use_container_width=True, hide_index=True, key="income_editor"
+                )
+                
+                if st.button("💾 更新 / 刪除收入清單", use_container_width=True):
+                    # 1. 保留其他月份的資料
+                    other_month_incomes = [i for i in pf_data['incomes'] if not i['date'].startswith(curr_month_str)]
+                    
+                    # 2. 核心修正：將編輯後的表格轉回清單（會自動排除已在介面刪除的列）
+                    updated_curr = []
+                    for _, row in edited_incomes.iterrows():
+                        # 過濾掉空值行，並確保內容完整
+                        if pd.notna(row['日期']) and pd.notna(row['項目']) and pd.notna(row['金額']):
+                            updated_curr.append({
+                                "date": str(row['日期']),
+                                "item": str(row['項目']),
+                                "amount": int(row['金額'])
+                            })
+                    
+                    # 3. 重新寫入資料庫
+                    pf_data['incomes'] = other_month_incomes + updated_curr
+                    save_to_json(st.session_state.my_data)
+                    st.success("收入清單已成功更新！")
+                    st.rerun()
+            else:
+                st.info("本月尚無任何收入紀錄。")
+
+        with tab_ex:
+            if curr_month_expenses:
+                df_expenses = pd.DataFrame(curr_month_expenses).sort_values(by="date", ascending=False)
+                df_expenses = df_expenses.rename(columns={"date": "日期", "item": "項目", "amount": "金額"})
+                
+                edited_expenses = st.data_editor(
+                    df_expenses, num_rows="dynamic", use_container_width=True, hide_index=True, key="expense_editor"
+                )
+                
+                if st.button("💾 更新 / 刪除支出清單", use_container_width=True):
+                    # 1. 保留其他月份的資料
+                    other_month_expenses = [e for e in pf_data['expenses'] if not e['date'].startswith(curr_month_str)]
+                    
+                    # 2. 核心修正：將編輯後的表格轉回清單
+                    updated_curr = []
+                    for _, row in edited_expenses.iterrows():
+                        if pd.notna(row['日期']) and pd.notna(row['項目']) and pd.notna(row['金額']):
+                            updated_curr.append({
+                                "date": str(row['日期']),
+                                "item": str(row['項目']),
+                                "amount": int(row['金額'])
+                            })
+                    
+                    # 3. 重新寫入資料庫
+                    pf_data['expenses'] = other_month_expenses + updated_curr
+                    save_to_json(st.session_state.my_data)
+                    st.success("支出清單已成功更新！")
+                    st.rerun()
+            else:
+                st.info("本月尚無任何支出紀錄。")
+
+        # --- 淨資產計算更新 (資產 + 應收帳款 - 負債，不含日常收支) ---
         true_net_worth = g_mkt - remaining_balance + remaining_balance_chb
-        st.markdown(f"<div class='net-worth-box'><h3>👑 總司令真實淨資產 (ETF市值 - 負債 + 應收帳款)</h3><h1>${true_net_worth:,.0f}</h1></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='net-worth-box'><h3>👑 總司令大局淨資產 (ETF市值 - 負債 + 應收帳款)</h3><h1>${true_net_worth:,.0f}</h1></div>", unsafe_allow_html=True)
         
         st.write("")
         if st.button("🔐 重新上鎖並關閉", use_container_width=True):

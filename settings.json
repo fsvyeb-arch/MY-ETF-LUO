@@ -44,6 +44,15 @@
             "alert_high": 0.0,
             "alert_low": 0.0,
             "pledged_shares": 0.0
+        },
+        {
+            "symbol": "00981A.TW",
+            "name": "00981A 統一台股增長主動式",
+            "holdings": 1.0,
+            "cost": 29.46,
+            "alert_high": 0.0,
+            "alert_low": 0.0,
+            "pledged_shares": 0.0
         }
     ],
     "loan": {
@@ -63,10 +72,6 @@
     },
     "watchlist": [
         {
-            "symbol": "00981A.TW",
-            "name": "00981A 主動統一台股增長"
-        },
-        {
             "symbol": "00878.TW",
             "name": "00878 國泰永續高股息"
         }
@@ -74,8 +79,30 @@
     "custom_divs": {
         "00878.TW": {
             "v": 0.66,
-            "d": "2026-05-18",
-            "p": "2026-06-15"
+            "d": "2026-05-19",
+            "p": "2026-06-12"
         }
+    },
+    "personal_finance": {
+        "monthly_income": 0,
+        "expenses": [
+            {
+                "date": "2026-05-05",
+                "item": "午餐 海南雞飯+飲料",
+                "amount": 150
+            },
+            {
+                "date": "2026-05-05",
+                "item": "房屋貸款",
+                "amount": 20000
+            }
+        ],
+        "incomes": [
+            {
+                "date": "2026-05-05",
+                "item": "薪水",
+                "amount": 44154
+            }
+        ]
     }
 }
