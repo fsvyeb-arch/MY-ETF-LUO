@@ -33,7 +33,14 @@ st.markdown("""
     }
     
     [data-testid="stMetricDelta"] svg { fill: red; }
-    .stMetric { background-color: #f8f9fa; padding: 10px; border-radius: 10px; }
+    
+    /* 🔥 修正深色模式下白底白字的問題，改用系統自適應變數 */
+    [data-testid="stMetric"] { 
+        background-color: var(--secondary-background-color); 
+        padding: 12px; 
+        border-radius: 10px; 
+        box-shadow: 1px 1px 4px rgba(0,0,0,0.05);
+    }
     
     .news-box { background-color: #f0f7ff; border-left: 6px solid #4a90e2; padding: 20px; border-radius: 8px; margin-bottom: 25px; box-shadow: 1px 1px 4px rgba(0,0,0,0.05); }
     .news-title { font-size: 20px; font-weight: bold; color: #1e3c72; margin-bottom: 15px; display: flex; align-items: center; }
@@ -404,6 +411,7 @@ if 'show_div_db' not in st.session_state: st.session_state.show_div_db = False
 if 'show_tech' not in st.session_state: st.session_state.show_tech = False
 if 'show_holdings' not in st.session_state: st.session_state.show_holdings = False
 if 'show_constituents' not in st.session_state: st.session_state.show_constituents = False 
+if 'show_daily_price' not in st.session_state: st.session_state.show_daily_price = False 
 if 'show_pledge' not in st.session_state: st.session_state.show_pledge = False 
 if 'show_secret' not in st.session_state: st.session_state.show_secret = False
 if 'is_unlocked' not in st.session_state: st.session_state.is_unlocked = False
@@ -415,6 +423,7 @@ def toggle_div_db(): st.session_state.show_div_db = not st.session_state.show_di
 def toggle_tech(): st.session_state.show_tech = not st.session_state.show_tech
 def toggle_holdings(): st.session_state.show_holdings = not st.session_state.show_holdings
 def toggle_constituents(): st.session_state.show_constituents = not st.session_state.show_constituents
+def toggle_daily_price(): st.session_state.show_daily_price = not st.session_state.show_daily_price 
 def toggle_pledge(): st.session_state.show_pledge = not st.session_state.show_pledge 
 def toggle_secret(): st.session_state.show_secret = not st.session_state.show_secret
 
@@ -903,7 +912,7 @@ st.markdown(news_html, unsafe_allow_html=True)
 
 st.markdown("### 📢 近期新募集 / 即將上市主動式 ETF 追蹤")
 upcoming_list = [
-    {"date": "2026/05/20", "symbol": "00992A", "name": "主動群益科技創新", "price": "15.00"},
+    {"date": "2026/05/20", "symbol": "00992A", "name": "主提群益科技創新", "price": "15.00"},
     {"date": "2026/05/25", "symbol": "00400A", "name": "主動國泰動能高息", "price": "15.00"},
     {"date": "2026/05/28", "symbol": "00997A", "name": "主動群益美國增長", "price": "15.00"},
     {"date": "2026/06/05", "symbol": "00988A", "name": "主動統一全球創新", "price": "15.00"},
@@ -1028,6 +1037,7 @@ if "tw" in macro_data and macro_data["tw"]:
 cols_btn_r1 = st.columns(3)
 cols_btn_r2 = st.columns(3)
 cols_btn_r3 = st.columns(3)
+cols_btn_r4 = st.columns(3)
 
 b1_lbl, b1_typ = (f"🔽 收起美股指數 {us_icon}", "primary") if st.session_state.show_us else (f"{us_icon} 展開美股指數", "secondary")
 b2_lbl, b2_typ = (f"🔽 收起台股指數 {tw_icon}", "primary") if st.session_state.show_tw else (f"{tw_icon} 展開台股指數", "secondary")
@@ -1040,6 +1050,7 @@ b6_lbl, b6_typ = ("🔽 收起持股明細", "primary") if st.session_state.show
 b7_lbl, b7_typ = ("🔽 收起ETF成份股", "primary") if st.session_state.show_constituents else ("🧩 展開ETF成份股", "secondary")
 b8_lbl, b8_typ = ("🔽 收起質押專區", "primary") if st.session_state.show_pledge else ("🏦 展開質押專區", "secondary") 
 b9_lbl, b9_typ = ("🔽 收起機密面板", "primary") if st.session_state.show_secret else ("🔐 展開機密面板", "secondary")
+b10_lbl, b10_typ = ("🔽 收起每日股價", "primary") if st.session_state.show_daily_price else ("🗓️ 展開每日股價", "secondary") 
 
 with cols_btn_r1[0]: st.button(b1_lbl, on_click=toggle_us, type=b1_typ, use_container_width=True)
 with cols_btn_r1[1]: st.button(b2_lbl, on_click=toggle_tw, type=b2_typ, use_container_width=True)
@@ -1052,6 +1063,8 @@ with cols_btn_r2[2]: st.button(b6_lbl, on_click=toggle_holdings, type=b6_typ, us
 with cols_btn_r3[0]: st.button(b7_lbl, on_click=toggle_constituents, type=b7_typ, use_container_width=True) 
 with cols_btn_r3[1]: st.button(b8_lbl, on_click=toggle_pledge, type=b8_typ, use_container_width=True) 
 with cols_btn_r3[2]: st.button(b9_lbl, on_click=toggle_secret, type=b9_typ, use_container_width=True) 
+
+with cols_btn_r4[0]: st.button(b10_lbl, on_click=toggle_daily_price, type=b10_typ, use_container_width=True)
 
 st.write("---")
 
@@ -1338,6 +1351,58 @@ if st.session_state.show_constituents:
                 st.altair_chart(chart, use_container_width=True)
     else:
         st.info("⚠️ 目前尚無持股資料。請至下方「⚙️ 標的管理」新增您的庫存！")
+    st.write("---")
+
+# --- 🗓️ 展開每日股價 ---
+if st.session_state.show_daily_price:
+    st.markdown("#### 🗓️ 庫存 ETF 近期每日收盤價")
+    current_etfs = [item['symbol'] for item in st.session_state.my_data.get('etfs', [])]
+    
+    if current_etfs:
+        with st.spinner("📡 正在向資料庫調閱近期每日股價..."):
+            try:
+                # 🔥 升級 1：抓取近 15 個交易日的收盤價
+                hist_data = yf.download(current_etfs, period="15d")['Close']
+                
+                # 處理單一檔或多檔 ETF 的欄位名稱替換
+                if len(current_etfs) == 1:
+                    hist_data = hist_data.to_frame()
+                    hist_data.columns = [st.session_state.my_data['etfs'][0]['name']]
+                else:
+                    name_map = {item['symbol']: item['name'] for item in st.session_state.my_data['etfs']}
+                    hist_data = hist_data.rename(columns=name_map)
+                
+                # 先計算與前一天的漲跌差額 (此時日期仍是舊到新)
+                diff_data = hist_data.diff()
+                
+                # 將日期格式化 (改為 MM/DD 節省 X 軸空間)，並反轉排序讓「最新的一天」排在最前面
+                hist_data.index = hist_data.index.strftime('%m/%d')
+                diff_data.index = hist_data.index # 讓差額表的 index 同步對齊
+                
+                hist_data = hist_data.sort_index(ascending=False)
+                diff_data = diff_data.sort_index(ascending=False)
+                
+                # 🔥 升級 2：將表格矩陣轉置 (Transpose)，讓 ETF 變 Y 軸，日期變 X 軸
+                hist_data = hist_data.T
+                diff_data = diff_data.T
+                
+                # 建立上色函數：比對差額，漲用紅字、跌用綠字
+                def color_prices(df_to_style):
+                    css_df = pd.DataFrame('', index=df_to_style.index, columns=df_to_style.columns)
+                    # 漲 (差額 > 0) 顯示紅色粗體
+                    css_df[diff_data > 0] = 'color: #d32f2f; font-weight: bold;'
+                    # 跌 (差額 < 0) 顯示綠色粗體
+                    css_df[diff_data < 0] = 'color: #388e3c; font-weight: bold;'
+                    return css_df
+                
+                # 渲染帶有顏色與小數點兩位的表格
+                styled_hist = hist_data.style.format("{:.2f}").apply(color_prices, axis=None)
+                st.dataframe(styled_hist, use_container_width=True)
+                st.caption("💡 提示：表格顯示近 15 個交易日的每日收盤價，最新日期排列於最左方。數值呈現紅色代表上漲，綠色代表下跌。")
+            except Exception as e:
+                st.error(f"無法抓取每日股價：{e}")
+    else:
+        st.info("⚠️ 目前尚無持股資料，請至下方「標的管理」新增您的庫存！")
     st.write("---")
 
 # --- 🏦 展開質押專區 ---
