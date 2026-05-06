@@ -411,7 +411,7 @@ if 'show_div_db' not in st.session_state: st.session_state.show_div_db = False
 if 'show_tech' not in st.session_state: st.session_state.show_tech = False
 if 'show_holdings' not in st.session_state: st.session_state.show_holdings = False
 if 'show_constituents' not in st.session_state: st.session_state.show_constituents = False 
-if 'show_daily_price' not in st.session_state: st.session_state.show_daily_price = False 
+if 'show_daily_price' not in st.session_state: st.session_state.show_daily_price = False # 🔥 新增這行
 if 'show_pledge' not in st.session_state: st.session_state.show_pledge = False 
 if 'show_secret' not in st.session_state: st.session_state.show_secret = False
 if 'is_unlocked' not in st.session_state: st.session_state.is_unlocked = False
@@ -423,7 +423,7 @@ def toggle_div_db(): st.session_state.show_div_db = not st.session_state.show_di
 def toggle_tech(): st.session_state.show_tech = not st.session_state.show_tech
 def toggle_holdings(): st.session_state.show_holdings = not st.session_state.show_holdings
 def toggle_constituents(): st.session_state.show_constituents = not st.session_state.show_constituents
-def toggle_daily_price(): st.session_state.show_daily_price = not st.session_state.show_daily_price 
+def toggle_daily_price(): st.session_state.show_daily_price = not st.session_state.show_daily_price # 🔥 新增這行
 def toggle_pledge(): st.session_state.show_pledge = not st.session_state.show_pledge 
 def toggle_secret(): st.session_state.show_secret = not st.session_state.show_secret
 
@@ -1037,7 +1037,7 @@ if "tw" in macro_data and macro_data["tw"]:
 cols_btn_r1 = st.columns(3)
 cols_btn_r2 = st.columns(3)
 cols_btn_r3 = st.columns(3)
-cols_btn_r4 = st.columns(3)
+cols_btn_r4 = st.columns(3) # 🔥 新增第四排
 
 b1_lbl, b1_typ = (f"🔽 收起美股指數 {us_icon}", "primary") if st.session_state.show_us else (f"{us_icon} 展開美股指數", "secondary")
 b2_lbl, b2_typ = (f"🔽 收起台股指數 {tw_icon}", "primary") if st.session_state.show_tw else (f"{tw_icon} 展開台股指數", "secondary")
@@ -1050,7 +1050,7 @@ b6_lbl, b6_typ = ("🔽 收起持股明細", "primary") if st.session_state.show
 b7_lbl, b7_typ = ("🔽 收起ETF成份股", "primary") if st.session_state.show_constituents else ("🧩 展開ETF成份股", "secondary")
 b8_lbl, b8_typ = ("🔽 收起質押專區", "primary") if st.session_state.show_pledge else ("🏦 展開質押專區", "secondary") 
 b9_lbl, b9_typ = ("🔽 收起機密面板", "primary") if st.session_state.show_secret else ("🔐 展開機密面板", "secondary")
-b10_lbl, b10_typ = ("🔽 收起每日股價", "primary") if st.session_state.show_daily_price else ("🗓️ 展開每日股價", "secondary") 
+b10_lbl, b10_typ = ("🔽 收起每日股價", "primary") if st.session_state.show_daily_price else ("🗓️ 展開每日股價", "secondary") # 🔥 第十顆按鈕
 
 with cols_btn_r1[0]: st.button(b1_lbl, on_click=toggle_us, type=b1_typ, use_container_width=True)
 with cols_btn_r1[1]: st.button(b2_lbl, on_click=toggle_tw, type=b2_typ, use_container_width=True)
@@ -1064,7 +1064,7 @@ with cols_btn_r3[0]: st.button(b7_lbl, on_click=toggle_constituents, type=b7_typ
 with cols_btn_r3[1]: st.button(b8_lbl, on_click=toggle_pledge, type=b8_typ, use_container_width=True) 
 with cols_btn_r3[2]: st.button(b9_lbl, on_click=toggle_secret, type=b9_typ, use_container_width=True) 
 
-with cols_btn_r4[0]: st.button(b10_lbl, on_click=toggle_daily_price, type=b10_typ, use_container_width=True)
+with cols_btn_r4[0]: st.button(b10_lbl, on_click=toggle_daily_price, type=b10_typ, use_container_width=True) # 🔥 新增到第四排第一個位置
 
 st.write("---")
 
@@ -1355,22 +1355,36 @@ if st.session_state.show_constituents:
 
 # --- 🗓️ 展開每日股價 ---
 if st.session_state.show_daily_price:
-    st.markdown("#### 🗓️ 庫存 ETF 近期每日收盤價")
-    current_etfs = [item['symbol'] for item in st.session_state.my_data.get('etfs', [])]
+    st.markdown("#### 🗓️ 庫存與自選 ETF 近期每日收盤價")
     
-    if current_etfs:
+    # 🔥 升級：將「庫存」與「自選」分開整理
+    port_map = {}
+    wl_map = {}
+    
+    # 1. 載入庫存名單
+    for item in st.session_state.my_data.get('etfs', []):
+        port_map[item['symbol']] = f"💼 {item['name']}"
+        
+    # 2. 載入自選名單 (若與庫存重複，則以庫存為主)
+    for item in st.session_state.my_data.get('watchlist', []):
+        if item['symbol'] not in port_map:
+            wl_map[item['symbol']] = f"👀 {item['name']}"
+            
+    all_symbols_map = {**port_map, **wl_map}
+    current_symbols = list(all_symbols_map.keys())
+    
+    if current_symbols:
         with st.spinner("📡 正在向資料庫調閱近期每日股價..."):
             try:
-                # 🔥 升級 1：抓取近 15 個交易日的收盤價
-                hist_data = yf.download(current_etfs, period="15d")['Close']
+                # 抓取近 15 個交易日的收盤價
+                hist_data = yf.download(current_symbols, period="15d")['Close']
                 
                 # 處理單一檔或多檔 ETF 的欄位名稱替換
-                if len(current_etfs) == 1:
+                if len(current_symbols) == 1:
                     hist_data = hist_data.to_frame()
-                    hist_data.columns = [st.session_state.my_data['etfs'][0]['name']]
+                    hist_data.columns = [all_symbols_map[current_symbols[0]]]
                 else:
-                    name_map = {item['symbol']: item['name'] for item in st.session_state.my_data['etfs']}
-                    hist_data = hist_data.rename(columns=name_map)
+                    hist_data = hist_data.rename(columns=all_symbols_map)
                 
                 # 先計算與前一天的漲跌差額 (此時日期仍是舊到新)
                 diff_data = hist_data.diff()
@@ -1382,29 +1396,42 @@ if st.session_state.show_daily_price:
                 hist_data = hist_data.sort_index(ascending=False)
                 diff_data = diff_data.sort_index(ascending=False)
                 
-                # 🔥 升級 2：將表格矩陣轉置 (Transpose)，讓 ETF 變 Y 軸，日期變 X 軸
+                # 將表格矩陣轉置 (Transpose)，讓 ETF 變 Y 軸，日期變 X 軸
                 hist_data = hist_data.T
                 diff_data = diff_data.T
                 
-                # 建立上色函數：比對差額，漲用紅字、跌用綠字
+                # 安全過濾：確保抓回來的資料確實存在於我們的名單中
+                valid_port_names = [name for name in port_map.values() if name in hist_data.index]
+                valid_wl_names = [name for name in wl_map.values() if name in hist_data.index]
+                
+                # 建立通用的上色函數：比對差額，漲用紅字、跌用綠字
                 def color_prices(df_to_style):
                     css_df = pd.DataFrame('', index=df_to_style.index, columns=df_to_style.columns)
+                    target_diff = diff_data.loc[df_to_style.index] # 精準對齊傳入的標的
                     # 漲 (差額 > 0) 顯示紅色粗體
-                    css_df[diff_data > 0] = 'color: #d32f2f; font-weight: bold;'
+                    css_df[target_diff > 0] = 'color: #d32f2f; font-weight: bold;'
                     # 跌 (差額 < 0) 顯示綠色粗體
-                    css_df[diff_data < 0] = 'color: #388e3c; font-weight: bold;'
+                    css_df[target_diff < 0] = 'color: #388e3c; font-weight: bold;'
                     return css_df
                 
-                # 渲染帶有顏色與小數點兩位的表格
-                styled_hist = hist_data.style.format("{:.2f}").apply(color_prices, axis=None)
-                st.dataframe(styled_hist, use_container_width=True)
-                st.caption("💡 提示：表格顯示近 15 個交易日的每日收盤價，最新日期排列於最左方。數值呈現紅色代表上漲，綠色代表下跌。")
+                # 渲染庫存表格
+                if valid_port_names:
+                    st.markdown("##### 💼 庫存 ETF")
+                    styled_port = hist_data.loc[valid_port_names].style.format("{:.2f}").apply(color_prices, axis=None)
+                    st.dataframe(styled_port, use_container_width=True)
+                
+                # 渲染自選表格
+                if valid_wl_names:
+                    st.markdown("##### 👀 自選 ETF")
+                    styled_wl = hist_data.loc[valid_wl_names].style.format("{:.2f}").apply(color_prices, axis=None)
+                    st.dataframe(styled_wl, use_container_width=True)
+                    
+                st.caption("💡 提示：顯示近 15 個交易日收盤價，最新日期排列於最左方。數值呈現紅色代表上漲，綠色代表下跌。")
             except Exception as e:
                 st.error(f"無法抓取每日股價：{e}")
     else:
-        st.info("⚠️ 目前尚無持股資料，請至下方「標的管理」新增您的庫存！")
+        st.info("⚠️ 目前尚無持股或自選資料，請至下方「標的管理」新增！")
     st.write("---")
-
 # --- 🏦 展開質押專區 ---
 if st.session_state.show_pledge:
     if not df.empty:
