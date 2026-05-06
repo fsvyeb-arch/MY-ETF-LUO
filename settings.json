@@ -7,7 +7,8 @@
             "cost": 41.11,
             "alert_high": 0.0,
             "alert_low": 0.0,
-            "pledged_shares": 4.0
+            "pledged_shares": 4.0,
+            "is_pledged": false
         },
         {
             "symbol": "00891.TW",
@@ -16,7 +17,8 @@
             "cost": 31.3,
             "alert_high": 0.0,
             "alert_low": 0.0,
-            "pledged_shares": 5.0
+            "pledged_shares": 5.0,
+            "is_pledged": true
         },
         {
             "symbol": "00919.TW",
@@ -25,7 +27,8 @@
             "cost": 23.05,
             "alert_high": 0.0,
             "alert_low": 0.0,
-            "pledged_shares": 10.0
+            "pledged_shares": 8.0,
+            "is_pledged": false
         },
         {
             "symbol": "00927.TW",
@@ -34,7 +37,8 @@
             "cost": 27.63,
             "alert_high": 0.0,
             "alert_low": 0.0,
-            "pledged_shares": 6.0
+            "pledged_shares": 6.0,
+            "is_pledged": true
         },
         {
             "symbol": "00982A.TW",
@@ -43,7 +47,8 @@
             "cost": 22.06,
             "alert_high": 0.0,
             "alert_low": 0.0,
-            "pledged_shares": 0.0
+            "pledged_shares": 0.0,
+            "is_pledged": false
         },
         {
             "symbol": "00981A.TW",
@@ -52,7 +57,8 @@
             "cost": 29.46,
             "alert_high": 0.0,
             "alert_low": 0.0,
-            "pledged_shares": 0.0
+            "pledged_shares": 0.0,
+            "is_pledged": false
         }
     ],
     "loan": {
@@ -62,7 +68,7 @@
         "total_months": 84
     },
     "pledge": {
-        "borrowed_amount": 200000
+        "borrowed_amount": 100000
     },
     "loan_chb": {
         "months_paid": 21,
