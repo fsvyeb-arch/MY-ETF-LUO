@@ -205,7 +205,9 @@ ETF_CONSTITUENTS_DB = {
     "0050.TW": [{"name": "台積電", "weight": 52.5}, {"name": "鴻海", "weight": 5.5}, {"name": "聯發科", "weight": 4.8}, {"name": "廣達", "weight": 2.1}, {"name": "台達電", "weight": 1.9}, {"name": "其他", "weight": 33.2}],
     "006208.TW": [{"name": "台積電", "weight": 52.6}, {"name": "鴻海", "weight": 5.4}, {"name": "聯發科", "weight": 4.9}, {"name": "廣達", "weight": 2.0}, {"name": "台達電", "weight": 1.8}, {"name": "其他", "weight": 33.3}],
     "00713.TW": [{"name": "統一", "weight": 8.5}, {"name": "台灣大", "weight": 7.2}, {"name": "遠傳", "weight": 6.8}, {"name": "華碩", "weight": 6.1}, {"name": "仁寶", "weight": 5.5}, {"name": "其他", "weight": 65.9}],
-    "00940.TW": [{"name": "長榮", "weight": 9.5}, {"name": "聯電", "weight": 6.5}, {"name": "聯發科", "weight": 5.8}, {"name": "中美晶", "weight": 5.2}, {"name": "神基", "weight": 4.8}, {"name": "其他", "weight": 68.2}]
+    "00940.TW": [{"name": "長榮", "weight": 9.5}, {"name": "聯電", "weight": 6.5}, {"name": "聯發科", "weight": 5.8}, {"name": "中美晶", "weight": 5.2}, {"name": "神基", "weight": 4.8}, {"name": "其他", "weight": 68.2}],
+    "00981A.TW": [{"name": "台積電", "weight": 18.5}, {"name": "聯發科", "weight": 8.2}, {"name": "奇鋐", "weight": 6.5}, {"name": "台光電", "weight": 5.8}, {"name": "雙鴻", "weight": 5.2}, {"name": "其他", "weight": 55.8}],
+    "00982A.TW": [{"name": "台積電", "weight": 15.0}, {"name": "鴻海", "weight": 9.5}, {"name": "聯發科", "weight": 7.5}, {"name": "富邦金", "weight": 5.5}, {"name": "廣達", "weight": 4.8}, {"name": "其他", "weight": 57.7}]
 }
 
 def load_settings():
@@ -888,7 +890,7 @@ for news in news_data:
 news_html += "</div>"
 st.markdown(news_html, unsafe_allow_html=True)
 
-st.markdown("### 📢 近期新募集 / 即將上市主動式 ETF 追蹤")
+st.markdown("### 📢 近期新募集 / 即將上市主ড়ান্ত式 ETF 追蹤")
 upcoming_list = [
     {"date": "2026/05/20", "symbol": "00992A", "name": "主動群益科技創新", "price": "15.00"},
     {"date": "2026/05/25", "symbol": "00400A", "name": "主動國泰動能高息", "price": "15.00"},
@@ -1157,6 +1159,10 @@ if st.session_state.show_tech:
     if not df.empty:
         st.markdown("#### 📡 庫存價格區間監控與技術分析 (👉 雙擊表格數值設定警報，設 0 代表關閉)")
         
+        # 🔥 完美整合：強制依照「配息月份」進行排序，讓相同的月份自動群聚在一起！
+        if '配息月份' in df_tech.columns:
+            df_tech = df_tech.sort_values(by='配息月份', ascending=True)
+            
         def color_profit_loss(val):
             if isinstance(val, str):
                 if val.startswith('+'): return 'color: #d32f2f; font-weight: bold;' 
@@ -1204,7 +1210,6 @@ if st.session_state.show_tech:
             st.cache_data.clear()
             st.rerun()
 
-        # 👇 依照要求，將「詳細持股清單與內扣費率」移到股價監控這裡的下方
         st.write("")
         st.markdown("#### 📊 詳細持股清單與內扣費率")
         st.dataframe(df.style.format({"現價":"{:.2f}", "均價":"{:.2f}", "市值":"{:,.0f}", "損益":"{:,.0f}"}), use_container_width=True, hide_index=True)
