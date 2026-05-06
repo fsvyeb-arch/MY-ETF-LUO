@@ -1809,7 +1809,9 @@ if current_etfs:
 else:
     st.info("目前庫存中沒有標的。請由上方「標的管理」面板新增您的愛股！")
 
+# --- 🔄 終極自動更新 (全面刷新版) ---
 if st.session_state.auto_refresh_mode == "✅ USE (開啟)":
     time.sleep(5)
-    fetch_data.clear()
+    # 🔥 總司令指示：全面清除所有快取，強制重新抓取股價、除權息、股息等所有資料
+    st.cache_data.clear() 
     st.rerun()
