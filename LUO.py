@@ -21,6 +21,17 @@ if 'update_success' in st.session_state and st.session_state.update_success:
 # 自定義 CSS
 st.markdown("""
     <style>
+    /* 🔥 終極暴力隱藏表格右上角浮動工具列 (對付各版本 Streamlit) */
+    [data-testid="stElementToolbar"], 
+    [data-testid="stDataFrameToolbar"],
+    [data-testid="stToolbar"],
+    .stDataFrame [data-testid="stElementToolbar"] { 
+        display: none !important; 
+        opacity: 0 !important; 
+        visibility: hidden !important; 
+        pointer-events: none !important;
+    }
+    
     [data-testid="stMetricDelta"] svg { fill: red; }
     .stMetric { background-color: #f8f9fa; padding: 10px; border-radius: 10px; }
     
@@ -890,7 +901,7 @@ for news in news_data:
 news_html += "</div>"
 st.markdown(news_html, unsafe_allow_html=True)
 
-st.markdown("### 📢 近期新募集 / 即將上市主ড়ান্ত式 ETF 追蹤")
+st.markdown("### 📢 近期新募集 / 即將上市主動式 ETF 追蹤")
 upcoming_list = [
     {"date": "2026/05/20", "symbol": "00992A", "name": "主動群益科技創新", "price": "15.00"},
     {"date": "2026/05/25", "symbol": "00400A", "name": "主動國泰動能高息", "price": "15.00"},
@@ -1030,7 +1041,6 @@ b7_lbl, b7_typ = ("🔽 收起ETF成份股", "primary") if st.session_state.show
 b8_lbl, b8_typ = ("🔽 收起質押專區", "primary") if st.session_state.show_pledge else ("🏦 展開質押專區", "secondary") 
 b9_lbl, b9_typ = ("🔽 收起機密面板", "primary") if st.session_state.show_secret else ("🔐 展開機密面板", "secondary")
 
-
 with cols_btn_r1[0]: st.button(b1_lbl, on_click=toggle_us, type=b1_typ, use_container_width=True)
 with cols_btn_r1[1]: st.button(b2_lbl, on_click=toggle_tw, type=b2_typ, use_container_width=True)
 with cols_btn_r1[2]: st.button(b3_lbl, on_click=toggle_calendar, type=b3_typ, use_container_width=True)
@@ -1157,58 +1167,67 @@ if st.session_state.show_div_db:
 # --- 📡 展開股價監控 ---
 if st.session_state.show_tech:
     if not df.empty:
-        st.markdown("#### 📡 庫存價格區間監控與技術分析 (👉 雙擊表格數值設定警報，設 0 代表關閉)")
+        st.markdown("#### 📡 庫存價格區間監控與技術分析")
         
-        # 🔥 完美整合：強制依照「配息月份」進行排序，讓相同的月份自動群聚在一起！
-        if '配息月份' in df_tech.columns:
-            df_tech = df_tech.sort_values(by='配息月份', ascending=True)
+        # 🔥 建立左右兩欄，左邊放監控表，右邊放縮小版自動更新 (比例調整為 8.5 : 1.5)
+        tech_col, auto_tech_col = st.columns([8.5, 1.5])
+        
+        with tech_col:
+            if '配息月份' in df_tech.columns:
+                df_tech = df_tech.sort_values(by='配息月份', ascending=True)
+                
+            def color_profit_loss(val):
+                if isinstance(val, str):
+                    if val.startswith('+'): return 'color: #d32f2f; font-weight: bold;' 
+                    elif val.startswith('-'): return 'color: #388e3c; font-weight: bold;' 
+                return ''
+                
+            def color_months(val):
+                if not isinstance(val, str): return ''
+                if val == '1,4,7,10月': return 'background-color: #e3f2fd; color: #1565c0; font-weight: bold; text-align: center;' 
+                if val == '2,5,8,11月': return 'background-color: #f3e5f5; color: #6a1b9a; font-weight: bold; text-align: center;' 
+                if val == '3,6,9,12月': return 'background-color: #e8f5e9; color: #2e7d32; font-weight: bold; text-align: center;' 
+                if val == '月配息': return 'background-color: #fff8e1; color: #f57f17; font-weight: bold; text-align: center;' 
+                return 'color: #555; text-align: center;'
+
+            # 🔥 暫時移除高低標停利損欄位，讓畫面更乾淨
+            if "設定高標(停利)" in df_tech.columns and "設定低標(停損)" in df_tech.columns:
+                df_tech_display = df_tech.drop(columns=["設定高標(停利)", "設定低標(停損)"])
+            else:
+                df_tech_display = df_tech
+
+            try:
+                styled_df_tech = df_tech_display.style.map(color_profit_loss, subset=['今日損益', '今日漲跌幅']).map(color_months, subset=['配息月份'])
+            except AttributeError:
+                styled_df_tech = df_tech_display.style.applymap(color_profit_loss, subset=['今日損益', '今日漲跌幅']).applymap(color_months, subset=['配息月份'])
+
+            # 改用 st.dataframe 純顯示，移除原先的存檔判斷迴圈
+            st.dataframe(
+                styled_df_tech,
+                column_config={
+                    "現價": st.column_config.NumberColumn("現價", format="%.2f"),
+                    "股票張數": st.column_config.NumberColumn("股票張數", format="%.1f") 
+                },
+                use_container_width=True, hide_index=True
+            )
+                
+        with auto_tech_col:
+            # 🔥 改用 Inline CSS 打造精巧縮小版面板，去掉 Streamlit 預設的大間距
+            st.markdown("<div style='background-color: #f0f7ff; border: 1px solid #cce5ff; border-radius: 8px; padding: 10px 8px; text-align: center; box-shadow: 1px 1px 3px rgba(0,0,0,0.05);'>", unsafe_allow_html=True)
+            st.markdown("<div style='font-size: 15px; font-weight: bold; color: #1e3c72; margin-bottom: 4px;'>⚡ 自動更新</div>", unsafe_allow_html=True)
+            st.markdown("<div style='font-size: 11px; color: #6c757d; margin-bottom: 10px; line-height: 1.2;'>每 5 秒即時重整</div>", unsafe_allow_html=True)
             
-        def color_profit_loss(val):
-            if isinstance(val, str):
-                if val.startswith('+'): return 'color: #d32f2f; font-weight: bold;' 
-                elif val.startswith('-'): return 'color: #388e3c; font-weight: bold;' 
-            return ''
-            
-        def color_months(val):
-            if not isinstance(val, str): return ''
-            if val == '1,4,7,10月': return 'background-color: #e3f2fd; color: #1565c0; font-weight: bold; text-align: center;' 
-            if val == '2,5,8,11月': return 'background-color: #f3e5f5; color: #6a1b9a; font-weight: bold; text-align: center;' 
-            if val == '3,6,9,12月': return 'background-color: #e8f5e9; color: #2e7d32; font-weight: bold; text-align: center;' 
-            if val == '月配息': return 'background-color: #fff8e1; color: #f57f17; font-weight: bold; text-align: center;' 
-            return 'color: #555; text-align: center;'
-
-        try:
-            styled_df_tech = df_tech.style.map(color_profit_loss, subset=['今日損益', '今日漲跌幅']).map(color_months, subset=['配息月份'])
-        except AttributeError:
-            styled_df_tech = df_tech.style.applymap(color_profit_loss, subset=['今日損益', '今日漲跌幅']).applymap(color_months, subset=['配息月份'])
-
-        edited_tech = st.data_editor(
-            styled_df_tech,
-            column_config={
-                "設定高標(停利)": st.column_config.NumberColumn("設定高標(停利)", help="雙擊輸入，超過觸發紅色警報", min_value=0.0, format="%.2f"),
-                "設定低標(停損)": st.column_config.NumberColumn("設定低標(停損)", help="雙擊輸入，低於觸發綠色警報", min_value=0.0, format="%.2f"),
-                "現價": st.column_config.NumberColumn("現價", format="%.2f"),
-                "股票張數": st.column_config.NumberColumn("股票張數", format="%.1f") 
-            },
-            disabled=["ETF 名稱", "配息月份", "股票張數", "現價", "今日損益", "今日漲跌幅", "今日交易量", "年殖利率", "今日最高/最低", "52週最高/最低"],
-            use_container_width=True, hide_index=True
-        )
-
-        has_changes = False
-        for _, row in edited_tech.iterrows():
-            display_name = row['ETF 名稱']
-            for etf in st.session_state.my_data['etfs']:
-                if etf['name'] in display_name:
-                    if etf.get('alert_high', 0.0) != row['設定高標(停利)'] or etf.get('alert_low', 0.0) != row['設定低標(停損)']:
-                        etf['alert_high'] = row['設定高標(停利)']
-                        etf['alert_low'] = row['設定低標(停損)']
-                        has_changes = True
-                    break
-                    
-        if has_changes:
-            save_to_json(st.session_state.my_data)
-            st.cache_data.clear()
-            st.rerun()
+            if 'auto_refresh_mode' not in st.session_state:
+                st.session_state.auto_refresh_mode = "❌ NO USE (關閉)"
+                
+            auto_update = st.radio(
+                "即時更新", 
+                ["❌ NO USE (關閉)", "✅ USE (開啟)"], 
+                key="auto_refresh_mode",
+                horizontal=False,
+                label_visibility="collapsed"
+            )
+            st.markdown("</div>", unsafe_allow_html=True)
 
         st.write("")
         st.markdown("#### 📊 詳細持股清單與內扣費率")
@@ -1635,7 +1654,7 @@ if st.session_state.show_secret:
     st.markdown("</div>", unsafe_allow_html=True)
     st.write("---")
 
-# 🎯 買賣損益試算面板與執行交易功能
+# 🎯 買賣損益試算與執行交易功能
 with st.expander("💰 買賣損益試算器", expanded=False):
     st.markdown("<div class='calc-title'>依照即時現價，試算買進或賣出後的損益狀況，並可直接寫入庫存！</div>", unsafe_allow_html=True)
     
@@ -1704,14 +1723,14 @@ with st.expander("💰 買賣損益試算器", expanded=False):
 
 st.write("---")
 
-# 🎯 最底層操作列
-bot_c1, bot_c2, bot_c3 = st.columns([2, 5, 3])
+# 🎯 最底層操作列 (標的管理與手動更新)
+bot_c1, bot_c2 = st.columns([3, 7])
 
 with bot_c1:
     if st.button("🔄 手動重新整理股價", use_container_width=True):
         fetch_data.clear()
         fetch_watchlist_dividend.clear()
-        fetch_taiwan_upcoming_dividends.clear() # 已更新：讓系統也能強制更新雙軌官方資訊
+        fetch_taiwan_upcoming_dividends.clear()
         st.rerun()
 
 with bot_c2:
@@ -1749,23 +1768,6 @@ with bot_c2:
                     st.button(f"🗑️ 刪除 {item['name']}", key=f"del_{i}", on_click=delete_etf, args=(i,), use_container_width=True)
 
             st.button("💾 儲存所有修改", use_container_width=True, type="primary", on_click=save_edits)
-
-with bot_c3:
-    st.markdown("<div class='auto-refresh-box'>", unsafe_allow_html=True)
-    st.markdown("#### ⚡ 系統自動更新")
-    st.caption("開啟後每 5 秒自動重整抓取最新即時股價")
-    
-    if 'auto_refresh_mode' not in st.session_state:
-        st.session_state.auto_refresh_mode = "❌ NO USE (關閉)"
-        
-    auto_update = st.radio(
-        "即時更新 (每 5 秒)", 
-        ["❌ NO USE (關閉)", "✅ USE (開啟)"], 
-        key="auto_refresh_mode",
-        horizontal=True,
-        label_visibility="collapsed"
-    )
-    st.markdown("</div>", unsafe_allow_html=True)
 
 st.write("---")
 st.markdown("### 📈 持股歷史股價趨勢 (近 30 日)")
