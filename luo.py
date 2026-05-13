@@ -9,8 +9,8 @@ from datetime import datetime, timedelta
 import time
 import altair as alt
 import requests
-# 👉 就是這一行！請確保它有被貼上
-from config import ETF_FULL_DATABASE, EXTRA_ETFS, ETF_CONSTITUENTS_DB
+# 🌟 從新的 etf_data.py 引入大型資料庫，避開系統名稱衝突
+from etf_data import ETF_FULL_DATABASE, EXTRA_ETFS, ETF_CONSTITUENTS_DB
 # --- 1. 網頁基礎設定 ---
 st.set_page_config(page_title="ETF 投資戰情室", layout="wide")
 
