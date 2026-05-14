@@ -21,7 +21,7 @@ if 'update_success' in st.session_state and st.session_state.update_success:
 # 自定義 CSS
 st.markdown("""
     <style>
-    /* 🔥 終極暴力隱藏表格右上角浮動工具列 */
+    /* 🔥 終極暴力隱藏表格右上角浮動工具列 (對付各版本 Streamlit) */
     [data-testid="stElementToolbar"], 
     [data-testid="stDataFrameToolbar"],
     [data-testid="stToolbar"],
@@ -34,6 +34,7 @@ st.markdown("""
     
     [data-testid="stMetricDelta"] svg { fill: red; }
     
+    /* 🔥 修正深色模式下白底白字的問題，改用系統自適應變數 */
     [data-testid="stMetric"] { 
         background-color: var(--secondary-background-color); 
         padding: 12px; 
@@ -67,6 +68,7 @@ st.markdown("""
     .triple-pct-g { font-size: 14px; font-weight: bold; color: #2e7d32; margin-top: 5px; }
     .triple-sub-gold { font-size: 12px; font-weight: bold; color: #7f8c8d; margin-top: 5px; }
 
+    /* 閃電特效 */
     @keyframes lightning-strike {
         0% { box-shadow: 0 0 10px rgba(241, 196, 15, 0.5); background-color: #fffdf5; border-color: #f1c40f; transform: scale(1); }
         50% { box-shadow: 0 0 40px rgba(255, 235, 59, 1), inset 0 0 25px rgba(255, 235, 59, 0.9); background-color: #ffffe0; border-color: #ffeb3b; transform: scale(1.03); }
@@ -101,6 +103,7 @@ st.markdown("""
     .net-worth-box h3 { color: #f8f9fa; font-size: 18px; margin-bottom: 5px; }
     .net-worth-box h1 { color: #ffc107; font-size: 38px; font-weight: 900; margin: 0; text-shadow: 1px 1px 3px rgba(0,0,0,0.5); }
     
+    /* 自動更新控制區樣式 */
     .auto-refresh-box { background-color: #f0f7ff; border: 1px solid #cce5ff; border-radius: 8px; padding: 15px; text-align: center; }
     </style>
     """, unsafe_allow_html=True)
@@ -108,6 +111,7 @@ st.markdown("""
 # --- 2. 系統設定與資料庫 ---
 SETTINGS_FILE = 'settings.json'
 
+# --- 深度校正版 ETF 資料庫 ---
 ETF_FULL_DATABASE = {
     "0050": ["元大台灣50", [1, 7], "0.32%", "0.035%"],
     "0051": ["元大中型100", [11], "0.4%", "0.035%"],
@@ -240,7 +244,10 @@ def load_settings():
                 data = json.load(f)
                 for k, v in default_data.items():
                     if k not in data: data[k] = v
+                
+                # 🔥 強制將程式碼中的手動配息資料更新進你的存檔中
                 data['custom_divs'].update(default_data['custom_divs'])
+                
                 return data
         except: pass
     return default_data
@@ -295,12 +302,16 @@ if last_m_chb != now_str:
         loan_chb_data['last_updated_month'] = now_str
         save_to_json(st.session_state.my_data)
 
+# 元大質押合約初始化與自動推進邏輯
 if 'pledge' not in st.session_state.my_data: 
     st.session_state.my_data['pledge'] = {"borrowed_amount": 0, "months_passed": 1, "total_months": 18, "last_updated_month": now_str}
 else:
-    if 'months_passed' not in st.session_state.my_data['pledge']: st.session_state.my_data['pledge']['months_passed'] = 1
-    if 'total_months' not in st.session_state.my_data['pledge']: st.session_state.my_data['pledge']['total_months'] = 18
-    if 'last_updated_month' not in st.session_state.my_data['pledge']: st.session_state.my_data['pledge']['last_updated_month'] = now_str
+    if 'months_passed' not in st.session_state.my_data['pledge']:
+        st.session_state.my_data['pledge']['months_passed'] = 1
+    if 'total_months' not in st.session_state.my_data['pledge']:
+        st.session_state.my_data['pledge']['total_months'] = 18
+    if 'last_updated_month' not in st.session_state.my_data['pledge']:
+        st.session_state.my_data['pledge']['last_updated_month'] = now_str
 
 pledge_data_info = st.session_state.my_data['pledge']
 last_m_pledge = pledge_data_info.get('last_updated_month', now_str)
@@ -338,18 +349,13 @@ def add_new_etf_bot():
             "symbol": final_symbol, "name": new_name, "holdings": new_h, "cost": new_c, "alert_high": 0.0, "alert_low": 0.0, "pledged_shares": 0.0
         })
         save_to_json(st.session_state.my_data)
-        st.cache_data.clear() 
         st.session_state.add_sym_bot = ""; st.session_state.add_name_bot = ""; st.session_state.add_h_bot = 0.0; st.session_state.add_c_bot = 0.0
-        st.session_state.update_success = "已成功新增庫存，配息資料已同步更新！"
 
 def delete_etf(index):
     if 0 <= index < len(st.session_state.my_data['etfs']):
         st.session_state.my_data['etfs'].pop(index)
         save_to_json(st.session_state.my_data)
-        st.cache_data.clear() 
-        st.session_state.update_success = "已成功刪除庫存，配息資料已同步更新！"
 
-# 🔥 本次重點升級：只要欄位一變動，自動抓取當下數字並瞬間存檔計算
 def save_edits():
     temp_list = []
     for i, item in enumerate(st.session_state.my_data['etfs']):
@@ -361,8 +367,6 @@ def save_edits():
         })
     st.session_state.my_data['etfs'] = temp_list
     save_to_json(st.session_state.my_data)
-    st.cache_data.clear() 
-    st.session_state.update_success = "庫存數量已自動更新，大看板已同步重新計算！"
 
 def auto_fill_wl_name():
     raw_sym = st.session_state.get('add_sym_wl', '')
@@ -416,9 +420,7 @@ def execute_trade():
                 item['holdings'] = new_total_shares
                 item['cost'] = round(new_avg_cost, 2)
                 st.success(f"成功買進 {trade_shares} 張 {trade_etf_name}！最新均價更新為 ${item['cost']}。")
-            
             save_to_json(st.session_state.my_data)
-            st.cache_data.clear() 
             break
 
 # 初始化按鈕狀態
@@ -443,11 +445,18 @@ def toggle_constituents(): st.session_state.show_constituents = not st.session_s
 def toggle_pledge(): st.session_state.show_pledge = not st.session_state.show_pledge 
 def toggle_secret(): st.session_state.show_secret = not st.session_state.show_secret
 
+# ==============================================================================
+# 🔥 [升級版] 台灣證券交易所 (TWSE) + 櫃買中心 (TPEx) 官方除權息預告
+# ==============================================================================
 @st.cache_data(ttl=10800) 
 def fetch_taiwan_upcoming_dividends():
+    """
+    批次抓取 TWSE (上市) 與 TPEx (上櫃) 的「近期即將除權息」名單，確保所有 ETF 不漏接。
+    """
     tw_div_data = {}
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
     
+    # 1. 抓取 TWSE (上市) TWT49U
     try:
         url_twse = "https://www.twse.com.tw/exchangeReport/TWT49U?response=json"
         res = requests.get(url_twse, headers=headers, timeout=5)
@@ -456,7 +465,7 @@ def fetch_taiwan_upcoming_dividends():
         if data.get('stat') == 'OK':
             import re
             for row in data.get('data', []):
-                if len(row) >= 8: 
+                if len(row) >= 8: # TWSE 現金股利通常在 index 7 或 8
                     date_str = str(row[0])      
                     symbol = str(row[1]).strip() 
                     
@@ -466,6 +475,7 @@ def fetch_taiwan_upcoming_dividends():
                         ex_date = f"{int(tw_year) + 1911}-{month.zfill(2)}-{day.zfill(2)}"
                         
                         amount = 0.0
+                        # 精準抓取現金股利欄位 (Index 7)
                         cash_div_str = str(row[7]).replace(',', '').strip()
                         if cash_div_str and cash_div_str.replace('.', '', 1).isdigit():
                             amount = float(cash_div_str)
@@ -481,6 +491,7 @@ def fetch_taiwan_upcoming_dividends():
     except Exception as e:
         pass
 
+    # 2. 抓取 TPEx (上櫃) 除權息預告
     try:
         url_tpex = "https://www.tpex.org.tw/web/stock/exright/preAnnounce/PrePost_result.php?l=zh-tw&o=json"
         res_tpex = requests.get(url_tpex, headers=headers, timeout=5)
@@ -488,7 +499,7 @@ def fetch_taiwan_upcoming_dividends():
         if 'aaData' in data_tpex:
             for row in data_tpex['aaData']:
                 if len(row) >= 6:
-                    date_str = str(row[0]) 
+                    date_str = str(row[0]) # 格式: 113/05/17
                     symbol = str(row[1]).strip()
                     
                     parts = date_str.split('/')
@@ -497,6 +508,7 @@ def fetch_taiwan_upcoming_dividends():
                         ex_date = f"{int(tw_year) + 1911}-{month.zfill(2)}-{day.zfill(2)}"
                         
                         amount = 0.0
+                        # TPEx 現金股利通常在 index 5
                         cash_div_str = str(row[5]).replace(',', '').strip()
                         if cash_div_str and cash_div_str.replace('.', '', 1).isdigit():
                             amount = float(cash_div_str)
@@ -514,6 +526,9 @@ def fetch_taiwan_upcoming_dividends():
         
     return tw_div_data
 
+# ==============================================================================
+# 🔥 獨立快取的「基金規模探測器」
+# ==============================================================================
 @st.cache_data(ttl=86400) 
 def get_fund_size(symbol):
     try:
@@ -530,6 +545,7 @@ def get_fund_size(symbol):
         pass
     return None
 
+# --- 🎯 抓取除權息資料 (結合 官方預告 與 Yahoo) ---
 @st.cache_data(ttl=43200)
 def get_div_data(symbol, custom_div_info=None):
     is_announced = False
@@ -546,6 +562,7 @@ def get_div_data(symbol, custom_div_info=None):
         tk = yf.Ticker(symbol)
         today = datetime.today()
         
+        # 🛡️ 優先權 1：總司令手動覆蓋面板
         if custom_div_info and custom_div_info.get('v', 0) > 0:
             div_amount = custom_div_info['v']
             ex_date = custom_div_info['d']
@@ -558,6 +575,7 @@ def get_div_data(symbol, custom_div_info=None):
             else:
                 status_msg = "✅ 前次紀錄 (手動)"
             
+        # 🚀 優先權 2：官方除權息預告 (TWSE + TPEx)
         elif clean_sym in taiwan_div_data:
             is_announced = True
             ex_date = taiwan_div_data[clean_sym]['ex_date']
@@ -578,6 +596,7 @@ def get_div_data(symbol, custom_div_info=None):
             else:
                 status_msg = "✅ 前次配息 (台灣官方)"
                     
+        # 📡 優先權 3：常規 Yahoo Finance API (🔥 完全移除過期重置限制)
         else:
             divs = tk.dividends
             if not divs.empty:
@@ -589,11 +608,13 @@ def get_div_data(symbol, custom_div_info=None):
                 pay_date = (last_ex_date_obj + timedelta(days=28)).strftime('%Y-%m-%d') 
                 is_announced = True
                 
+                # 依據日期是否已過，動態給予正確的標籤
                 if last_ex_date_obj.date() >= today.date():
                     status_msg = "✅ 已公告 (近期)"
                 else:
                     status_msg = "✅ 前次配息紀錄"
 
+        # 填息計算邏輯保持不變
         hist = tk.history(period='1y')
         divs = tk.dividends
         if not divs.empty and not hist.empty:
@@ -622,6 +643,7 @@ def get_div_data(symbol, custom_div_info=None):
     
     return is_announced, div_amount, ex_date, pay_date, fill_status, status_msg
 
+# --- 🎯 抓取自選股資料 ---
 @st.cache_data(ttl=10)
 def fetch_watchlist_data(wl_list):
     if not wl_list: return pd.DataFrame()
@@ -649,6 +671,7 @@ def fetch_watchlist_data(wl_list):
         except Exception: continue
     return pd.DataFrame(results)
 
+# --- 🎯 抓取自選股除權息資料 ---
 @st.cache_data(ttl=43200)
 def fetch_watchlist_dividend(wl_list, custom_divs):
     if not wl_list: return pd.DataFrame()
@@ -786,6 +809,7 @@ def fetch_data(etf_list, custom_divs):
                 "最新填息紀錄": fill_status, "基金規模": cap_str
             })
             
+            # 🔥 升級：自動判斷並寫入配息月份標籤
             months_to_pay = DIVIDEND_SCHEDULE.get(item['symbol'], [])
             if months_to_pay:
                 if len(months_to_pay) == 12: month_tag = "月配息"
@@ -814,6 +838,7 @@ def fetch_data(etf_list, custom_divs):
 
 df, df_tech, g_mkt, g_cost, g_div, g_today_pnl, radar_ex, radar_pay, price_alerts, monthly_calendar = fetch_data(st.session_state.my_data['etfs'], st.session_state.my_data.get('custom_divs', {}))
 
+# --- 📡 抓取 ETF 焦點新聞 ---
 @st.cache_data(ttl=3600)
 def fetch_etf_news():
     news_list = []
@@ -839,6 +864,7 @@ def fetch_etf_news():
         ]
     return news_list
 
+# --- 📈 抓取美台股大盤指標 ---
 @st.cache_data(ttl=300) 
 def fetch_macro_data():
     tickers = {
@@ -892,6 +918,9 @@ macro_data = fetch_macro_data()
 st.title("📈 實戰資產戰情室")
 st.caption(f"最後更新：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
+# ==========================================
+# 🔥 新聞與即將上市情報看板 🔥
+# ==========================================
 news_data = fetch_etf_news()
 news_html = "<div class='news-box'><div class='news-title'>📰 今日財經焦點</div>"
 for news in news_data:
@@ -904,7 +933,7 @@ upcoming_list = [
     {"date": "2026/05/20", "symbol": "00992A", "name": "主動群益科技創新", "price": "15.00"},
     {"date": "2026/05/25", "symbol": "00400A", "name": "主動國泰動能高息", "price": "15.00"},
     {"date": "2026/05/28", "symbol": "00997A", "name": "主動群益美國增長", "price": "15.00"},
-    {"date": "2026/06/05", "symbol": "00988A", "name": "主 auto_update 統一全球創新", "price": "15.00"},
+    {"date": "2026/06/05", "symbol": "00988A", "name": "主動統一全球創新", "price": "15.00"},
 ]
 
 up_cols = st.columns(4)
@@ -918,6 +947,7 @@ for i, etf in enumerate(upcoming_list):
         </div>
         """, unsafe_allow_html=True)
 st.write("")
+# ==========================================
 
 if price_alerts:
     for alert in price_alerts:
@@ -957,6 +987,7 @@ with col2:
     else: 
         st.markdown(f" <div class='pay-div-box' style='background-color: #fafafa; border: 1.5px dashed #ddd;'><div class='pay-div-title' style='color: #888;'>💰 領息雷達提醒 💰</div><div class='pay-div-text' style='color:#666;'>目前無 20 天內領息雷達提示</div></div>", unsafe_allow_html=True)
 
+# 重新計算總損益
 total_net_profit = df['損益'].sum() if not df.empty else 0
 r_total = (total_net_profit / g_cost * 100) if g_cost != 0 else 0
 prev_mkt = g_mkt - g_today_pnl
@@ -1037,6 +1068,7 @@ b7_lbl, b7_typ = ("🔽 收起ETF成份股", "primary") if st.session_state.show
 b8_lbl, b8_typ = ("🔽 收起質押專區", "primary") if st.session_state.show_pledge else ("🏦 展開質押專區", "secondary") 
 b9_lbl, b9_typ = ("🔽 收起機密面板", "primary") if st.session_state.show_secret else ("🔐 展開機密面板", "secondary")
 
+
 with cols_btn_r1[0]: st.button(b1_lbl, on_click=toggle_us, type=b1_typ, use_container_width=True)
 with cols_btn_r1[1]: st.button(b2_lbl, on_click=toggle_tw, type=b2_typ, use_container_width=True)
 with cols_btn_r1[2]: st.button(b3_lbl, on_click=toggle_calendar, type=b3_typ, use_container_width=True)
@@ -1081,7 +1113,9 @@ if st.session_state.show_calendar:
         """, unsafe_allow_html=True)
     st.write("---")
 
+# --- 📂 展開除權息 ---
 if st.session_state.show_div_db:
+    
     col_d1, col_d2 = st.columns([7, 3])
     with col_d1:
         st.markdown("#### 📚 專屬 ETF 與自選股 除權息時程總覽")
@@ -1128,6 +1162,7 @@ if st.session_state.show_div_db:
     else:
         st.info("目前尚無庫存或自選股，因此無除權息資料可顯示。")
         
+    # 🔥 總司令專屬手動覆蓋面板
     with st.expander("🛠️ 總司令專屬：手動配息覆蓋面板 (修正 Yahoo 資料庫延遲)", expanded=False):
         st.caption("💡 投信剛公告但系統尚未抓到時，可直接在下方表格雙擊修改，按下儲存即可全站套用！(代號務必加上 .TW)")
         
@@ -1157,6 +1192,7 @@ if st.session_state.show_div_db:
 
     st.write("---")
 
+# --- 📡 展開股價監控 ---
 if st.session_state.show_tech:
     if not df.empty:
         st.markdown("#### 📡 庫存價格區間監控與技術分析 (👉 雙擊表格數值設定警報，設 0 代表關閉)")
@@ -1218,7 +1254,10 @@ if st.session_state.show_tech:
         
     st.write("---")
     
+    # --- 自選股區域 ---
     st.markdown("#### 👀 自選股觀察清單")
+    st.caption("追蹤您尚未入手、正在觀察的標的")
+    
     col_w1, col_w2, col_w3 = st.columns([2, 2, 1])
     with col_w1:
         st.text_input("輸入代碼 (不需手打 .TW)", placeholder="例如: 2330", key="add_sym_wl", on_change=auto_fill_wl_name)
@@ -1256,6 +1295,7 @@ if st.session_state.show_tech:
 
     st.write("---")
 
+# --- 📊 展開持股明細 ---
 if st.session_state.show_holdings:
     if not df.empty:
         st.markdown("#### 📊 持股動態明細")
@@ -1271,9 +1311,11 @@ if st.session_state.show_holdings:
         st.info("⚠️ 目前尚無持股資料。請至下方「⚙️ 標的管理」新增您的庫存！")
     st.write("---")
 
+# --- 🧩 展開ETF成份股 ---
 if st.session_state.show_constituents:
     if not df.empty:
         st.markdown("#### 🧩 專屬庫存 ETF 核心成分股佔比")
+        st.caption("已開啟「直接顯示比例」模式。透過圓餅圖檢視成分股，可協助您避免資金過度集中於單一個股，降低系統性風險。")
         
         c_cols = st.columns(3)
         for idx, item in enumerate(st.session_state.my_data['etfs']):
@@ -1313,12 +1355,15 @@ if st.session_state.show_constituents:
         st.info("⚠️ 目前尚無持股資料。請至下方「⚙️ 標的管理」新增您的庫存！")
     st.write("---")
 
+# --- 🏦 展開質押專區 ---
 if st.session_state.show_pledge:
     if not df.empty:
         st.markdown("#### 🏦 股票質押專區 (維持率監控)")
+        st.info("💡 股票質押後會從一般券商庫存消失。一般券商（如元大）最高可借出擔保品市值的 60%。請輸入已借入款項，系統將即時監控維持率！")
         
         pledge_data = st.session_state.my_data['pledge']
         
+        # 👇 加入期數與金額的雙重設定
         col_b1, col_b2, col_b3 = st.columns([2, 2, 1.5])
         with col_b1:
             borrowed_input = st.number_input("💸 已向元大借款總額 (元) [修改請按右側儲存]", min_value=0, value=int(pledge_data.get('borrowed_amount', 0)), step=10000)
@@ -1333,6 +1378,7 @@ if st.session_state.show_pledge:
                 st.success("✅ 借款金額與合約期數已更新！")
                 st.rerun()
 
+        # 使用已存檔的數值作為計算基礎
         borrowed = st.session_state.my_data['pledge'].get('borrowed_amount', 0)
 
         pledge_df_list = []
@@ -1366,6 +1412,7 @@ if st.session_state.show_pledge:
         pledge_df = pd.DataFrame(pledge_df_list)
         margin_ratio = (total_pledge_mkt / borrowed * 100) if borrowed > 0 else 0
         
+        # 計算每月應繳利息 (年利率 3.25%)
         monthly_interest = borrowed * 0.0325 / 12
         
         col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
@@ -1377,6 +1424,7 @@ if st.session_state.show_pledge:
         if borrowed > 0:
             if margin_ratio < 130:
                 col_m5.metric("🚨 目前維持率", f"{margin_ratio:.2f}%", "危險：低於 130%", delta_color="inverse")
+                st.error("🚨 警告：您的維持率已跌破 130%，請盡速補繳保證金或償還部分借款！")
             elif margin_ratio < 160:
                 col_m5.metric("⚠️ 目前維持率", f"{margin_ratio:.2f}%", "注意：市場波動風險", delta_color="off")
             else:
@@ -1384,11 +1432,13 @@ if st.session_state.show_pledge:
         else:
             col_m5.metric("目前維持率", "0.00%")
             
+        # 👇 元大合約進度條
         m_passed = st.session_state.my_data['pledge'].get('months_passed', 1)
         st.markdown(f"**📜 元大質押合約進度：第 {m_passed} 個月 / 共 18 個月 (剩餘 {18 - m_passed} 個月到期)**")
         st.progress(m_passed / 18.0)
         st.write("")
 
+        st.write("👇 **請雙擊下方表格的「質押張數」欄位，設定您已向券商質押的庫存：**")
         edited_pledge = st.data_editor(
             pledge_df,
             column_config={
@@ -1417,6 +1467,7 @@ if st.session_state.show_pledge:
         st.info("⚠️ 目前尚無持股資料，無法進行質押計算。")
     st.write("---")
 
+# --- 🔐 展開機密面板 ---
 if st.session_state.show_secret:
     st.markdown("<div class='secret-box'>", unsafe_allow_html=True)
     st.markdown("#### 🔐 總司令專屬機密戰情區")
@@ -1433,6 +1484,7 @@ if st.session_state.show_secret:
     else:
         st.success("✅ 密碼正確，機密面板已解鎖！系統將會隨著時間推移自動推進信貸期數。")
         
+        # --- 1. 自己繳納的核心信貸 ---
         st.markdown("##### 💳 核心信貸還款戰情 (每月 $15,000 / 7年共84期 | 📅 每月繳款日：14號)")
         
         loan_info = st.session_state.my_data['loan']
@@ -1455,6 +1507,7 @@ if st.session_state.show_secret:
         
         st.write("---")
         
+        # --- 2. 別人欠的彰銀信貸 ---
         st.markdown("##### 🤝 應收帳款戰情：彰化銀行信貸 (別人欠我的) | 📅 期間：2026/04/05 ~ 2029/04/05")
         loan_chb_info = st.session_state.my_data['loan_chb']
         
@@ -1483,14 +1536,19 @@ if st.session_state.show_secret:
 
         st.write("---")
 
+        # --- 3. 獨立收支簿 (日常口袋金) ---
         st.markdown("##### 💰 個人獨立收支簿 (與 ETF 資金分離)")
+        st.caption("此區塊為您的日常零用金帳本，與大額投資庫存完全獨立運作，您可以詳細記錄各項收入與支出，系統將自動結算當月剩餘可用額度。")
         
         if 'personal_finance' not in st.session_state.my_data:
             st.session_state.my_data['personal_finance'] = {"incomes": [], "expenses": []}
         
         pf_data = st.session_state.my_data['personal_finance']
-        if 'incomes' not in pf_data: pf_data['incomes'] = []
-        if 'expenses' not in pf_data: pf_data['expenses'] = []
+        # 相容舊版資料結構
+        if 'incomes' not in pf_data:
+            pf_data['incomes'] = []
+        if 'expenses' not in pf_data:
+            pf_data['expenses'] = []
 
         st.write("**📝 新增收支紀錄**")
         col_type, col_ex1, col_ex2, col_ex3, col_ex4 = st.columns([1.5, 2, 3, 2, 2])
@@ -1623,6 +1681,7 @@ if st.session_state.show_secret:
     st.markdown("</div>", unsafe_allow_html=True)
     st.write("---")
 
+# 🎯 買賣損益試算面板與執行交易功能
 with st.expander("💰 買賣損益試算器", expanded=False):
     st.markdown("<div class='calc-title'>依照即時現價，試算買進或賣出後的損益狀況，並可直接寫入庫存！</div>", unsafe_allow_html=True)
     
@@ -1691,11 +1750,14 @@ with st.expander("💰 買賣損益試算器", expanded=False):
 
 st.write("---")
 
+# 🎯 最底層操作列
 bot_c1, bot_c2, bot_c3 = st.columns([2, 5, 3])
 
 with bot_c1:
     if st.button("🔄 手動重新整理股價", use_container_width=True):
-        st.cache_data.clear() 
+        fetch_data.clear()
+        fetch_watchlist_dividend.clear()
+        fetch_taiwan_upcoming_dividends.clear() # 已更新：讓系統也能強制更新雙軌官方資訊
         st.rerun()
 
 with bot_c2:
@@ -1725,15 +1787,14 @@ with bot_c2:
             for i, item in enumerate(st.session_state.my_data['etfs']):
                 with st.expander(f"📍 {item['name']}"):
                     col_e1, col_e2 = st.columns(2)
-                    # 🔥 重點升級：加入了 on_change=save_edits，修改當下即刻存檔並重新計算看板！
                     with col_e1:
-                        st.number_input("張數", value=float(item['holdings']), step=1.0, key=f"edit_h_{i}", on_change=save_edits)
+                        st.number_input("張數", value=float(item['holdings']), step=1.0, key=f"edit_h_{i}")
                     with col_e2:
-                        st.number_input("均價", value=float(item['cost']), step=0.1, key=f"edit_c_{i}", on_change=save_edits)
+                        st.number_input("均價", value=float(item['cost']), step=0.1, key=f"edit_c_{i}")
 
                     st.button(f"🗑️ 刪除 {item['name']}", key=f"del_{i}", on_click=delete_etf, args=(i,), use_container_width=True)
 
-            st.button("💾 點此手動儲存修改", use_container_width=True, type="secondary", on_click=save_edits)
+            st.button("💾 儲存所有修改", use_container_width=True, type="primary", on_click=save_edits)
 
 with bot_c3:
     st.markdown("<div class='auto-refresh-box'>", unsafe_allow_html=True)
@@ -1754,5 +1815,5 @@ with bot_c3:
 
 if st.session_state.auto_refresh_mode == "✅ USE (開啟)":
     time.sleep(5)
-    st.cache_data.clear() 
+    fetch_data.clear()
     st.rerun()
