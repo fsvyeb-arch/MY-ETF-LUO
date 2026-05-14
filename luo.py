@@ -229,7 +229,7 @@ ETF_CONSTITUENTS_DB = {
 def load_settings():
     default_data = {
         "etfs": [], 
-        "pledge": {"borrowed_amount": 0, "months_passed": 1, "total_months": 18},
+        "pledge": {"borrowed_amount": 0},
         "watchlist": [],
         "custom_divs": {
             "00891.TW": {"v": 1.250, "d": "2026-05-20", "p": "2026-06-15"},
@@ -265,7 +265,7 @@ if 'watchlist' not in st.session_state.my_data:
 if 'personal_finance' not in st.session_state.my_data:
     st.session_state.my_data['personal_finance'] = {"incomes": [], "expenses": []}
 
-# --- 🎯 信貸與質押合約跨月自動計算邏輯 ---
+# --- 🎯 信貸跨月自動計算邏輯 ---
 now_str = datetime.now().strftime("%Y-%m")
 
 if 'loan' not in st.session_state.my_data:
@@ -302,29 +302,7 @@ if last_m_chb != now_str:
         loan_chb_data['last_updated_month'] = now_str
         save_to_json(st.session_state.my_data)
 
-# 元大質押合約初始化與自動推進邏輯
-if 'pledge' not in st.session_state.my_data: 
-    st.session_state.my_data['pledge'] = {"borrowed_amount": 0, "months_passed": 1, "total_months": 18, "last_updated_month": now_str}
-else:
-    if 'months_passed' not in st.session_state.my_data['pledge']:
-        st.session_state.my_data['pledge']['months_passed'] = 1
-    if 'total_months' not in st.session_state.my_data['pledge']:
-        st.session_state.my_data['pledge']['total_months'] = 18
-    if 'last_updated_month' not in st.session_state.my_data['pledge']:
-        st.session_state.my_data['pledge']['last_updated_month'] = now_str
-
-pledge_data_info = st.session_state.my_data['pledge']
-last_m_pledge = pledge_data_info.get('last_updated_month', now_str)
-
-if last_m_pledge != now_str:
-    y_curr, m_curr = map(int, now_str.split('-'))
-    y_last, m_last = map(int, last_m_pledge.split('-'))
-    diff_months = (y_curr - y_last) * 12 + (m_curr - m_last)
-    if diff_months > 0:
-        pledge_data_info['months_passed'] = min(pledge_data_info.get('total_months', 18), pledge_data_info.get('months_passed', 1) + diff_months)
-        pledge_data_info['last_updated_month'] = now_str
-        save_to_json(st.session_state.my_data)
-
+if 'pledge' not in st.session_state.my_data: st.session_state.my_data['pledge'] = {"borrowed_amount": 0}
 for etf in st.session_state.my_data['etfs']:
     if 'pledged_shares' not in etf: etf['pledged_shares'] = 0.0
 save_to_json(st.session_state.my_data)
@@ -1363,19 +1341,16 @@ if st.session_state.show_pledge:
         
         pledge_data = st.session_state.my_data['pledge']
         
-        # 👇 加入期數與金額的雙重設定
-        col_b1, col_b2, col_b3 = st.columns([2, 2, 1.5])
+        # 👇 新增 SAVE 按鈕與輸入框的排版
+        col_b1, col_b2 = st.columns([3, 1])
         with col_b1:
-            borrowed_input = st.number_input("💸 已向元大借款總額 (元) [修改請按右側儲存]", min_value=0, value=int(pledge_data.get('borrowed_amount', 0)), step=10000)
+            borrowed_input = st.number_input("💸 輸入已向券商借入款項總額 (元) [修改後請按右側儲存]", min_value=0, value=int(pledge_data.get('borrowed_amount', 0)), step=10000)
         with col_b2:
-            months_input = st.number_input("📅 元大合約目前期數 (1.5年共18期)", min_value=1, max_value=18, value=int(pledge_data.get('months_passed', 1)))
-        with col_b3:
             st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
-            if st.button("💾 儲存金額與期數", use_container_width=True):
+            if st.button("💾 儲存借款金額", use_container_width=True):
                 st.session_state.my_data['pledge']['borrowed_amount'] = borrowed_input
-                st.session_state.my_data['pledge']['months_passed'] = months_input
                 save_to_json(st.session_state.my_data)
-                st.success("✅ 借款金額與合約期數已更新！")
+                st.success("✅ 借款金額已更新！")
                 st.rerun()
 
         # 使用已存檔的數值作為計算基礎
@@ -1412,9 +1387,10 @@ if st.session_state.show_pledge:
         pledge_df = pd.DataFrame(pledge_df_list)
         margin_ratio = (total_pledge_mkt / borrowed * 100) if borrowed > 0 else 0
         
-        # 計算每月應繳利息 (年利率 3.25%)
+        # 👇 計算每月應繳利息 (年利率 3.25%)
         monthly_interest = borrowed * 0.0325 / 12
         
+        # 👇 版面調整為 5 個欄位，加入每月利息顯示
         col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
         col_m1.metric("擔保品總市值", f"${total_pledge_mkt:,.0f}")
         col_m2.metric("🎯 總可借款上限", f"${total_borrowable:,.0f}")
@@ -1431,12 +1407,6 @@ if st.session_state.show_pledge:
                 col_m5.metric("✅ 目前維持率", f"{margin_ratio:.2f}%", "安全", delta_color="normal")
         else:
             col_m5.metric("目前維持率", "0.00%")
-            
-        # 👇 元大合約進度條
-        m_passed = st.session_state.my_data['pledge'].get('months_passed', 1)
-        st.markdown(f"**📜 元大質押合約進度：第 {m_passed} 個月 / 共 18 個月 (剩餘 {18 - m_passed} 個月到期)**")
-        st.progress(m_passed / 18.0)
-        st.write("")
 
         st.write("👇 **請雙擊下方表格的「質押張數」欄位，設定您已向券商質押的庫存：**")
         edited_pledge = st.data_editor(
