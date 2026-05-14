@@ -223,9 +223,7 @@ ETF_CONSTITUENTS_DB = {
     "0050.TW": [{"name": "台積電", "weight": 52.5}, {"name": "鴻海", "weight": 5.5}, {"name": "聯發科", "weight": 4.8}, {"name": "廣達", "weight": 2.1}, {"name": "台達電", "weight": 1.9}, {"name": "其他", "weight": 33.2}],
     "006208.TW": [{"name": "台積電", "weight": 52.6}, {"name": "鴻海", "weight": 5.4}, {"name": "聯發科", "weight": 4.9}, {"name": "廣達", "weight": 2.0}, {"name": "台達電", "weight": 1.8}, {"name": "其他", "weight": 33.3}],
     "00713.TW": [{"name": "統一", "weight": 8.5}, {"name": "台灣大", "weight": 7.2}, {"name": "遠傳", "weight": 6.8}, {"name": "華碩", "weight": 6.1}, {"name": "仁寶", "weight": 5.5}, {"name": "其他", "weight": 65.9}],
-    "00940.TW": [{"name": "長榮", "weight": 9.5}, {"name": "聯電", "weight": 6.5}, {"name": "聯發科", "weight": 5.8}, {"name": "中美晶", "weight": 5.2}, {"name": "神基", "weight": 4.8}, {"name": "其他", "weight": 68.2}],
-    "00981A.TW": [{"name": "台積電", "weight": 18.5}, {"name": "聯發科", "weight": 8.2}, {"name": "奇鋐", "weight": 6.5}, {"name": "台光電", "weight": 5.8}, {"name": "雙鴻", "weight": 5.2}, {"name": "其他", "weight": 55.8}],
-    "00982A.TW": [{"name": "台積電", "weight": 15.0}, {"name": "鴻海", "weight": 9.5}, {"name": "聯發科", "weight": 7.5}, {"name": "富邦金", "weight": 5.5}, {"name": "廣達", "weight": 4.8}, {"name": "其他", "weight": 57.7}]
+    "00940.TW": [{"name": "長榮", "weight": 9.5}, {"name": "聯電", "weight": 6.5}, {"name": "聯發科", "weight": 5.8}, {"name": "中美晶", "weight": 5.2}, {"name": "神基", "weight": 4.8}, {"name": "其他", "weight": 68.2}]
 }
 
 def load_settings():
@@ -305,11 +303,8 @@ if last_m_chb != now_str:
         save_to_json(st.session_state.my_data)
 
 if 'pledge' not in st.session_state.my_data: st.session_state.my_data['pledge'] = {"borrowed_amount": 0}
-
-# 確保所有庫存 ETF 都有質押相關欄位
 for etf in st.session_state.my_data['etfs']:
     if 'pledged_shares' not in etf: etf['pledged_shares'] = 0.0
-    if 'is_pledged' not in etf: etf['is_pledged'] = False # 新增：勾選狀態記錄
 save_to_json(st.session_state.my_data)
 
 # --- 🚀 Callback 函數區 ---
@@ -329,7 +324,7 @@ def add_new_etf_bot():
     if clean_symbol and new_name:
         final_symbol = f"{clean_symbol}.TW" 
         st.session_state.my_data['etfs'].append({
-            "symbol": final_symbol, "name": new_name, "holdings": new_h, "cost": new_c, "alert_high": 0.0, "alert_low": 0.0, "pledged_shares": 0.0, "is_pledged": False
+            "symbol": final_symbol, "name": new_name, "holdings": new_h, "cost": new_c, "alert_high": 0.0, "alert_low": 0.0, "pledged_shares": 0.0
         })
         save_to_json(st.session_state.my_data)
         st.session_state.add_sym_bot = ""; st.session_state.add_name_bot = ""; st.session_state.add_h_bot = 0.0; st.session_state.add_c_bot = 0.0
@@ -346,8 +341,7 @@ def save_edits():
         c_val = st.session_state.get(f"edit_c_{i}", item['cost'])
         temp_list.append({
             "symbol": item['symbol'], "name": item['name'], "holdings": h_val, "cost": c_val,
-            "alert_high": item.get('alert_high', 0.0), "alert_low": item.get('alert_low', 0.0), 
-            "pledged_shares": item.get('pledged_shares', 0.0), "is_pledged": item.get('is_pledged', False)
+            "alert_high": item.get('alert_high', 0.0), "alert_low": item.get('alert_low', 0.0), "pledged_shares": item.get('pledged_shares', 0.0)
         })
     st.session_state.my_data['etfs'] = temp_list
     save_to_json(st.session_state.my_data)
@@ -415,7 +409,6 @@ if 'show_div_db' not in st.session_state: st.session_state.show_div_db = False
 if 'show_tech' not in st.session_state: st.session_state.show_tech = False
 if 'show_holdings' not in st.session_state: st.session_state.show_holdings = False
 if 'show_constituents' not in st.session_state: st.session_state.show_constituents = False 
-if 'show_daily_price' not in st.session_state: st.session_state.show_daily_price = False 
 if 'show_pledge' not in st.session_state: st.session_state.show_pledge = False 
 if 'show_secret' not in st.session_state: st.session_state.show_secret = False
 if 'is_unlocked' not in st.session_state: st.session_state.is_unlocked = False
@@ -427,7 +420,6 @@ def toggle_div_db(): st.session_state.show_div_db = not st.session_state.show_di
 def toggle_tech(): st.session_state.show_tech = not st.session_state.show_tech
 def toggle_holdings(): st.session_state.show_holdings = not st.session_state.show_holdings
 def toggle_constituents(): st.session_state.show_constituents = not st.session_state.show_constituents
-def toggle_daily_price(): st.session_state.show_daily_price = not st.session_state.show_daily_price 
 def toggle_pledge(): st.session_state.show_pledge = not st.session_state.show_pledge 
 def toggle_secret(): st.session_state.show_secret = not st.session_state.show_secret
 
@@ -436,10 +428,13 @@ def toggle_secret(): st.session_state.show_secret = not st.session_state.show_se
 # ==============================================================================
 @st.cache_data(ttl=10800) 
 def fetch_taiwan_upcoming_dividends():
+    """
+    批次抓取 TWSE (上市) 與 TPEx (上櫃) 的「近期即將除權息」名單，確保所有 ETF 不漏接。
+    """
     tw_div_data = {}
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
     
-    # 1. 抓取 TWSE (上市)
+    # 1. 抓取 TWSE (上市) TWT49U
     try:
         url_twse = "https://www.twse.com.tw/exchangeReport/TWT49U?response=json"
         res = requests.get(url_twse, headers=headers, timeout=5)
@@ -448,7 +443,7 @@ def fetch_taiwan_upcoming_dividends():
         if data.get('stat') == 'OK':
             import re
             for row in data.get('data', []):
-                if len(row) >= 8: 
+                if len(row) >= 8: # TWSE 現金股利通常在 index 7 或 8
                     date_str = str(row[0])      
                     symbol = str(row[1]).strip() 
                     
@@ -458,6 +453,7 @@ def fetch_taiwan_upcoming_dividends():
                         ex_date = f"{int(tw_year) + 1911}-{month.zfill(2)}-{day.zfill(2)}"
                         
                         amount = 0.0
+                        # 精準抓取現金股利欄位 (Index 7)
                         cash_div_str = str(row[7]).replace(',', '').strip()
                         if cash_div_str and cash_div_str.replace('.', '', 1).isdigit():
                             amount = float(cash_div_str)
@@ -473,7 +469,7 @@ def fetch_taiwan_upcoming_dividends():
     except Exception as e:
         pass
 
-    # 2. 抓取 TPEx (上櫃)
+    # 2. 抓取 TPEx (上櫃) 除權息預告
     try:
         url_tpex = "https://www.tpex.org.tw/web/stock/exright/preAnnounce/PrePost_result.php?l=zh-tw&o=json"
         res_tpex = requests.get(url_tpex, headers=headers, timeout=5)
@@ -481,7 +477,7 @@ def fetch_taiwan_upcoming_dividends():
         if 'aaData' in data_tpex:
             for row in data_tpex['aaData']:
                 if len(row) >= 6:
-                    date_str = str(row[0]) 
+                    date_str = str(row[0]) # 格式: 113/05/17
                     symbol = str(row[1]).strip()
                     
                     parts = date_str.split('/')
@@ -490,6 +486,7 @@ def fetch_taiwan_upcoming_dividends():
                         ex_date = f"{int(tw_year) + 1911}-{month.zfill(2)}-{day.zfill(2)}"
                         
                         amount = 0.0
+                        # TPEx 現金股利通常在 index 5
                         cash_div_str = str(row[5]).replace(',', '').strip()
                         if cash_div_str and cash_div_str.replace('.', '', 1).isdigit():
                             amount = float(cash_div_str)
@@ -526,7 +523,7 @@ def get_fund_size(symbol):
         pass
     return None
 
-# --- 🎯 抓取除權息資料 ---
+# --- 🎯 抓取除權息資料 (結合 官方預告 與 Yahoo) ---
 @st.cache_data(ttl=43200)
 def get_div_data(symbol, custom_div_info=None):
     is_announced = False
@@ -543,6 +540,7 @@ def get_div_data(symbol, custom_div_info=None):
         tk = yf.Ticker(symbol)
         today = datetime.today()
         
+        # 🛡️ 優先權 1：總司令手動覆蓋面板
         if custom_div_info and custom_div_info.get('v', 0) > 0:
             div_amount = custom_div_info['v']
             ex_date = custom_div_info['d']
@@ -555,6 +553,7 @@ def get_div_data(symbol, custom_div_info=None):
             else:
                 status_msg = "✅ 前次紀錄 (手動)"
             
+        # 🚀 優先權 2：官方除權息預告 (TWSE + TPEx)
         elif clean_sym in taiwan_div_data:
             is_announced = True
             ex_date = taiwan_div_data[clean_sym]['ex_date']
@@ -575,6 +574,7 @@ def get_div_data(symbol, custom_div_info=None):
             else:
                 status_msg = "✅ 前次配息 (台灣官方)"
                     
+        # 📡 優先權 3：常規 Yahoo Finance API (🔥 完全移除過期重置限制)
         else:
             divs = tk.dividends
             if not divs.empty:
@@ -586,11 +586,13 @@ def get_div_data(symbol, custom_div_info=None):
                 pay_date = (last_ex_date_obj + timedelta(days=28)).strftime('%Y-%m-%d') 
                 is_announced = True
                 
+                # 依據日期是否已過，動態給予正確的標籤
                 if last_ex_date_obj.date() >= today.date():
                     status_msg = "✅ 已公告 (近期)"
                 else:
                     status_msg = "✅ 前次配息紀錄"
 
+        # 填息計算邏輯保持不變
         hist = tk.history(period='1y')
         divs = tk.dividends
         if not divs.empty and not hist.empty:
@@ -785,6 +787,7 @@ def fetch_data(etf_list, custom_divs):
                 "最新填息紀錄": fill_status, "基金規模": cap_str
             })
             
+            # 🔥 升級：自動判斷並寫入配息月份標籤
             months_to_pay = DIVIDEND_SCHEDULE.get(item['symbol'], [])
             if months_to_pay:
                 if len(months_to_pay) == 12: month_tag = "月配息"
@@ -905,7 +908,7 @@ st.markdown(news_html, unsafe_allow_html=True)
 
 st.markdown("### 📢 近期新募集 / 即將上市主動式 ETF 追蹤")
 upcoming_list = [
-    {"date": "2026/05/20", "symbol": "00992A", "name": "主提群益科技創新", "price": "15.00"},
+    {"date": "2026/05/20", "symbol": "00992A", "name": "主動群益科技創新", "price": "15.00"},
     {"date": "2026/05/25", "symbol": "00400A", "name": "主動國泰動能高息", "price": "15.00"},
     {"date": "2026/05/28", "symbol": "00997A", "name": "主動群益美國增長", "price": "15.00"},
     {"date": "2026/06/05", "symbol": "00988A", "name": "主動統一全球創新", "price": "15.00"},
@@ -922,6 +925,7 @@ for i, etf in enumerate(upcoming_list):
         </div>
         """, unsafe_allow_html=True)
 st.write("")
+# ==========================================
 
 if price_alerts:
     for alert in price_alerts:
@@ -1029,7 +1033,6 @@ if "tw" in macro_data and macro_data["tw"]:
 cols_btn_r1 = st.columns(3)
 cols_btn_r2 = st.columns(3)
 cols_btn_r3 = st.columns(3)
-cols_btn_r4 = st.columns(3)
 
 b1_lbl, b1_typ = (f"🔽 收起美股指數 {us_icon}", "primary") if st.session_state.show_us else (f"{us_icon} 展開美股指數", "secondary")
 b2_lbl, b2_typ = (f"🔽 收起台股指數 {tw_icon}", "primary") if st.session_state.show_tw else (f"{tw_icon} 展開台股指數", "secondary")
@@ -1042,7 +1045,7 @@ b6_lbl, b6_typ = ("🔽 收起持股明細", "primary") if st.session_state.show
 b7_lbl, b7_typ = ("🔽 收起ETF成份股", "primary") if st.session_state.show_constituents else ("🧩 展開ETF成份股", "secondary")
 b8_lbl, b8_typ = ("🔽 收起質押專區", "primary") if st.session_state.show_pledge else ("🏦 展開質押專區", "secondary") 
 b9_lbl, b9_typ = ("🔽 收起機密面板", "primary") if st.session_state.show_secret else ("🔐 展開機密面板", "secondary")
-b10_lbl, b10_typ = ("🔽 收起每日股價", "primary") if st.session_state.show_daily_price else ("🗓️ 展開每日股價", "secondary") 
+
 
 with cols_btn_r1[0]: st.button(b1_lbl, on_click=toggle_us, type=b1_typ, use_container_width=True)
 with cols_btn_r1[1]: st.button(b2_lbl, on_click=toggle_tw, type=b2_typ, use_container_width=True)
@@ -1055,8 +1058,6 @@ with cols_btn_r2[2]: st.button(b6_lbl, on_click=toggle_holdings, type=b6_typ, us
 with cols_btn_r3[0]: st.button(b7_lbl, on_click=toggle_constituents, type=b7_typ, use_container_width=True) 
 with cols_btn_r3[1]: st.button(b8_lbl, on_click=toggle_pledge, type=b8_typ, use_container_width=True) 
 with cols_btn_r3[2]: st.button(b9_lbl, on_click=toggle_secret, type=b9_typ, use_container_width=True) 
-
-with cols_btn_r4[0]: st.button(b10_lbl, on_click=toggle_daily_price, type=b10_typ, use_container_width=True) 
 
 st.write("---")
 
@@ -1090,7 +1091,9 @@ if st.session_state.show_calendar:
         """, unsafe_allow_html=True)
     st.write("---")
 
+# --- 📂 展開除權息 ---
 if st.session_state.show_div_db:
+    
     col_d1, col_d2 = st.columns([7, 3])
     with col_d1:
         st.markdown("#### 📚 專屬 ETF 與自選股 除權息時程總覽")
@@ -1137,6 +1140,7 @@ if st.session_state.show_div_db:
     else:
         st.info("目前尚無庫存或自選股，因此無除權息資料可顯示。")
         
+    # 🔥 總司令專屬手動覆蓋面板
     with st.expander("🛠️ 總司令專屬：手動配息覆蓋面板 (修正 Yahoo 資料庫延遲)", expanded=False):
         st.caption("💡 投信剛公告但系統尚未抓到時，可直接在下方表格雙擊修改，按下儲存即可全站套用！(代號務必加上 .TW)")
         
@@ -1166,64 +1170,57 @@ if st.session_state.show_div_db:
 
     st.write("---")
 
+# --- 📡 展開股價監控 ---
 if st.session_state.show_tech:
     if not df.empty:
-        st.markdown("#### 📡 庫存價格區間監控與技術分析")
-        tech_col, auto_tech_col = st.columns([8.5, 1.5])
+        st.markdown("#### 📡 庫存價格區間監控與技術分析 (👉 雙擊表格數值設定警報，設 0 代表關閉)")
         
-        with tech_col:
-            if '配息月份' in df_tech.columns:
-                df_tech = df_tech.sort_values(by='配息月份', ascending=True)
-                
-            def color_profit_loss(val):
-                if isinstance(val, str):
-                    if val.startswith('+'): return 'color: #d32f2f; font-weight: bold;' 
-                    elif val.startswith('-'): return 'color: #388e3c; font-weight: bold;' 
-                return ''
-                
-            def color_months(val):
-                if not isinstance(val, str): return ''
-                if val == '1,4,7,10月': return 'background-color: #e3f2fd; color: #1565c0; font-weight: bold; text-align: center;' 
-                if val == '2,5,8,11月': return 'background-color: #f3e5f5; color: #6a1b9a; font-weight: bold; text-align: center;' 
-                if val == '3,6,9,12月': return 'background-color: #e8f5e9; color: #2e7d32; font-weight: bold; text-align: center;' 
-                if val == '月配息': return 'background-color: #fff8e1; color: #f57f17; font-weight: bold; text-align: center;' 
-                return 'color: #555; text-align: center;'
-
-            if "設定高標(停利)" in df_tech.columns and "設定低標(停損)" in df_tech.columns:
-                df_tech_display = df_tech.drop(columns=["設定高標(停利)", "設定低標(停損)"])
-            else:
-                df_tech_display = df_tech
-
-            try:
-                styled_df_tech = df_tech_display.style.map(color_profit_loss, subset=['今日損益', '今日漲跌幅']).map(color_months, subset=['配息月份'])
-            except AttributeError:
-                styled_df_tech = df_tech_display.style.applymap(color_profit_loss, subset=['今日損益', '今日漲跌幅']).applymap(color_months, subset=['配息月份'])
-
-            st.dataframe(
-                styled_df_tech,
-                column_config={
-                    "現價": st.column_config.NumberColumn("現價", format="%.2f"),
-                    "股票張數": st.column_config.NumberColumn("股票張數", format="%.1f") 
-                },
-                use_container_width=True, hide_index=True
-            )
-                
-        with auto_tech_col:
-            st.markdown("<div style='background-color: #f0f7ff; border: 1px solid #cce5ff; border-radius: 8px; padding: 10px 8px; text-align: center; box-shadow: 1px 1px 3px rgba(0,0,0,0.05);'>", unsafe_allow_html=True)
-            st.markdown("<div style='font-size: 15px; font-weight: bold; color: #1e3c72; margin-bottom: 4px;'>⚡ 自動更新</div>", unsafe_allow_html=True)
-            st.markdown("<div style='font-size: 11px; color: #6c757d; margin-bottom: 10px; line-height: 1.2;'>每 5 秒即時重整</div>", unsafe_allow_html=True)
+        def color_profit_loss(val):
+            if isinstance(val, str):
+                if val.startswith('+'): return 'color: #d32f2f; font-weight: bold;' 
+                elif val.startswith('-'): return 'color: #388e3c; font-weight: bold;' 
+            return ''
             
-            if 'auto_refresh_mode' not in st.session_state:
-                st.session_state.auto_refresh_mode = "❌ NO USE (關閉)"
-                
-            auto_update = st.radio(
-                "即時更新", 
-                ["❌ NO USE (關閉)", "✅ USE (開啟)"], 
-                key="auto_refresh_mode",
-                horizontal=False,
-                label_visibility="collapsed"
-            )
-            st.markdown("</div>", unsafe_allow_html=True)
+        def color_months(val):
+            if not isinstance(val, str): return ''
+            if val == '1,4,7,10月': return 'background-color: #e3f2fd; color: #1565c0; font-weight: bold; text-align: center;' 
+            if val == '2,5,8,11月': return 'background-color: #f3e5f5; color: #6a1b9a; font-weight: bold; text-align: center;' 
+            if val == '3,6,9,12月': return 'background-color: #e8f5e9; color: #2e7d32; font-weight: bold; text-align: center;' 
+            if val == '月配息': return 'background-color: #fff8e1; color: #f57f17; font-weight: bold; text-align: center;' 
+            return 'color: #555; text-align: center;'
+
+        try:
+            styled_df_tech = df_tech.style.map(color_profit_loss, subset=['今日損益', '今日漲跌幅']).map(color_months, subset=['配息月份'])
+        except AttributeError:
+            styled_df_tech = df_tech.style.applymap(color_profit_loss, subset=['今日損益', '今日漲跌幅']).applymap(color_months, subset=['配息月份'])
+
+        edited_tech = st.data_editor(
+            styled_df_tech,
+            column_config={
+                "設定高標(停利)": st.column_config.NumberColumn("設定高標(停利)", help="雙擊輸入，超過觸發紅色警報", min_value=0.0, format="%.2f"),
+                "設定低標(停損)": st.column_config.NumberColumn("設定低標(停損)", help="雙擊輸入，低於觸發綠色警報", min_value=0.0, format="%.2f"),
+                "現價": st.column_config.NumberColumn("現價", format="%.2f"),
+                "股票張數": st.column_config.NumberColumn("股票張數", format="%.1f") 
+            },
+            disabled=["ETF 名稱", "配息月份", "股票張數", "現價", "今日損益", "今日漲跌幅", "今日交易量", "年殖利率", "今日最高/最低", "52週最高/最低"],
+            use_container_width=True, hide_index=True
+        )
+
+        has_changes = False
+        for _, row in edited_tech.iterrows():
+            display_name = row['ETF 名稱']
+            for etf in st.session_state.my_data['etfs']:
+                if etf['name'] in display_name:
+                    if etf.get('alert_high', 0.0) != row['設定高標(停利)'] or etf.get('alert_low', 0.0) != row['設定低標(停損)']:
+                        etf['alert_high'] = row['設定高標(停利)']
+                        etf['alert_low'] = row['設定低標(停損)']
+                        has_changes = True
+                    break
+                    
+        if has_changes:
+            save_to_json(st.session_state.my_data)
+            st.cache_data.clear()
+            st.rerun()
 
         st.write("")
         st.markdown("#### 📊 詳細持股清單與內扣費率")
@@ -1235,6 +1232,7 @@ if st.session_state.show_tech:
         
     st.write("---")
     
+    # --- 自選股區域 ---
     st.markdown("#### 👀 自選股觀察清單")
     st.caption("追蹤您尚未入手、正在觀察的標的")
     
@@ -1275,6 +1273,7 @@ if st.session_state.show_tech:
 
     st.write("---")
 
+# --- 📊 展開持股明細 ---
 if st.session_state.show_holdings:
     if not df.empty:
         st.markdown("#### 📊 持股動態明細")
@@ -1290,6 +1289,7 @@ if st.session_state.show_holdings:
         st.info("⚠️ 目前尚無持股資料。請至下方「⚙️ 標的管理」新增您的庫存！")
     st.write("---")
 
+# --- 🧩 展開ETF成份股 ---
 if st.session_state.show_constituents:
     if not df.empty:
         st.markdown("#### 🧩 專屬庫存 ETF 核心成分股佔比")
@@ -1333,139 +1333,28 @@ if st.session_state.show_constituents:
         st.info("⚠️ 目前尚無持股資料。請至下方「⚙️ 標的管理」新增您的庫存！")
     st.write("---")
 
-if st.session_state.show_daily_price:
-    st.markdown("#### 🗓️ 庫存 ETF 每日統計數據 (近 30 個交易日)")
-    
-    port_map = {item['symbol']: f"💼 {item['name']}" for item in st.session_state.my_data.get('etfs', [])}
-    port_holdings = {f"💼 {item['name']}": item['holdings'] * 1000 for item in st.session_state.my_data.get('etfs', [])}
-    current_symbols = list(port_map.keys())
-    
-    if current_symbols:
-        with st.spinner("📡 正在向資料庫調閱歷史數據... (啟用強制補正機制)"):
-            try:
-                hist_data = yf.download(current_symbols, period="2mo")['Close']
-                
-                if len(current_symbols) == 1:
-                    hist_data = hist_data.to_frame()
-                    hist_data.columns = [port_map[current_symbols[0]]]
-                else:
-                    hist_data = hist_data.rename(columns=port_map)
-                
-                hist_data = hist_data.dropna(how='all')
-                
-                today_str = datetime.now().strftime('%Y-%m-%d')
-                today_dt = pd.to_datetime(today_str)
-                
-                if today_dt not in hist_data.index:
-                    hist_data.loc[today_dt] = [None] * len(hist_data.columns)
-                
-                hist_data = hist_data.sort_index()
-                
-                for sym in current_symbols:
-                    mapped_name = port_map[sym]
-                    try:
-                        live_price = df[df['代號'] == sym]['現價'].values[0]
-                        hist_data.loc[hist_data.index[-1], mapped_name] = live_price
-                    except:
-                        pass
-                        
-                # 修正 Pandas 報錯: 改用新版直接呼叫 ffill()
-                hist_data = hist_data.ffill()
-                
-                diff_data = hist_data.diff()
-                
-                # 修改為 30 個交易日
-                hist_data = hist_data.tail(30)
-                diff_data = diff_data.tail(30)
-                
-                hist_data.index = hist_data.index.strftime('%m/%d')
-                diff_data.index = diff_data.index.strftime('%m/%d')
-                
-                h_display = hist_data.iloc[::-1].T
-                d_display = diff_data.iloc[::-1].T
-                
-                valid_port_names = [name for name in port_map.values() if name in h_display.index]
-                
-                if valid_port_names:
-                    st.markdown("##### 💰 每日單日賺賠金額 (庫存)")
-                    pnl_df = pd.DataFrame(index=valid_port_names, columns=h_display.columns)
-                    
-                    daily_totals = {col: 0.0 for col in h_display.columns}
-                    
-                    for etf_name in valid_port_names:
-                        shares = port_holdings.get(etf_name, 0)
-                        for col in h_display.columns:
-                            diff = d_display.loc[etf_name, col]
-                            if pd.isna(diff): 
-                                pnl_df.loc[etf_name, col] = "-"
-                            else:
-                                val = diff * shares
-                                pnl_df.loc[etf_name, col] = f"{'+' if val > 0 else ''}{val:,.0f}"
-                                daily_totals[col] += val
-
-                    total_row = []
-                    for col in h_display.columns:
-                        v = daily_totals[col]
-                        total_row.append(f"{'+' if v > 0 else ''}{v:,.0f}")
-                    
-                    pnl_df.loc['📈 每日合計'] = total_row
-
-                    def color_pnl(df_to_style):
-                        css = pd.DataFrame('', index=df_to_style.index, columns=df_to_style.columns)
-                        for idx in df_to_style.index:
-                            for col in df_to_style.columns:
-                                val_str = str(df_to_style.loc[idx, col]).replace(',', '')
-                                if val_str == '-' or val_str == 'nan':
-                                    continue
-                                try:
-                                    val = float(val_str)
-                                    if val > 0:
-                                        css.loc[idx, col] = 'color: #d32f2f; font-weight: bold;'
-                                        if idx == '📈 每日合計':
-                                            css.loc[idx, col] += ' background-color: #ffebee; font-size: 16px;'
-                                    elif val < 0:
-                                        css.loc[idx, col] = 'color: #388e3c; font-weight: bold;'
-                                        if idx == '📈 每日合計':
-                                            css.loc[idx, col] += ' background-color: #e8f5e9; font-size: 16px;'
-                                    else:
-                                        if idx == '📈 每日合計':
-                                            css.loc[idx, col] = 'font-weight: bold; background-color: #f5f5f5; font-size: 16px;'
-                                except:
-                                    pass
-                        return css
-
-                    st.dataframe(pnl_df.style.apply(color_pnl, axis=None), use_container_width=True)
-
-                    st.markdown("##### 📉 每日收盤價 (庫存)")
-                    price_df = h_display.loc[valid_port_names].copy()
-                    for col in price_df.columns:
-                        price_df[col] = price_df[col].apply(lambda x: f"{x:.2f}" if pd.notna(x) else "-")
-                    
-                    st.dataframe(price_df, use_container_width=True)
-                    st.caption("💡 提示：數值紅色代表漲/賺，綠色代表跌/賠。最下方已有當日總賺賠統計！系統已啟動強效補正機制，確保不再有缺漏。")
-                else:
-                    st.info("⚠️ 目前無有效庫存數據。")
-            except Exception as e:
-                st.error(f"無法抓取每日數據：{e}")
-    else:
-        st.info("⚠️ 目前無庫存資料。")
-    st.write("---")
-
-# ==============================================================================
-# 🔥 股票質押專區 (修正：加入勾選與防呆功能 + 新增庫存市值顯示)
-# ==============================================================================
+# --- 🏦 展開質押專區 ---
 if st.session_state.show_pledge:
     if not df.empty:
         st.markdown("#### 🏦 股票質押專區 (維持率監控)")
-        st.info("💡 股票質押後會從一般券商庫存消失。一般券商最高可借出擔保品市值的 60%。請先「打勾選取」欲質押標的，再輸入已借款項！")
+        st.info("💡 股票質押後會從一般券商庫存消失。一般券商（如元大）最高可借出擔保品市值的 60%。請輸入已借入款項，系統將即時監控維持率！")
         
         pledge_data = st.session_state.my_data['pledge']
-        borrowed = st.number_input("💸 輸入已向券商借入款項總額 (元)", min_value=0, value=int(pledge_data.get('borrowed_amount', 0)), step=10000)
         
-        if borrowed != pledge_data.get('borrowed_amount', 0):
-            st.session_state.my_data['pledge']['borrowed_amount'] = borrowed
-            save_to_json(st.session_state.my_data)
-            st.rerun()
+        # 👇 新增 SAVE 按鈕與輸入框的排版
+        col_b1, col_b2 = st.columns([3, 1])
+        with col_b1:
+            borrowed_input = st.number_input("💸 輸入已向券商借入款項總額 (元) [修改後請按右側儲存]", min_value=0, value=int(pledge_data.get('borrowed_amount', 0)), step=10000)
+        with col_b2:
+            st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+            if st.button("💾 儲存借款金額", use_container_width=True):
+                st.session_state.my_data['pledge']['borrowed_amount'] = borrowed_input
+                save_to_json(st.session_state.my_data)
+                st.success("✅ 借款金額已更新！")
+                st.rerun()
+
+        # 使用已存檔的數值作為計算基礎
+        borrowed = st.session_state.my_data['pledge'].get('borrowed_amount', 0)
 
         pledge_df_list = []
         total_pledge_mkt = 0
@@ -1475,27 +1364,20 @@ if st.session_state.show_pledge:
             name = item['name']
             h_total = item['holdings']
             p_shares = item.get('pledged_shares', 0.0)
-            is_pledged = item.get('is_pledged', False) # 讀取打勾狀態
             
             try:
                 curr_p = df[df['代號'] == sym]['現價'].values[0]
             except:
                 curr_p = 0
                 
-            # 🔥 新增：計算原本的庫存總市值 (不管有沒有打勾都要顯示)
-            original_mkt = h_total * 1000 * curr_p
-                
-            # 只有打勾的才算進擔保品市值
-            p_mkt = p_shares * 1000 * curr_p if is_pledged else 0
-            p_limit = p_mkt * 0.6 if is_pledged else 0
+            p_mkt = p_shares * 1000 * curr_p
+            p_limit = p_mkt * 0.6  
             total_pledge_mkt += p_mkt
             total_borrowable += p_limit
             
             pledge_df_list.append({
-                "✓ 選取": is_pledged,
                 "ETF 名稱": name,
                 "總庫存 (張)": h_total,
-                "庫存市值 (元)": round(original_mkt, 0), # 🔥 新增欄位：永遠顯示原市值
                 "質押張數": p_shares,
                 "現價": round(curr_p, 2),
                 "質押市值 (元)": round(p_mkt, 0),
@@ -1505,53 +1387,48 @@ if st.session_state.show_pledge:
         pledge_df = pd.DataFrame(pledge_df_list)
         margin_ratio = (total_pledge_mkt / borrowed * 100) if borrowed > 0 else 0
         
-        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+        # 👇 計算每月應繳利息 (年利率 3.25%)
+        monthly_interest = borrowed * 0.0325 / 12
+        
+        # 👇 版面調整為 5 個欄位，加入每月利息顯示
+        col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
         col_m1.metric("擔保品總市值", f"${total_pledge_mkt:,.0f}")
-        col_m2.metric("🎯 總可借款上限 (60%)", f"${total_borrowable:,.0f}")
+        col_m2.metric("🎯 總可借款上限", f"${total_borrowable:,.0f}")
         col_m3.metric("💸 已借入總額", f"${borrowed:,.0f}")
+        col_m4.metric("💰 每月利息(3.25%)", f"${monthly_interest:,.0f}", "- 現金流支出", delta_color="inverse")
         
         if borrowed > 0:
             if margin_ratio < 130:
-                col_m4.metric("🚨 目前維持率", f"{margin_ratio:.2f}%", "危險：低於 130% 將面臨斷頭", delta_color="inverse")
+                col_m5.metric("🚨 目前維持率", f"{margin_ratio:.2f}%", "危險：低於 130%", delta_color="inverse")
                 st.error("🚨 警告：您的維持率已跌破 130%，請盡速補繳保證金或償還部分借款！")
             elif margin_ratio < 160:
-                col_m4.metric("⚠️ 目前維持率", f"{margin_ratio:.2f}%", "注意：市場波動可能導致風險", delta_color="off")
+                col_m5.metric("⚠️ 目前維持率", f"{margin_ratio:.2f}%", "注意：市場波動風險", delta_color="off")
             else:
-                col_m4.metric("✅ 目前維持率", f"{margin_ratio:.2f}%", "安全：維持率處於健康水平", delta_color="normal")
+                col_m5.metric("✅ 目前維持率", f"{margin_ratio:.2f}%", "安全", delta_color="normal")
         else:
-            col_m4.metric("目前維持率", "0.00%")
+            col_m5.metric("目前維持率", "0.00%")
 
-        st.write("👇 **請勾選欲質押的標的，並雙擊「質押張數」欄位設定數量：**")
+        st.write("👇 **請雙擊下方表格的「質押張數」欄位，設定您已向券商質押的庫存：**")
         edited_pledge = st.data_editor(
             pledge_df,
             column_config={
-                "✓ 選取": st.column_config.CheckboxColumn("✓ 選取質押", help="勾選後才會計入擔保品總市值"),
                 "質押張數": st.column_config.NumberColumn("質押張數 (雙擊編輯)", min_value=0.0, step=1.0, format="%.1f"),
-                "庫存市值 (元)": st.column_config.NumberColumn("庫存市值 (元)", format="%.0f"), # 🔥 設定顯示格式
                 "現價": st.column_config.NumberColumn("現價", format="%.2f"),
                 "質押市值 (元)": st.column_config.NumberColumn("質押市值 (元)", format="%.0f"),
                 "可借上限 (60%)": st.column_config.NumberColumn("可借上限 (60%)", format="%.0f") 
             },
-            disabled=["ETF 名稱", "總庫存 (張)", "庫存市值 (元)", "現價", "質押市值 (元)", "可借上限 (60%)"], # 🔥 鎖定避免誤改
+            disabled=["ETF 名稱", "總庫存 (張)", "現價", "質押市值 (元)", "可借上限 (60%)"],
             use_container_width=True, hide_index=True
         )
         
         has_p_changes = False
         for _, row in edited_pledge.iterrows():
             p_name = row['ETF 名稱']
-            new_is_pledged = row['✓ 選取']
             new_p_shares = row['質押張數']
-            
             for etf in st.session_state.my_data['etfs']:
-                if etf['name'] == p_name:
-                    # 防呆機制：如果手動填的質押張數大於總庫存，自動幫總司令校正為總庫存上限
-                    if new_p_shares > etf['holdings']:
-                        new_p_shares = etf['holdings']
-                        
-                    if etf.get('pledged_shares', 0.0) != new_p_shares or etf.get('is_pledged', False) != new_is_pledged:
-                        etf['pledged_shares'] = new_p_shares
-                        etf['is_pledged'] = new_is_pledged
-                        has_p_changes = True
+                if etf['name'] == p_name and etf.get('pledged_shares', 0.0) != new_p_shares:
+                    etf['pledged_shares'] = new_p_shares
+                    has_p_changes = True
                     break
         if has_p_changes:
             save_to_json(st.session_state.my_data)
@@ -1560,6 +1437,7 @@ if st.session_state.show_pledge:
         st.info("⚠️ 目前尚無持股資料，無法進行質押計算。")
     st.write("---")
 
+# --- 🔐 展開機密面板 ---
 if st.session_state.show_secret:
     st.markdown("<div class='secret-box'>", unsafe_allow_html=True)
     st.markdown("#### 🔐 總司令專屬機密戰情區")
@@ -1576,10 +1454,11 @@ if st.session_state.show_secret:
     else:
         st.success("✅ 密碼正確，機密面板已解鎖！系統將會隨著時間推移自動推進信貸期數。")
         
-        st.markdown("##### 💳 核心信貸還款戰情 (每月 $15,000 / 7年共84期 | 📅 每月繳款日：14號，下期 5/14)")
+        # --- 1. 自己繳納的核心信貸 ---
+        st.markdown("##### 💳 核心信貸還款戰情 (每月 $15,000 / 7年共84期 | 📅 每月繳款日：14號)")
         
         loan_info = st.session_state.my_data['loan']
-        new_paid = st.slider("手動微調已繳納期數 (目前為第幾個月？)", min_value=1, max_value=84, value=int(loan_info['months_paid']))
+        new_paid = st.number_input("🤖 系統每月自動推進期數 (若有提前還本可微調)：", min_value=1, max_value=84, value=int(loan_info['months_paid']))
         if new_paid != loan_info['months_paid']:
             st.session_state.my_data['loan']['months_paid'] = new_paid
             save_to_json(st.session_state.my_data)
@@ -1598,6 +1477,7 @@ if st.session_state.show_secret:
         
         st.write("---")
         
+        # --- 2. 別人欠的彰銀信貸 ---
         st.markdown("##### 🤝 應收帳款戰情：彰化銀行信貸 (別人欠我的) | 📅 期間：2026/04/05 ~ 2029/04/05")
         loan_chb_info = st.session_state.my_data['loan_chb']
         
@@ -1607,7 +1487,7 @@ if st.session_state.show_secret:
             save_to_json(st.session_state.my_data)
             st.rerun()
 
-        new_paid_chb = st.slider("手動微調對方已還期數 (總期數 60 期)", min_value=0, max_value=60, value=int(loan_chb_info['months_paid']))
+        new_paid_chb = st.number_input("🤖 系統每月自動推進對方已還期數 (總期數 60 期)：", min_value=0, max_value=60, value=int(loan_chb_info['months_paid']))
         if new_paid_chb != loan_chb_info['months_paid']:
             st.session_state.my_data['loan_chb']['months_paid'] = new_paid_chb
             save_to_json(st.session_state.my_data)
@@ -1626,6 +1506,7 @@ if st.session_state.show_secret:
 
         st.write("---")
 
+        # --- 3. 獨立收支簿 (日常口袋金) ---
         st.markdown("##### 💰 個人獨立收支簿 (與 ETF 資金分離)")
         st.caption("此區塊為您的日常零用金帳本，與大額投資庫存完全獨立運作，您可以詳細記錄各項收入與支出，系統將自動結算當月剩餘可用額度。")
         
@@ -1633,6 +1514,7 @@ if st.session_state.show_secret:
             st.session_state.my_data['personal_finance'] = {"incomes": [], "expenses": []}
         
         pf_data = st.session_state.my_data['personal_finance']
+        # 相容舊版資料結構
         if 'incomes' not in pf_data:
             pf_data['incomes'] = []
         if 'expenses' not in pf_data:
@@ -1696,7 +1578,6 @@ if st.session_state.show_secret:
             if curr_month_incomes:
                 df_incomes = pd.DataFrame(curr_month_incomes).sort_values(by="date", ascending=False)
                 df_incomes = df_incomes.rename(columns={"date": "日期", "item": "項目", "amount": "金額"})
-                
                 df_incomes.insert(0, "🗑️ 刪除", False) 
                 
                 edited_incomes = st.data_editor(
@@ -1716,7 +1597,6 @@ if st.session_state.show_secret:
                     for _, row in edited_incomes.iterrows():
                         if row.get("🗑️ 刪除", False): 
                             continue 
-                            
                         if pd.notna(row['日期']) and pd.notna(row['項目']) and pd.notna(row['金額']):
                             updated_curr.append({"date": str(row['日期']), "item": str(row['項目']), "amount": int(row['金額'])})
                     
@@ -1731,7 +1611,6 @@ if st.session_state.show_secret:
             if curr_month_expenses:
                 df_expenses = pd.DataFrame(curr_month_expenses).sort_values(by="date", ascending=False)
                 df_expenses = df_expenses.rename(columns={"date": "日期", "item": "項目", "amount": "金額"})
-                
                 df_expenses.insert(0, "🗑️ 刪除", False)
                 
                 edited_expenses = st.data_editor(
@@ -1751,7 +1630,6 @@ if st.session_state.show_secret:
                     for _, row in edited_expenses.iterrows():
                         if row.get("🗑️ 刪除", False):
                             continue 
-                            
                         if pd.notna(row['日期']) and pd.notna(row['項目']) and pd.notna(row['金額']):
                             updated_curr.append({"date": str(row['日期']), "item": str(row['項目']), "amount": int(row['金額'])})
                     
@@ -1773,6 +1651,7 @@ if st.session_state.show_secret:
     st.markdown("</div>", unsafe_allow_html=True)
     st.write("---")
 
+# 🎯 買賣損益試算面板與執行交易功能
 with st.expander("💰 買賣損益試算器", expanded=False):
     st.markdown("<div class='calc-title'>依照即時現價，試算買進或賣出後的損益狀況，並可直接寫入庫存！</div>", unsafe_allow_html=True)
     
@@ -1820,7 +1699,7 @@ with st.expander("💰 買賣損益試算器", expanded=False):
             
             st.button("💾 確認賣出並更新庫存", type="primary", use_container_width=True, on_click=execute_trade)
             
-        else:
+        else: # 買進
             trade_shares_display = st.session_state.calc_trade_shares
             buy_cost_total = current_price * trade_shares_display * 1000
             new_total_shares = current_holdings + trade_shares_display
@@ -1841,13 +1720,14 @@ with st.expander("💰 買賣損益試算器", expanded=False):
 
 st.write("---")
 
-bot_c1, bot_c2 = st.columns([3, 7])
+# 🎯 最底層操作列
+bot_c1, bot_c2, bot_c3 = st.columns([2, 5, 3])
 
 with bot_c1:
     if st.button("🔄 手動重新整理股價", use_container_width=True):
         fetch_data.clear()
         fetch_watchlist_dividend.clear()
-        fetch_taiwan_upcoming_dividends.clear()
+        fetch_taiwan_upcoming_dividends.clear() # 已更新：讓系統也能強制更新雙軌官方資訊
         st.rerun()
 
 with bot_c2:
@@ -1886,47 +1766,24 @@ with bot_c2:
 
             st.button("💾 儲存所有修改", use_container_width=True, type="primary", on_click=save_edits)
 
-st.write("---")
-st.markdown("### 📈 持股歷史股價趨勢 (近 30 日)")
-
-current_etfs = [item['symbol'] for item in st.session_state.my_data.get('etfs', [])]
-
-if current_etfs:
-    with st.spinner("正在繪製高精度股價戰報..."):
-        try:
-            price_history = yf.download(current_etfs, period="1mo")['Close']
-            
-            if len(current_etfs) == 1:
-                price_history = price_history.to_frame()
-                price_history.columns = [st.session_state.my_data['etfs'][0]['name']]
-            else:
-                name_map = {item['symbol']: item['name'] for item in st.session_state.my_data['etfs']}
-                price_history = price_history.rename(columns=name_map)
-            
-            df_chart = price_history.reset_index()
-            date_col = df_chart.columns[0]
-            df_melted = df_chart.melt(id_vars=[date_col], var_name='ETF', value_name='Price')
-
-            chart = alt.Chart(df_melted).mark_line().encode(
-                x=alt.X(f'{date_col}:T', axis=alt.Axis(format='%d日', title=None, grid=False)),
-                y=alt.Y('Price:Q', scale=alt.Scale(zero=False), axis=alt.Axis(title=None, labelFontSize=10, tickMinStep=1, tickCount=40, gridColor='#f0f2f6')),
-                color=alt.Color('ETF:N', legend=alt.Legend(title=None, orient="bottom")),
-                tooltip=[
-                    alt.Tooltip(f'{date_col}:T', format='%Y/%m/%d', title='日期'),
-                    alt.Tooltip('ETF:N', title='標的'),
-                    alt.Tooltip('Price:Q', format='.2f', title='收盤價')
-                ]
-            ).properties(height=450).interactive()
-
-            st.altair_chart(chart, use_container_width=True)
-            st.caption("數據來源：Yahoo Finance (近一個月每日收盤價趨勢)")
-        except Exception as e:
-            st.error(f"圖表產生失敗：{e}")
-            st.info("提示：請確認網路連線正常或 ETF 代碼是否正確。")
-else:
-    st.info("目前庫存中沒有標的。請由上方「標的管理」面板新增您的愛股！")
+with bot_c3:
+    st.markdown("<div class='auto-refresh-box'>", unsafe_allow_html=True)
+    st.markdown("#### ⚡ 系統自動更新")
+    st.caption("開啟後每 5 秒自動重整抓取最新即時股價")
+    
+    if 'auto_refresh_mode' not in st.session_state:
+        st.session_state.auto_refresh_mode = "❌ NO USE (關閉)"
+        
+    auto_update = st.radio(
+        "即時更新 (每 5 秒)", 
+        ["❌ NO USE (關閉)", "✅ USE (開啟)"], 
+        key="auto_refresh_mode",
+        horizontal=True,
+        label_visibility="collapsed"
+    )
+    st.markdown("</div>", unsafe_allow_html=True)
 
 if st.session_state.auto_refresh_mode == "✅ USE (開啟)":
     time.sleep(5)
-    st.cache_data.clear() 
+    fetch_data.clear()
     st.rerun()
