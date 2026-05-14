@@ -1211,7 +1211,7 @@ if st.session_state.show_tech:
         st.markdown("#### 📊 詳細持股清單與內扣費率")
         st.dataframe(df.style.format({"現價":"{:.2f}", "均價":"{:.2f}", "市值":"{:,.0f}", "損益":"{:,.0f}"}), use_container_width=True, hide_index=True)
         
-        # 🔥 還原的每日損益表格 (包含「每日合計」與原本的顏色邏輯)
+        # 🔥 轉置後的每日損益表格 (包含「每日合計」與原本的顏色邏輯)
         st.write("")
         st.markdown("#### 💰 近一個月每日損益金額")
         try:
@@ -1232,31 +1232,42 @@ if st.session_state.show_tech:
                     if sym in diff_data.columns:
                         pnl_df[name] = diff_data[sym] * shares
                 
+                # 將日期排序 (最新日期在上方/最左邊)
                 pnl_df = pnl_df.sort_index(ascending=False)
                 pnl_df.index = pnl_df.index.strftime('%Y-%m-%d')
                 
-                pnl_df['每日合計'] = pnl_df.sum(axis=1)
+                # 🔥 將資料表進行轉置 (Transpose)，讓 X, Y 軸互換
+                pnl_df_t = pnl_df.T
+                
+                # 計算每天的總損益 (增加在最下方成為一列資料)
+                pnl_df_t.loc['📊 每日合計'] = pnl_df_t.sum()
+                
+                # 將原本變成索引的股票代號拉出來變成正常的欄位
+                pnl_df_t = pnl_df_t.reset_index()
+                pnl_df_t = pnl_df_t.rename(columns={'index': '股票代號'})
                 
                 def color_pnl(df_to_style):
                     css = pd.DataFrame('', index=df_to_style.index, columns=df_to_style.columns)
                     for idx in df_to_style.index:
                         for col in df_to_style.columns:
+                            if col == '股票代號': continue
                             val = df_to_style.loc[idx, col]
-                            if isinstance(val, (int, float)):
+                            if pd.notna(val) and isinstance(val, (int, float)):
                                 if val > 0:
                                     css.loc[idx, col] = 'color: #d32f2f; font-weight: bold;'
                                 elif val < 0:
                                     css.loc[idx, col] = 'color: #388e3c; font-weight: bold;'
                     return css
 
-                styled_df = pnl_df.style.apply(color_pnl, axis=None).format(lambda x: f"+${x:,.0f}" if x > 0 else f"-${abs(x):,.0f}" if x < 0 else "$0")
+                styled_df = pnl_df_t.style.apply(color_pnl, axis=None).format(
+                    lambda x: f"+${x:,.0f}" if isinstance(x, (int, float)) and x > 0 else (f"-${abs(x):,.0f}" if isinstance(x, (int, float)) and x < 0 else ("$0" if isinstance(x, (int, float)) else x))
+                )
                 
-                st.dataframe(styled_df, use_container_width=True)
+                st.dataframe(styled_df, use_container_width=True, hide_index=True)
                 
         except Exception as e:
             st.error(f"資料載入失敗: {e}")
 
-        # 🔥 完全保留您原本的每日股價圖表
         st.write("")
         st.markdown("#### 📈 近一個月每日收盤價趨勢 (每日股價)")
         try:
