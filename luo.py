@@ -585,14 +585,15 @@ def fetch_data(etf_list, custom_divs):
             tech_results.append({
                 "ETF 名稱": f"{'🔴' if curr_p > prev_close else '🟢' if curr_p < prev_close else '⚪'} {item['name']}", 
                 "配息月份": "月配息" if len(months_to_pay) == 12 else ",".join(map(str, months_to_pay)) + "月" if months_to_pay else "-", 
-                "股票張數": item['holdings'], "現價": round(curr_p, 2),
+                "股票張數": item['holdings'], 
+                "現價": round(curr_p, 2),
+                "基金規模": f"{cap_raw / 100000000:.2f} 億" if cap_raw else "系統無資料",
                 "今日損益": f"+${today_profit:,.0f}" if today_profit >= 0 else f"-${abs(today_profit):,.0f}", 
                 "今日漲跌幅": f"+{(today_diff / prev_close * 100):.2f}%" if today_diff >= 0 else f"{(today_diff / prev_close * 100):.2f}%", 
                 "今日交易量": f"{vol:,.0f}" if vol > 0 else "無資料",
                 "年殖利率": f"{(div_amount * len(months_to_pay)) / curr_p * 100:.2f}%" if len(months_to_pay) > 0 and div_amount > 0 and curr_p > 0 else "0.00%", 
                 "今日最高/最低": f"${day_high:.2f} / ${day_low:.2f}",
-                "52週最高/最低": f"${tk.fast_info.get('yearHigh', 0):.2f} / ${tk.fast_info.get('yearLow', 0):.2f}", 
-                "設定高標(停利)": a_high, "設定低標(停損)": a_low
+                "52週最高/最低": f"${tk.fast_info.get('yearHigh', 0):.2f} / ${tk.fast_info.get('yearLow', 0):.2f}"
             })
         except: continue
         
@@ -787,15 +788,7 @@ if st.session_state.show_tech:
         try: styled_df_tech = df_tech.style.map(color_profit_loss, subset=['今日損益', '今日漲跌幅']).map(color_months, subset=['配息月份'])
         except AttributeError: styled_df_tech = df_tech.style.applymap(color_profit_loss, subset=['今日損益', '今日漲跌幅']).applymap(color_months, subset=['配息月份'])
 
-        edited_tech = st.data_editor(styled_df_tech, column_config={"設定高標(停利)": st.column_config.NumberColumn(format="%.2f"), "設定低標(停損)": st.column_config.NumberColumn(format="%.2f")}, disabled=["ETF 名稱", "配息月份", "股票張數", "現價", "今日損益", "今日漲跌幅", "今日交易量", "年殖利率", "今日最高/最低", "52週最高/最低"], use_container_width=True, hide_index=True)
-
-        has_changes = False
-        for _, row in edited_tech.iterrows():
-            for etf in st.session_state.my_data['etfs']:
-                if etf['name'] in row['ETF 名稱'] and (etf.get('alert_high', 0.0) != row['設定高標(停利)'] or etf.get('alert_low', 0.0) != row['設定低標(停損)']):
-                    etf['alert_high'], etf['alert_low'] = row['設定高標(停利)'], row['設定低標(停損)']
-                    has_changes = True; break
-        if has_changes: save_to_json(st.session_state.my_data); st.cache_data.clear(); st.rerun()
+        st.dataframe(styled_df_tech, use_container_width=True, hide_index=True)
 
         st.markdown("#### 💰 近一個月每日損益金額")
         try:
