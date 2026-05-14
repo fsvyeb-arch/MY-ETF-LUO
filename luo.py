@@ -1334,16 +1334,16 @@ if st.session_state.show_constituents:
     st.write("---")
 
 if st.session_state.show_daily_price:
-    st.markdown("#### 🗓️ 庫存 ETF 每日統計數據 (近7個交易日)")
+    st.markdown("#### 🗓️ 庫存 ETF 每日統計數據 (近 30 個交易日)")
     
     port_map = {item['symbol']: f"💼 {item['name']}" for item in st.session_state.my_data.get('etfs', [])}
     port_holdings = {f"💼 {item['name']}": item['holdings'] * 1000 for item in st.session_state.my_data.get('etfs', [])}
     current_symbols = list(port_map.keys())
     
     if current_symbols:
-        with st.spinner("📡 正在向資料庫調閱近一個月歷史數據... (啟用強制補正機制)"):
+        with st.spinner("📡 正在向資料庫調閱歷史數據... (啟用強制補正機制)"):
             try:
-                hist_data = yf.download(current_symbols, period="1mo")['Close']
+                hist_data = yf.download(current_symbols, period="2mo")['Close']
                 
                 if len(current_symbols) == 1:
                     hist_data = hist_data.to_frame()
@@ -1374,8 +1374,9 @@ if st.session_state.show_daily_price:
                 
                 diff_data = hist_data.diff()
                 
-                hist_data = hist_data.tail(7)
-                diff_data = diff_data.tail(7)
+                # 修改為 30 個交易日
+                hist_data = hist_data.tail(30)
+                diff_data = diff_data.tail(30)
                 
                 hist_data.index = hist_data.index.strftime('%m/%d')
                 diff_data.index = diff_data.index.strftime('%m/%d')
