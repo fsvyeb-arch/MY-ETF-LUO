@@ -1343,8 +1343,6 @@ if st.session_state.show_daily_price:
     if current_symbols:
         with st.spinner("📡 正在向資料庫調閱近一個月歷史數據... (啟用強制補正機制)"):
             try:
-                # 解決 Yahoo Finance 近期常有空值與日期錯亂的問題
-                # 改用 period='1mo' 獲取近一個月歷史，避免年份寫死導致抓不到
                 hist_data = yf.download(current_symbols, period="1mo")['Close']
                 
                 if len(current_symbols) == 1:
@@ -1353,21 +1351,16 @@ if st.session_state.show_daily_price:
                 else:
                     hist_data = hist_data.rename(columns=port_map)
                 
-                # 1. 刪除全部為 NaN 的幽靈列 (Yahoo 有時會預先吐出未來日期)
                 hist_data = hist_data.dropna(how='all')
                 
-                # 2. 取得今日日期
                 today_str = datetime.now().strftime('%Y-%m-%d')
                 today_dt = pd.to_datetime(today_str)
                 
-                # 3. 確保今天有一列存在，若無則建立
                 if today_dt not in hist_data.index:
                     hist_data.loc[today_dt] = [None] * len(hist_data.columns)
                 
-                # 確保時間排序正確
                 hist_data = hist_data.sort_index()
                 
-                # 4. 強制補正：將主表已成功抓到的最新「現價」寫入最後一天
                 for sym in current_symbols:
                     mapped_name = port_map[sym]
                     try:
@@ -1376,31 +1369,26 @@ if st.session_state.show_daily_price:
                     except:
                         pass
                         
-                # 5. 向前填補可能缺漏的價格 (停牌或沒資料)
-                hist_data = hist_data.fillna(method='ffill')
+                # 修正 Pandas 報錯: 改用新版直接呼叫 ffill()
+                hist_data = hist_data.ffill()
                 
-                # 6. 計算每日差額
                 diff_data = hist_data.diff()
                 
-                # 7. 只取最後 7 個交易日來顯示，讓版面俐落
                 hist_data = hist_data.tail(7)
                 diff_data = diff_data.tail(7)
                 
                 hist_data.index = hist_data.index.strftime('%m/%d')
                 diff_data.index = diff_data.index.strftime('%m/%d')
                 
-                # 轉置與反轉日期順序
                 h_display = hist_data.iloc[::-1].T
                 d_display = diff_data.iloc[::-1].T
                 
                 valid_port_names = [name for name in port_map.values() if name in h_display.index]
                 
                 if valid_port_names:
-                    # --- A. 損益金額表格 ---
                     st.markdown("##### 💰 每日單日賺賠金額 (庫存)")
                     pnl_df = pd.DataFrame(index=valid_port_names, columns=h_display.columns)
                     
-                    # 計算總計用
                     daily_totals = {col: 0.0 for col in h_display.columns}
                     
                     for etf_name in valid_port_names:
@@ -1414,7 +1402,6 @@ if st.session_state.show_daily_price:
                                 pnl_df.loc[etf_name, col] = f"{'+' if val > 0 else ''}{val:,.0f}"
                                 daily_totals[col] += val
 
-                    # 🔥 追加每日合計列
                     total_row = []
                     for col in h_display.columns:
                         v = daily_totals[col]
@@ -1448,7 +1435,6 @@ if st.session_state.show_daily_price:
 
                     st.dataframe(pnl_df.style.apply(color_pnl, axis=None), use_container_width=True)
 
-                    # --- B. 收盤價表格 ---
                     st.markdown("##### 📉 每日收盤價 (庫存)")
                     price_df = h_display.loc[valid_port_names].copy()
                     for col in price_df.columns:
