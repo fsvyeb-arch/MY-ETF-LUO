@@ -666,7 +666,7 @@ news_html = "<div class='news-box'><div class='news-title'>📰 今日財經焦�
 for news in fetch_etf_news(): news_html += f"<div class='news-item'>👉 📍 <a href='{news['link']}' target='_blank'>{news['title']}</a></div>"
 st.markdown(news_html + "</div>", unsafe_allow_html=True)
 
-st.markdown("### 📢 近期新募集 / 即將上市主提式 ETF 追蹤")
+st.markdown("### 📢 近期新募集 / 即將上市主動式 ETF 追蹤")
 upcoming_list = [{"date": "2026/05/20", "symbol": "00992A", "name": "主動群益科技創新"}, {"date": "2026/05/25", "symbol": "00400A", "name": "主動國泰動能高息"}, {"date": "2026/05/28", "symbol": "00997A", "name": "主動群益美國增長"}, {"date": "2026/06/05", "symbol": "00988A", "name": "主動統一全球創新"}]
 up_cols = st.columns(4)
 for i, etf in enumerate(upcoming_list):
@@ -818,26 +818,6 @@ if st.session_state.show_tech:
                 
                 st.dataframe(pnl_df_t.style.apply(color_pnl, axis=None).format(lambda x: f"+${x:,.0f}" if isinstance(x, (int, float)) and x > 0 else (f"-${abs(x):,.0f}" if isinstance(x, (int, float)) and x < 0 else ("$0" if isinstance(x, (int, float)) else x))), use_container_width=True, hide_index=True)
         except Exception as e: st.error(f"資料載入失敗: {e}")
-
-        st.markdown("#### 📈 近一個月每日收盤價趨勢 (每日股價)")
-        try:
-            if tickers:
-                price_history = pd.DataFrame(yf.download(tickers, period="1mo")['Close'])
-                if len(tickers) == 1: price_history.columns = [st.session_state.my_data['etfs'][0]['name']]
-                else: price_history = price_history.rename(columns={item['symbol']: item['name'] for item in st.session_state.my_data['etfs']})
-                
-                df_chart = price_history.reset_index()
-                date_col = df_chart.columns[0]
-                df_melted = df_chart.melt(id_vars=[date_col], var_name='ETF', value_name='Price')
-
-                chart = alt.Chart(df_melted).mark_line().encode(
-                    x=alt.X(f'{date_col}:T', axis=alt.Axis(format='%d日', title=None, grid=False)),
-                    y=alt.Y('Price:Q', scale=alt.Scale(zero=False), axis=alt.Axis(title=None, tickCount=40, gridColor='#f0f2f6')),
-                    color=alt.Color('ETF:N', legend=alt.Legend(title=None, orient="bottom")),
-                    tooltip=[alt.Tooltip(f'{date_col}:T', format='%Y/%m/%d', title='日期'), alt.Tooltip('ETF:N', title='標的'), alt.Tooltip('Price:Q', format='.2f', title='收盤價')]
-                ).properties(height=450).interactive()
-                st.altair_chart(chart, use_container_width=True)
-        except: pass
 
     else: st.info("目前無庫存標的。")
     st.write("---")
@@ -1026,11 +1006,9 @@ with st.expander("💰 買賣損益試算器", expanded=False):
 
 st.write("---")
 
-# 🟢 確保這裡的 bot_c1, bot_c2, bot_c3 有被定義！
 bot_c1, bot_c2, bot_c3 = st.columns([2, 5, 3])
 if bot_c1.button("🔄 重整股價", use_container_width=True): st.cache_data.clear(); st.rerun()
 
-# 🛡️ 在這裡展開資料備份區塊 (確保有吃到底下的 bot_c2)
 with bot_c2.expander("⚙️ 標的管理 (庫存與資料備份)", expanded=True):
     st.markdown("#### ➕ 新增庫存標的")
     st.text_input("輸入代碼 (不需手打 .TW)", key="add_sym_bot", on_change=auto_fill_etf_name)
