@@ -21,7 +21,7 @@ if 'update_success' in st.session_state and st.session_state.update_success:
 # 自定義 CSS
 st.markdown('''
     <style>
-    /* 🔥 終極暴力隱藏表格右上角浮動工具列 */
+    /* 🔥 終極暴力隱藏表格右上角浮動工具列 (對付各版本 Streamlit) */
     [data-testid="stElementToolbar"], 
     [data-testid="stDataFrameToolbar"],
     [data-testid="stToolbar"],
@@ -1042,7 +1042,7 @@ b6_lbl, b6_typ = ("🔽 收起持股明細", "primary") if st.session_state.show
 b7_lbl, b7_typ = ("🔽 收起ETF成份股", "primary") if st.session_state.show_constituents else ("🧩 展開ETF成份股", "secondary")
 b8_lbl, b8_typ = ("🔽 收起質押專區", "primary") if st.session_state.show_pledge else ("🏦 展開質押專區", "secondary") 
 b9_lbl, b9_typ = ("🔽 收起機密面板", "primary") if st.session_state.show_secret else ("🔐 展開機密面板", "secondary")
-b10_lbl, b10_typ = ("🔽 收起每日單日損益", "primary") if st.session_state.show_daily_price else ("🗓️ 展開每日單日損益", "secondary") 
+b10_lbl, b10_typ = ("🔽 收起每日單日報表", "primary") if st.session_state.show_daily_price else ("🗓️ 展開每日單日報表", "secondary") 
 
 with cols_btn_r1[0]: st.button(b1_lbl, on_click=toggle_us, type=b1_typ, use_container_width=True)
 with cols_btn_r1[1]: st.button(b2_lbl, on_click=toggle_tw, type=b2_typ, use_container_width=True)
@@ -1327,80 +1327,70 @@ if st.session_state.show_constituents:
         st.info("⚠️ 目前尚無持股資料。請至下方「⚙️ 標的管理」新增您的庫存！")
     st.write("---")
 
-# ==============================================================================
-# 🔥 [重磅升級] 🗓️ 5月份起 每日單日損益金額
-# ==============================================================================
 if st.session_state.show_daily_price:
-    st.markdown("#### 🗓️ 庫存 ETF 每日單日損益金額 (2026年 5月起)")
-    port_map = {}
-    port_holdings = {}
+    st.markdown("#### 🗓️ 庫存 ETF 每日統計數據 (2026年 5月起)")
     
-    for item in st.session_state.my_data.get('etfs', []):
-        port_map[item['symbol']] = f"💼 {item['name']}"
-        port_holdings[f"💼 {item['name']}"] = item['holdings'] * 1000
-        
+    port_map = {item['symbol']: f"💼 {item['name']}" for item in st.session_state.my_data.get('etfs', [])}
+    port_holdings = {f"💼 {item['name']}": item['holdings'] * 1000 for item in st.session_state.my_data.get('etfs', [])}
     current_symbols = list(port_map.keys())
     
     if current_symbols:
-        with st.spinner("📡 正在向資料庫調閱2026年5月起之每日損益..."):
+        with st.spinner("📡 正在向資料庫調閱2026年5月起之數據..."):
             try:
-                # 抓取 2026-05-01 起的數據
                 hist_data = yf.download(current_symbols, start="2026-05-01")['Close']
-                
                 if len(current_symbols) == 1:
                     hist_data = hist_data.to_frame()
                     hist_data.columns = [port_map[current_symbols[0]]]
                 else:
                     hist_data = hist_data.rename(columns=port_map)
                 
-                # 計算單日漲跌差額
                 diff_data = hist_data.diff()
-                
-                # 轉換日期格式並反轉順序
                 hist_data.index = hist_data.index.strftime('%m/%d')
                 diff_data.index = hist_data.index 
                 
-                hist_data = hist_data.iloc[::-1]
-                diff_data = diff_data.iloc[::-1]
+                # 轉置與反轉日期順序
+                h_display = hist_data.iloc[::-1].T
+                d_display = diff_data.iloc[::-1].T
                 
-                hist_data = hist_data.T
-                diff_data = diff_data.T
+                valid_port_names = [name for name in port_map.values() if name in h_display.index]
                 
-                valid_port_names = [name for name in port_map.values() if name in hist_data.index]
-                
-                def color_prices(df_to_style):
-                    css_df = pd.DataFrame('', index=df_to_style.index, columns=df_to_style.columns)
-                    target_diff = diff_data.loc[df_to_style.index] 
-                    css_df[target_diff > 0] = 'color: #d32f2f; font-weight: bold;'
-                    css_df[target_diff < 0] = 'color: #388e3c; font-weight: bold;'
-                    return css_df
-                
-                # 🔥 繪製庫存專屬表格 (僅顯示單日損益金額)
                 if valid_port_names:
-                    st.markdown("##### 💼 庫存 ETF (單日賺賠金額)")
-                    display_port = pd.DataFrame(index=valid_port_names, columns=hist_data.columns)
-                    
+                    # --- A. 損益金額表格 ---
+                    st.markdown("##### 💰 每日單日賺賠金額 (庫存)")
+                    pnl_df = pd.DataFrame(index=valid_port_names, columns=h_display.columns)
                     for etf_name in valid_port_names:
                         shares = port_holdings.get(etf_name, 0)
-                        for date_col in hist_data.columns:
-                            diff = diff_data.loc[etf_name, date_col]
-                            
-                            if pd.isna(diff) or shares == 0:
-                                display_port.loc[etf_name, date_col] = "-"
+                        for col in h_display.columns:
+                            diff = d_display.loc[etf_name, col]
+                            if pd.isna(diff): 
+                                pnl_df.loc[etf_name, col] = "-"
                             else:
-                                # 只顯示 PnL 金額
-                                pnl = diff * shares
-                                sign = "+" if pnl > 0 else ""
-                                display_port.loc[etf_name, date_col] = f"{sign}{pnl:,.0f}"
-                                    
-                    styled_port = display_port.style.apply(color_prices, axis=None)
-                    st.dataframe(styled_port, use_container_width=True)
+                                val = diff * shares
+                                pnl_df.loc[etf_name, col] = f"{'+' if val > 0 else ''}{val:,.0f}"
+
+                    def color_pnl(df_to_style):
+                        css = pd.DataFrame('', index=df_to_style.index, columns=df_to_style.columns)
+                        t_diff = d_display.loc[df_to_style.index] 
+                        css[t_diff > 0] = 'color: #d32f2f; font-weight: bold;'
+                        css[t_diff < 0] = 'color: #388e3c; font-weight: bold;'
+                        return css
+
+                    st.dataframe(pnl_df.style.apply(color_pnl, axis=None), use_container_width=True)
+
+                    # --- B. 收盤價表格 ---
+                    st.markdown("##### 📉 每日收盤價 (庫存)")
+                    price_df = h_display.loc[valid_port_names].copy()
+                    for col in price_df.columns:
+                        price_df[col] = price_df[col].apply(lambda x: f"{x:.2f}" if pd.notna(x) else "-")
                     
-                st.caption("💡 提示：顯示 2026年5月起之交易日數據。表格內為「該日真實損益金額」。數值呈現紅色代表賺錢，綠色代表虧損。")
+                    st.dataframe(price_df.style.apply(color_pnl, axis=None), use_container_width=True)
+                    st.caption("💡 提示：以上僅顯示庫存標的。數值呈現紅色代表漲/賺，綠色代表跌/賠。")
+                else:
+                    st.info("⚠️ 目前無有效庫存數據。")
             except Exception as e:
-                st.error(f"無法抓取每日股價：{e}")
+                st.error(f"無法抓取每日數據：{e}")
     else:
-        st.info("⚠️ 目前尚無持股資料，請至下方「標的管理」新增！")
+        st.info("⚠️ 目前無庫存資料。")
     st.write("---")
 
 # ==============================================================================
