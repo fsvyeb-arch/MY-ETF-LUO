@@ -103,6 +103,8 @@ st.markdown("""
     .net-worth-box h3 { color: #f8f9fa; font-size: 18px; margin-bottom: 5px; }
     .net-worth-box h1 { color: #ffc107; font-size: 38px; font-weight: 900; margin: 0; text-shadow: 1px 1px 3px rgba(0,0,0,0.5); }
     
+    /* 自動更新控制區樣式 */
+    .auto-refresh-box { background-color: #f0f7ff; border: 1px solid #cce5ff; border-radius: 8px; padding: 15px; text-align: center; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -1167,43 +1169,62 @@ if st.session_state.show_div_db:
 if st.session_state.show_tech:
     if not df.empty:
         st.markdown("#### 📡 庫存價格區間監控與技術分析")
+        tech_col, auto_tech_col = st.columns([8.5, 1.5])
         
-        if '配息月份' in df_tech.columns:
-            df_tech = df_tech.sort_values(by='配息月份', ascending=True)
-            
-        def color_profit_loss(val):
-            if isinstance(val, str):
-                if val.startswith('+'): return 'color: #d32f2f; font-weight: bold;' 
-                elif val.startswith('-'): return 'color: #388e3c; font-weight: bold;' 
-            return ''
-            
-        def color_months(val):
-            if not isinstance(val, str): return ''
-            if val == '1,4,7,10月': return 'background-color: #e3f2fd; color: #1565c0; font-weight: bold; text-align: center;' 
-            if val == '2,5,8,11月': return 'background-color: #f3e5f5; color: #6a1b9a; font-weight: bold; text-align: center;' 
-            if val == '3,6,9,12月': return 'background-color: #e8f5e9; color: #2e7d32; font-weight: bold; text-align: center;' 
-            if val == '月配息': return 'background-color: #fff8e1; color: #f57f17; font-weight: bold; text-align: center;' 
-            return 'color: #555; text-align: center;'
+        with tech_col:
+            if '配息月份' in df_tech.columns:
+                df_tech = df_tech.sort_values(by='配息月份', ascending=True)
+                
+            def color_profit_loss(val):
+                if isinstance(val, str):
+                    if val.startswith('+'): return 'color: #d32f2f; font-weight: bold;' 
+                    elif val.startswith('-'): return 'color: #388e3c; font-weight: bold;' 
+                return ''
+                
+            def color_months(val):
+                if not isinstance(val, str): return ''
+                if val == '1,4,7,10月': return 'background-color: #e3f2fd; color: #1565c0; font-weight: bold; text-align: center;' 
+                if val == '2,5,8,11月': return 'background-color: #f3e5f5; color: #6a1b9a; font-weight: bold; text-align: center;' 
+                if val == '3,6,9,12月': return 'background-color: #e8f5e9; color: #2e7d32; font-weight: bold; text-align: center;' 
+                if val == '月配息': return 'background-color: #fff8e1; color: #f57f17; font-weight: bold; text-align: center;' 
+                return 'color: #555; text-align: center;'
 
-        if "設定高標(停利)" in df_tech.columns and "設定低標(停損)" in df_tech.columns:
-            df_tech_display = df_tech.drop(columns=["設定高標(停利)", "設定低標(停損)"])
-        else:
-            df_tech_display = df_tech
+            if "設定高標(停利)" in df_tech.columns and "設定低標(停損)" in df_tech.columns:
+                df_tech_display = df_tech.drop(columns=["設定高標(停利)", "設定低標(停損)"])
+            else:
+                df_tech_display = df_tech
 
-        try:
-            styled_df_tech = df_tech_display.style.map(color_profit_loss, subset=['今日損益', '今日漲跌幅']).map(color_months, subset=['配息月份'])
-        except AttributeError:
-            styled_df_tech = df_tech_display.style.applymap(color_profit_loss, subset=['今日損益', '今日漲跌幅']).applymap(color_months, subset=['配息月份'])
+            try:
+                styled_df_tech = df_tech_display.style.map(color_profit_loss, subset=['今日損益', '今日漲跌幅']).map(color_months, subset=['配息月份'])
+            except AttributeError:
+                styled_df_tech = df_tech_display.style.applymap(color_profit_loss, subset=['今日損益', '今日漲跌幅']).applymap(color_months, subset=['配息月份'])
 
-        st.dataframe(
-            styled_df_tech,
-            column_config={
-                "現價": st.column_config.NumberColumn("現價", format="%.2f"),
-                "股票張數": st.column_config.NumberColumn("股票張數", format="%.1f") 
-            },
-            use_container_width=True, hide_index=True
-        )
+            st.dataframe(
+                styled_df_tech,
+                column_config={
+                    "現價": st.column_config.NumberColumn("現價", format="%.2f"),
+                    "股票張數": st.column_config.NumberColumn("股票張數", format="%.1f") 
+                },
+                use_container_width=True, hide_index=True
+            )
+                
+        with auto_tech_col:
+            st.markdown("<div style='background-color: #f0f7ff; border: 1px solid #cce5ff; border-radius: 8px; padding: 10px 8px; text-align: center; box-shadow: 1px 1px 3px rgba(0,0,0,0.05);'>", unsafe_allow_html=True)
+            st.markdown("<div style='font-size: 15px; font-weight: bold; color: #1e3c72; margin-bottom: 4px;'>⚡ 自動更新</div>", unsafe_allow_html=True)
+            st.markdown("<div style='font-size: 11px; color: #6c757d; margin-bottom: 10px; line-height: 1.2;'>每 5 秒即時重整</div>", unsafe_allow_html=True)
             
+            if 'auto_refresh_mode' not in st.session_state:
+                st.session_state.auto_refresh_mode = "❌ NO USE (關閉)"
+                
+            auto_update = st.radio(
+                "即時更新", 
+                ["❌ NO USE (關閉)", "✅ USE (開啟)"], 
+                key="auto_refresh_mode",
+                horizontal=False,
+                label_visibility="collapsed"
+            )
+            st.markdown("</div>", unsafe_allow_html=True)
+
         st.write("")
         st.markdown("#### 📊 詳細持股清單與內扣費率")
         st.dataframe(df.style.format({"現價":"{:.2f}", "均價":"{:.2f}", "市值":"{:,.0f}", "損益":"{:,.0f}"}), use_container_width=True, hide_index=True)
@@ -1313,67 +1334,69 @@ if st.session_state.show_constituents:
     st.write("---")
 
 if st.session_state.show_daily_price:
-    st.markdown("#### 🗓️ 庫存與自選 ETF 近期每日收盤價")
-    port_map = {}
-    wl_map = {}
+    st.markdown("#### 🗓️ 庫存 ETF 每日統計數據 (2026年 5月起)")
     
-    for item in st.session_state.my_data.get('etfs', []):
-        port_map[item['symbol']] = f"💼 {item['name']}"
-        
-    for item in st.session_state.my_data.get('watchlist', []):
-        if item['symbol'] not in port_map:
-            wl_map[item['symbol']] = f"👀 {item['name']}"
-            
-    all_symbols_map = {**port_map, **wl_map}
-    current_symbols = list(all_symbols_map.keys())
+    port_map = {item['symbol']: f"💼 {item['name']}" for item in st.session_state.my_data.get('etfs', [])}
+    port_holdings = {f"💼 {item['name']}": item['holdings'] * 1000 for item in st.session_state.my_data.get('etfs', [])}
+    current_symbols = list(port_map.keys())
     
     if current_symbols:
-        with st.spinner("📡 正在向資料庫調閱近期每日股價..."):
+        with st.spinner("📡 正在向資料庫調閱2026年5月起之數據..."):
             try:
-                hist_data = yf.download(current_symbols, period="15d")['Close']
-                
+                hist_data = yf.download(current_symbols, start="2026-05-01")['Close']
                 if len(current_symbols) == 1:
                     hist_data = hist_data.to_frame()
-                    hist_data.columns = [all_symbols_map[current_symbols[0]]]
+                    hist_data.columns = [port_map[current_symbols[0]]]
                 else:
-                    hist_data = hist_data.rename(columns=all_symbols_map)
+                    hist_data = hist_data.rename(columns=port_map)
                 
                 diff_data = hist_data.diff()
-                
                 hist_data.index = hist_data.index.strftime('%m/%d')
                 diff_data.index = hist_data.index 
                 
-                hist_data = hist_data.sort_index(ascending=False)
-                diff_data = diff_data.sort_index(ascending=False)
+                # 轉置與反轉日期順序
+                h_display = hist_data.iloc[::-1].T
+                d_display = diff_data.iloc[::-1].T
                 
-                hist_data = hist_data.T
-                diff_data = diff_data.T
-                
-                valid_port_names = [name for name in port_map.values() if name in hist_data.index]
-                valid_wl_names = [name for name in wl_map.values() if name in hist_data.index]
-                
-                def color_prices(df_to_style):
-                    css_df = pd.DataFrame('', index=df_to_style.index, columns=df_to_style.columns)
-                    target_diff = diff_data.loc[df_to_style.index] 
-                    css_df[target_diff > 0] = 'color: #d32f2f; font-weight: bold;'
-                    css_df[target_diff < 0] = 'color: #388e3c; font-weight: bold;'
-                    return css_df
+                valid_port_names = [name for name in port_map.values() if name in h_display.index]
                 
                 if valid_port_names:
-                    st.markdown("##### 💼 庫存 ETF")
-                    styled_port = hist_data.loc[valid_port_names].style.format("{:.2f}").apply(color_prices, axis=None)
-                    st.dataframe(styled_port, use_container_width=True)
-                
-                if valid_wl_names:
-                    st.markdown("##### 👀 自選 ETF")
-                    styled_wl = hist_data.loc[valid_wl_names].style.format("{:.2f}").apply(color_prices, axis=None)
-                    st.dataframe(styled_wl, use_container_width=True)
+                    # --- A. 損益金額表格 ---
+                    st.markdown("##### 💰 每日單日賺賠金額 (庫存)")
+                    pnl_df = pd.DataFrame(index=valid_port_names, columns=h_display.columns)
+                    for etf_name in valid_port_names:
+                        shares = port_holdings.get(etf_name, 0)
+                        for col in h_display.columns:
+                            diff = d_display.loc[etf_name, col]
+                            if pd.isna(diff): 
+                                pnl_df.loc[etf_name, col] = "-"
+                            else:
+                                val = diff * shares
+                                pnl_df.loc[etf_name, col] = f"{'+' if val > 0 else ''}{val:,.0f}"
+
+                    def color_pnl(df_to_style):
+                        css = pd.DataFrame('', index=df_to_style.index, columns=df_to_style.columns)
+                        t_diff = d_display.loc[df_to_style.index] 
+                        css[t_diff > 0] = 'color: #d32f2f; font-weight: bold;'
+                        css[t_diff < 0] = 'color: #388e3c; font-weight: bold;'
+                        return css
+
+                    st.dataframe(pnl_df.style.apply(color_pnl, axis=None), use_container_width=True)
+
+                    # --- B. 收盤價表格 ---
+                    st.markdown("##### 📉 每日收盤價 (庫存)")
+                    price_df = h_display.loc[valid_port_names].copy()
+                    for col in price_df.columns:
+                        price_df[col] = price_df[col].apply(lambda x: f"{x:.2f}" if pd.notna(x) else "-")
                     
-                st.caption("💡 提示：顯示近 15 個交易日收盤價，最新日期排列於最左方。數值呈現紅色代表上漲，綠色代表下跌。")
+                    st.dataframe(price_df.style.apply(color_pnl, axis=None), use_container_width=True)
+                    st.caption("💡 提示：以上僅顯示庫存標的。數值呈現紅色代表漲/賺，綠色代表跌/賠。")
+                else:
+                    st.info("⚠️ 目前無有效庫存數據。")
             except Exception as e:
-                st.error(f"無法抓取每日股價：{e}")
+                st.error(f"無法抓取每日數據：{e}")
     else:
-        st.info("⚠️ 目前尚無持股或自選資料，請至下方「標的管理」新增！")
+        st.info("⚠️ 目前無庫存資料。")
     st.write("---")
 
 # ==============================================================================
@@ -1851,3 +1874,7 @@ if current_etfs:
 else:
     st.info("目前庫存中沒有標的。請由上方「標的管理」面板新增您的愛股！")
 
+if st.session_state.auto_refresh_mode == "✅ USE (開啟)":
+    time.sleep(5)
+    st.cache_data.clear() 
+    st.rerun()
