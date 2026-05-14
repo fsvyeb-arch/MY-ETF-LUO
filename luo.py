@@ -185,7 +185,7 @@ EXTRA_ETFS = {
     "00632R": "00632R 元大台灣50反1", "009819": "009819 中信數據及電力", 
     "00712": "00712 復華富時不動產", "00992A": "00992A 主動群益科技創新",
     "00400A": "00400A 主動國泰動能高息", "00997A": "00997A 主動群益美國增長",
-    "00988A": "00988A 主 auto_update_統一全球創新", "00994A": "00994A 主動第一金台股優",
+    "00988A": "00988A 主動統一全球創新", "00994A": "00994A 主動第一金台股優",
     "00646": "00646 元大S&P500", "00662": "00662 富邦NASDAQ", 
     "00830": "00830 國泰費城半導體", "00757": "00757 統一FANG+", 
     "00882": "00882 中信中國高股息", "00963": "00963 中信全球高股息", 
@@ -643,7 +643,7 @@ def fetch_watchlist_data(wl_list):
             
             results.append({
                 "代號": item['symbol'].replace('.TW', ''), "名稱": item['name'],
-                "現價": round(curr_p, 2), "涨跌": round(diff, 2), "漲跌幅": f"{pct:+.2f}%", "狀態": status_light
+                "現價": round(curr_p, 2), "漲跌": round(diff, 2), "漲跌幅": f"{pct:+.2f}%", "狀態": status_light
             })
         except Exception: continue
     return pd.DataFrame(results)
@@ -1211,39 +1211,37 @@ if st.session_state.show_tech:
         st.markdown("#### 📊 詳細持股清單與內扣費率")
         st.dataframe(df.style.format({"現價":"{:.2f}", "均價":"{:.2f}", "市值":"{:,.0f}", "損益":"{:,.0f}"}), use_container_width=True, hide_index=True)
         
-        # 🔥 完美還原：多線條「每日收盤價趨勢」折線圖
+        # 🔥 依照指示：完全移除圖表，只顯示每日損益金額的數據！
         st.write("")
-        st.markdown("#### 📈 近一個月每日收盤價趨勢")
+        st.markdown("#### 💰 近一個月每日損益金額")
         try:
             tickers = [item['symbol'] for item in st.session_state.my_data['etfs']]
             if tickers:
-                price_history = yf.download(tickers, period="1mo")['Close']
+                hist_data = yf.download(tickers, period="1mo")['Close']
                 if len(tickers) == 1:
-                    price_history = pd.DataFrame(price_history)
-                    price_history.columns = [st.session_state.my_data['etfs'][0]['name']]
-                else:
-                    name_map = {item['symbol']: item['name'] for item in st.session_state.my_data['etfs']}
-                    price_history = price_history.rename(columns=name_map)
+                    hist_data = pd.DataFrame(hist_data)
+                    hist_data.columns = [tickers[0]]
                 
-                df_chart = price_history.reset_index()
-                date_col = df_chart.columns[0]
-                df_melted = df_chart.melt(id_vars=[date_col], var_name='ETF', value_name='Price')
-
-                chart = alt.Chart(df_melted).mark_line().encode(
-                    x=alt.X(f'{date_col}:T', axis=alt.Axis(format='%d日', title=None, grid=False)),
-                    y=alt.Y('Price:Q', scale=alt.Scale(zero=False), axis=alt.Axis(title=None, labelFontSize=10, tickMinStep=1, tickCount=40, gridColor='#f0f2f6')),
-                    color=alt.Color('ETF:N', legend=alt.Legend(title=None, orient="bottom")),
-                    tooltip=[
-                        alt.Tooltip(f'{date_col}:T', format='%Y/%m/%d', title='日期'),
-                        alt.Tooltip('ETF:N', title='標的'),
-                        alt.Tooltip('Price:Q', format='.2f', title='收盤價')
-                    ]
-                ).properties(height=450).interactive()
-
-                st.altair_chart(chart, use_container_width=True)
-                st.caption("數據來源：Yahoo Finance (近一個月每日收盤價趨勢)")
+                diff_data = hist_data.diff().fillna(0)
+                
+                daily_total_pnl = pd.Series(0.0, index=diff_data.index)
+                for item in st.session_state.my_data['etfs']:
+                    sym = item['symbol']
+                    shares = item['holdings'] * 1000
+                    if sym in diff_data.columns:
+                        daily_total_pnl += diff_data[sym] * shares
+                
+                df_daily_pnl = daily_total_pnl.reset_index()
+                df_daily_pnl.columns = ['日期', '單日總損益金額']
+                df_daily_pnl['日期'] = df_daily_pnl['日期'].dt.strftime('%Y-%m-%d')
+                
+                df_daily_pnl['單日總損益金額'] = df_daily_pnl['單日總損益金額'].apply(lambda x: f"+${x:,.0f}" if x > 0 else f"-${abs(x):,.0f}" if x < 0 else "$0")
+                df_daily_pnl = df_daily_pnl.sort_index(ascending=False)
+                
+                st.dataframe(df_daily_pnl, use_container_width=True, hide_index=True)
+                
         except Exception as e:
-            st.error(f"圖表載入失敗: {e}")
+            st.error(f"資料載入失敗: {e}")
 
     else:
         st.markdown("#### 📡 庫存價格區間監控")
