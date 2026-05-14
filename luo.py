@@ -1334,121 +1334,67 @@ if st.session_state.show_constituents:
     st.write("---")
 
 if st.session_state.show_daily_price:
-    st.markdown("#### 🗓️ 庫存 ETF 每日統計數據 (近 30 個交易日)")
+    st.markdown("#### 🗓️ 庫存與自選 ETF 近期每日收盤價")
+    port_map = {}
+    wl_map = {}
     
-    port_map = {item['symbol']: f"💼 {item['name']}" for item in st.session_state.my_data.get('etfs', [])}
-    port_holdings = {f"💼 {item['name']}": item['holdings'] * 1000 for item in st.session_state.my_data.get('etfs', [])}
-    current_symbols = list(port_map.keys())
+    for item in st.session_state.my_data.get('etfs', []):
+        port_map[item['symbol']] = f"💼 {item['name']}"
+        
+    for item in st.session_state.my_data.get('watchlist', []):
+        if item['symbol'] not in port_map:
+            wl_map[item['symbol']] = f"👀 {item['name']}"
+            
+    all_symbols_map = {**port_map, **wl_map}
+    current_symbols = list(all_symbols_map.keys())
     
     if current_symbols:
-        with st.spinner("📡 正在向資料庫調閱歷史數據... (啟用強制補正機制)"):
+        with st.spinner("📡 正在向資料庫調閱近期每日股價..."):
             try:
-                hist_data = yf.download(current_symbols, period="2mo")['Close']
+                hist_data = yf.download(current_symbols, period="15d")['Close']
                 
                 if len(current_symbols) == 1:
                     hist_data = hist_data.to_frame()
-                    hist_data.columns = [port_map[current_symbols[0]]]
+                    hist_data.columns = [all_symbols_map[current_symbols[0]]]
                 else:
-                    hist_data = hist_data.rename(columns=port_map)
-                
-                hist_data = hist_data.dropna(how='all')
-                
-                today_str = datetime.now().strftime('%Y-%m-%d')
-                today_dt = pd.to_datetime(today_str)
-                
-                if today_dt not in hist_data.index:
-                    hist_data.loc[today_dt] = [None] * len(hist_data.columns)
-                
-                hist_data = hist_data.sort_index()
-                
-                for sym in current_symbols:
-                    mapped_name = port_map[sym]
-                    try:
-                        live_price = df[df['代號'] == sym]['現價'].values[0]
-                        hist_data.loc[hist_data.index[-1], mapped_name] = live_price
-                    except:
-                        pass
-                        
-                # 修正 Pandas 報錯: 改用新版直接呼叫 ffill()
-                hist_data = hist_data.ffill()
+                    hist_data = hist_data.rename(columns=all_symbols_map)
                 
                 diff_data = hist_data.diff()
                 
-                # 修改為 30 個交易日
-                hist_data = hist_data.tail(30)
-                diff_data = diff_data.tail(30)
-                
                 hist_data.index = hist_data.index.strftime('%m/%d')
-                diff_data.index = diff_data.index.strftime('%m/%d')
+                diff_data.index = hist_data.index 
                 
-                h_display = hist_data.iloc[::-1].T
-                d_display = diff_data.iloc[::-1].T
+                hist_data = hist_data.sort_index(ascending=False)
+                diff_data = diff_data.sort_index(ascending=False)
                 
-                valid_port_names = [name for name in port_map.values() if name in h_display.index]
+                hist_data = hist_data.T
+                diff_data = diff_data.T
+                
+                valid_port_names = [name for name in port_map.values() if name in hist_data.index]
+                valid_wl_names = [name for name in wl_map.values() if name in hist_data.index]
+                
+                def color_prices(df_to_style):
+                    css_df = pd.DataFrame('', index=df_to_style.index, columns=df_to_style.columns)
+                    target_diff = diff_data.loc[df_to_style.index] 
+                    css_df[target_diff > 0] = 'color: #d32f2f; font-weight: bold;'
+                    css_df[target_diff < 0] = 'color: #388e3c; font-weight: bold;'
+                    return css_df
                 
                 if valid_port_names:
-                    st.markdown("##### 💰 每日單日賺賠金額 (庫存)")
-                    pnl_df = pd.DataFrame(index=valid_port_names, columns=h_display.columns)
+                    st.markdown("##### 💼 庫存 ETF")
+                    styled_port = hist_data.loc[valid_port_names].style.format("{:.2f}").apply(color_prices, axis=None)
+                    st.dataframe(styled_port, use_container_width=True)
+                
+                if valid_wl_names:
+                    st.markdown("##### 👀 自選 ETF")
+                    styled_wl = hist_data.loc[valid_wl_names].style.format("{:.2f}").apply(color_prices, axis=None)
+                    st.dataframe(styled_wl, use_container_width=True)
                     
-                    daily_totals = {col: 0.0 for col in h_display.columns}
-                    
-                    for etf_name in valid_port_names:
-                        shares = port_holdings.get(etf_name, 0)
-                        for col in h_display.columns:
-                            diff = d_display.loc[etf_name, col]
-                            if pd.isna(diff): 
-                                pnl_df.loc[etf_name, col] = "-"
-                            else:
-                                val = diff * shares
-                                pnl_df.loc[etf_name, col] = f"{'+' if val > 0 else ''}{val:,.0f}"
-                                daily_totals[col] += val
-
-                    total_row = []
-                    for col in h_display.columns:
-                        v = daily_totals[col]
-                        total_row.append(f"{'+' if v > 0 else ''}{v:,.0f}")
-                    
-                    pnl_df.loc['📈 每日合計'] = total_row
-
-                    def color_pnl(df_to_style):
-                        css = pd.DataFrame('', index=df_to_style.index, columns=df_to_style.columns)
-                        for idx in df_to_style.index:
-                            for col in df_to_style.columns:
-                                val_str = str(df_to_style.loc[idx, col]).replace(',', '')
-                                if val_str == '-' or val_str == 'nan':
-                                    continue
-                                try:
-                                    val = float(val_str)
-                                    if val > 0:
-                                        css.loc[idx, col] = 'color: #d32f2f; font-weight: bold;'
-                                        if idx == '📈 每日合計':
-                                            css.loc[idx, col] += ' background-color: #ffebee; font-size: 16px;'
-                                    elif val < 0:
-                                        css.loc[idx, col] = 'color: #388e3c; font-weight: bold;'
-                                        if idx == '📈 每日合計':
-                                            css.loc[idx, col] += ' background-color: #e8f5e9; font-size: 16px;'
-                                    else:
-                                        if idx == '📈 每日合計':
-                                            css.loc[idx, col] = 'font-weight: bold; background-color: #f5f5f5; font-size: 16px;'
-                                except:
-                                    pass
-                        return css
-
-                    st.dataframe(pnl_df.style.apply(color_pnl, axis=None), use_container_width=True)
-
-                    st.markdown("##### 📉 每日收盤價 (庫存)")
-                    price_df = h_display.loc[valid_port_names].copy()
-                    for col in price_df.columns:
-                        price_df[col] = price_df[col].apply(lambda x: f"{x:.2f}" if pd.notna(x) else "-")
-                    
-                    st.dataframe(price_df, use_container_width=True)
-                    st.caption("💡 提示：數值紅色代表漲/賺，綠色代表跌/賠。最下方已有當日總賺賠統計！系統已啟動強效補正機制，確保不再有缺漏。")
-                else:
-                    st.info("⚠️ 目前無有效庫存數據。")
+                st.caption("💡 提示：顯示近 15 個交易日收盤價，最新日期排列於最左方。數值呈現紅色代表上漲，綠色代表下跌。")
             except Exception as e:
-                st.error(f"無法抓取每日數據：{e}")
+                st.error(f"無法抓取每日股價：{e}")
     else:
-        st.info("⚠️ 目前無庫存資料。")
+        st.info("⚠️ 目前尚無持股或自選資料，請至下方「標的管理」新增！")
     st.write("---")
 
 # ==============================================================================
@@ -1886,45 +1832,7 @@ with bot_c2:
 
             st.button("💾 儲存所有修改", use_container_width=True, type="primary", on_click=save_edits)
 
-st.write("---")
-st.markdown("### 📈 持股歷史股價趨勢 (近 30 日)")
 
-current_etfs = [item['symbol'] for item in st.session_state.my_data.get('etfs', [])]
-
-if current_etfs:
-    with st.spinner("正在繪製高精度股價戰報..."):
-        try:
-            price_history = yf.download(current_etfs, period="1mo")['Close']
-            
-            if len(current_etfs) == 1:
-                price_history = price_history.to_frame()
-                price_history.columns = [st.session_state.my_data['etfs'][0]['name']]
-            else:
-                name_map = {item['symbol']: item['name'] for item in st.session_state.my_data['etfs']}
-                price_history = price_history.rename(columns=name_map)
-            
-            df_chart = price_history.reset_index()
-            date_col = df_chart.columns[0]
-            df_melted = df_chart.melt(id_vars=[date_col], var_name='ETF', value_name='Price')
-
-            chart = alt.Chart(df_melted).mark_line().encode(
-                x=alt.X(f'{date_col}:T', axis=alt.Axis(format='%d日', title=None, grid=False)),
-                y=alt.Y('Price:Q', scale=alt.Scale(zero=False), axis=alt.Axis(title=None, labelFontSize=10, tickMinStep=1, tickCount=40, gridColor='#f0f2f6')),
-                color=alt.Color('ETF:N', legend=alt.Legend(title=None, orient="bottom")),
-                tooltip=[
-                    alt.Tooltip(f'{date_col}:T', format='%Y/%m/%d', title='日期'),
-                    alt.Tooltip('ETF:N', title='標的'),
-                    alt.Tooltip('Price:Q', format='.2f', title='收盤價')
-                ]
-            ).properties(height=450).interactive()
-
-            st.altair_chart(chart, use_container_width=True)
-            st.caption("數據來源：Yahoo Finance (近一個月每日收盤價趨勢)")
-        except Exception as e:
-            st.error(f"圖表產生失敗：{e}")
-            st.info("提示：請確認網路連線正常或 ETF 代碼是否正確。")
-else:
-    st.info("目前庫存中沒有標的。請由上方「標的管理」面板新增您的愛股！")
 
 if st.session_state.auto_refresh_mode == "✅ USE (開啟)":
     time.sleep(5)
