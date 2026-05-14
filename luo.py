@@ -19,7 +19,7 @@ if 'update_success' in st.session_state and st.session_state.update_success:
     st.session_state.update_success = False
 
 # 自定義 CSS
-st.markdown('''
+st.markdown("""
     <style>
     /* 🔥 終極暴力隱藏表格右上角浮動工具列 (對付各版本 Streamlit) */
     [data-testid="stElementToolbar"], 
@@ -106,7 +106,7 @@ st.markdown('''
     /* 自動更新控制區樣式 */
     .auto-refresh-box { background-color: #f0f7ff; border: 1px solid #cce5ff; border-radius: 8px; padding: 15px; text-align: center; }
     </style>
-''', unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
 # --- 2. 系統設定與資料庫 ---
 SETTINGS_FILE = 'settings.json'
@@ -870,7 +870,7 @@ def render_macro_cards(data_dict, region_prefix):
         color_hex = "#e74c3c" if is_up else "#2ecc71" 
         sign = "+" if is_up else ""
         
-        html = f'''
+        html = f"""
         <div style="border:1px solid #e0e0e0; border-radius:8px; border-left:6px solid {color_hex}; padding:15px; margin-bottom:15px; background:#fff; box-shadow: 2px 2px 5px rgba(0,0,0,0.05);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                 <div style="color:{color_hex}; font-size:15px; display:flex; align-items:center;">
@@ -882,7 +882,7 @@ def render_macro_cards(data_dict, region_prefix):
             <div style="font-size:26px; font-weight:900; color:#111; margin-bottom:5px;">{data['price']:,.2f}</div>
             <div style="font-size:14px; font-weight:bold; color:{color_hex};">{sign}{data['diff']:,.2f} ({sign}{data['pct']:.2f}%)</div>
         </div>
-        '''
+        """
         with cols[idx % 3]:
             st.markdown(html, unsafe_allow_html=True)
         idx += 1
@@ -914,13 +914,13 @@ upcoming_list = [
 up_cols = st.columns(4)
 for i, etf in enumerate(upcoming_list):
     with up_cols[i]:
-        st.markdown(f'''
+        st.markdown(f"""
         <div class='upcoming-box'>
             <div class='upcoming-title'>🚀 掛牌/募集：{etf['date']}</div>
             <div class='upcoming-item'>{etf['symbol']} {etf['name']}</div>
             <div class='upcoming-price'>發行價：${etf['price']}</div>
         </div>
-        ''', unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 st.write("")
 
 if price_alerts:
@@ -987,7 +987,7 @@ if div_sources:
 else:
     sub_title = "本月無現金流入預定"
 
-html_triple_pnl = f'''
+html_triple_pnl = f"""
 <div class="triple-box">
     <div class="triple-col">
         <div class="triple-title">今日損益</div>
@@ -1005,7 +1005,7 @@ html_triple_pnl = f'''
         <div class="triple-sub-gold">{sub_title}</div>
     </div>
 </div>
-'''
+"""
 st.markdown(html_triple_pnl, unsafe_allow_html=True)
 
 c1, c2, c3 = st.columns(3)
@@ -1042,7 +1042,7 @@ b6_lbl, b6_typ = ("🔽 收起持股明細", "primary") if st.session_state.show
 b7_lbl, b7_typ = ("🔽 收起ETF成份股", "primary") if st.session_state.show_constituents else ("🧩 展開ETF成份股", "secondary")
 b8_lbl, b8_typ = ("🔽 收起質押專區", "primary") if st.session_state.show_pledge else ("🏦 展開質押專區", "secondary") 
 b9_lbl, b9_typ = ("🔽 收起機密面板", "primary") if st.session_state.show_secret else ("🔐 展開機密面板", "secondary")
-b10_lbl, b10_typ = ("🔽 收起每日單日報表", "primary") if st.session_state.show_daily_price else ("🗓️ 展開每日單日報表", "secondary") 
+b10_lbl, b10_typ = ("🔽 收起每日股價", "primary") if st.session_state.show_daily_price else ("🗓️ 展開每日股價", "secondary") 
 
 with cols_btn_r1[0]: st.button(b1_lbl, on_click=toggle_us, type=b1_typ, use_container_width=True)
 with cols_btn_r1[1]: st.button(b2_lbl, on_click=toggle_tw, type=b2_typ, use_container_width=True)
@@ -1081,17 +1081,26 @@ if st.session_state.show_calendar:
     amount_text = f"${data['amount']:,.0f}" if data["amount"] > 0 else "$0"
     col_space1, col_center, col_space2 = st.columns([1, 2, 1])
     with col_center:
-        st.markdown(f'''
+        st.markdown(f"""
         <div class='month-card'>
             <div class='month-title'>{selected_month} 月預估領息</div>
             <div class='month-amount'>{amount_text}</div>
             <div class='month-sources'>ETF 來源：{sources_text}</div>
         </div>
-        ''', unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
     st.write("---")
 
 if st.session_state.show_div_db:
-    st.markdown("#### 📚 專屬 ETF 與自選股 除權息時程總覽")
+    col_d1, col_d2 = st.columns([7, 3])
+    with col_d1:
+        st.markdown("#### 📚 專屬 ETF 與自選股 除權息時程總覽")
+    with col_d2:
+        if st.button("🔄 強制抓取最新公告", type="primary", use_container_width=True):
+            with st.spinner("🚀 強制清洗快取並重新連線抓取中..."):
+                time.sleep(0.6)
+                st.cache_data.clear() 
+            st.session_state.update_success = "已強制重新抓取最新資料！"
+            st.rerun()
 
     db_list = []
     
@@ -1199,20 +1208,17 @@ if st.session_state.show_tech:
                 use_container_width=True, hide_index=True
             )
                 
-        # 🔥 修改：可自訂秒數的自動更新區域
         with auto_tech_col:
             st.markdown("<div style='background-color: #f0f7ff; border: 1px solid #cce5ff; border-radius: 8px; padding: 10px 8px; text-align: center; box-shadow: 1px 1px 3px rgba(0,0,0,0.05);'>", unsafe_allow_html=True)
-            st.markdown("<div style='font-size: 15px; font-weight: bold; color: #1e3c72; margin-bottom: 4px;'>⚡ 股價自動更新</div>", unsafe_allow_html=True)
-            
-            refresh_sec = st.number_input("更新頻率(秒)", min_value=3, max_value=600, value=st.session_state.get("auto_refresh_sec", 5), step=1, key="auto_refresh_sec", label_visibility="collapsed")
-            st.markdown(f"<div style='font-size: 11px; color: #6c757d; margin-bottom: 5px; line-height: 1.2;'>每 {refresh_sec} 秒重整</div>", unsafe_allow_html=True)
+            st.markdown("<div style='font-size: 15px; font-weight: bold; color: #1e3c72; margin-bottom: 4px;'>⚡ 自動更新</div>", unsafe_allow_html=True)
+            st.markdown("<div style='font-size: 11px; color: #6c757d; margin-bottom: 10px; line-height: 1.2;'>每 5 秒即時重整</div>", unsafe_allow_html=True)
             
             if 'auto_refresh_mode' not in st.session_state:
-                st.session_state.auto_refresh_mode = "❌ 關閉"
+                st.session_state.auto_refresh_mode = "❌ NO USE (關閉)"
                 
             auto_update = st.radio(
                 "即時更新", 
-                ["❌ 關閉", "✅ 開啟"], 
+                ["❌ NO USE (關閉)", "✅ USE (開啟)"], 
                 key="auto_refresh_mode",
                 horizontal=False,
                 label_visibility="collapsed"
@@ -1335,20 +1341,40 @@ if st.session_state.show_daily_price:
     current_symbols = list(port_map.keys())
     
     if current_symbols:
-        with st.spinner("📡 正在向資料庫調閱2026年5月起之數據..."):
+        with st.spinner("📡 正在向資料庫調閱2026年5月起之數據... (系統若遇缺漏將自動取最新現價補正)"):
             try:
-                hist_data = yf.download(current_symbols, start="2026-05-01")['Close']
+                # 解決 Yahoo Finance 最近一兩天(5/13-5/14)資料有時抓不到的問題
+                # 我們把 end date 放寬，確保能抓到最新
+                hist_data = yf.download(current_symbols, start="2026-05-01", end=(datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d"))['Close']
+                
                 if len(current_symbols) == 1:
                     hist_data = hist_data.to_frame()
                     hist_data.columns = [port_map[current_symbols[0]]]
                 else:
                     hist_data = hist_data.rename(columns=port_map)
                 
+                # 如果有缺漏的日子，我們使用前一日的收盤價填補，避免產生 NaN 導致算不出錢
+                hist_data = hist_data.fillna(method='ffill')
+                
+                # 為了確保今天的現價有被包含，手動把今天的最新現價塞進去（如果今天沒抓到的話）
+                today_str = datetime.now().strftime('%Y-%m-%d')
+                if today_str not in hist_data.index.strftime('%Y-%m-%d') and not df.empty:
+                    # 取得 df 中的現價
+                    today_prices = {}
+                    for sym in current_symbols:
+                        try:
+                            today_prices[port_map[sym]] = df[df['代號'] == sym]['現價'].values[0]
+                        except:
+                            today_prices[port_map[sym]] = None
+                    new_row = pd.DataFrame(today_prices, index=[pd.to_datetime(today_str)])
+                    hist_data = pd.concat([hist_data, new_row])
+                    hist_data = hist_data.fillna(method='ffill')
+
                 diff_data = hist_data.diff()
                 hist_data.index = hist_data.index.strftime('%m/%d')
                 diff_data.index = hist_data.index 
                 
-                # 轉置與反轉日期順序
+                # 轉置與反轉日期順序，把最新的日期放前面
                 h_display = hist_data.iloc[::-1].T
                 d_display = diff_data.iloc[::-1].T
                 
@@ -1358,6 +1384,10 @@ if st.session_state.show_daily_price:
                     # --- A. 損益金額表格 ---
                     st.markdown("##### 💰 每日單日賺賠金額 (庫存)")
                     pnl_df = pd.DataFrame(index=valid_port_names, columns=h_display.columns)
+                    
+                    # 計算總計用
+                    daily_totals = {col: 0.0 for col in h_display.columns}
+                    
                     for etf_name in valid_port_names:
                         shares = port_holdings.get(etf_name, 0)
                         for col in h_display.columns:
@@ -1367,12 +1397,39 @@ if st.session_state.show_daily_price:
                             else:
                                 val = diff * shares
                                 pnl_df.loc[etf_name, col] = f"{'+' if val > 0 else ''}{val:,.0f}"
+                                daily_totals[col] += val
+
+                    # 🔥 追加每日合計列
+                    total_row = []
+                    for col in h_display.columns:
+                        v = daily_totals[col]
+                        total_row.append(f"{'+' if v > 0 else ''}{v:,.0f}")
+                    
+                    pnl_df.loc['📈 每日合計'] = total_row
 
                     def color_pnl(df_to_style):
                         css = pd.DataFrame('', index=df_to_style.index, columns=df_to_style.columns)
-                        t_diff = d_display.loc[df_to_style.index] 
-                        css[t_diff > 0] = 'color: #d32f2f; font-weight: bold;'
-                        css[t_diff < 0] = 'color: #388e3c; font-weight: bold;'
+                        # 對每一格判斷，如果是合計列就拆解字串
+                        for idx in df_to_style.index:
+                            for col in df_to_style.columns:
+                                val_str = str(df_to_style.loc[idx, col]).replace(',', '')
+                                if val_str == '-' or val_str == 'nan':
+                                    continue
+                                try:
+                                    val = float(val_str)
+                                    if val > 0:
+                                        css.loc[idx, col] = 'color: #d32f2f; font-weight: bold;'
+                                        if idx == '📈 每日合計':
+                                            css.loc[idx, col] += ' background-color: #ffebee; font-size: 16px;'
+                                    elif val < 0:
+                                        css.loc[idx, col] = 'color: #388e3c; font-weight: bold;'
+                                        if idx == '📈 每日合計':
+                                            css.loc[idx, col] += ' background-color: #e8f5e9; font-size: 16px;'
+                                    else:
+                                        if idx == '📈 每日合計':
+                                            css.loc[idx, col] = 'font-weight: bold; background-color: #f5f5f5; font-size: 16px;'
+                                except:
+                                    pass
                         return css
 
                     st.dataframe(pnl_df.style.apply(color_pnl, axis=None), use_container_width=True)
@@ -1383,8 +1440,8 @@ if st.session_state.show_daily_price:
                     for col in price_df.columns:
                         price_df[col] = price_df[col].apply(lambda x: f"{x:.2f}" if pd.notna(x) else "-")
                     
-                    st.dataframe(price_df.style.apply(color_pnl, axis=None), use_container_width=True)
-                    st.caption("💡 提示：以上僅顯示庫存標的。數值呈現紅色代表漲/賺，綠色代表跌/賠。")
+                    st.dataframe(price_df, use_container_width=True)
+                    st.caption("💡 提示：數值紅色代表漲/賺，綠色代表跌/賠。最下方已有當日總賺賠統計！如果某幾天 Yahoo 抓不到資料，系統會自動引用前一天的收盤價進行補正。")
                 else:
                     st.info("⚠️ 目前無有效庫存數據。")
             except Exception as e:
@@ -1394,7 +1451,7 @@ if st.session_state.show_daily_price:
     st.write("---")
 
 # ==============================================================================
-# 🔥 股票質押專區 (修正：加入勾選與原本市值顯示功能)
+# 🔥 股票質押專區 (修正：加入勾選與防呆功能 + 新增庫存市值顯示)
 # ==============================================================================
 if st.session_state.show_pledge:
     if not df.empty:
@@ -1417,14 +1474,14 @@ if st.session_state.show_pledge:
             name = item['name']
             h_total = item['holdings']
             p_shares = item.get('pledged_shares', 0.0)
-            is_pledged = item.get('is_pledged', False)
+            is_pledged = item.get('is_pledged', False) # 讀取打勾狀態
             
             try:
                 curr_p = df[df['代號'] == sym]['現價'].values[0]
             except:
                 curr_p = 0
                 
-            # 原本的庫存總市值 (不管有沒有打勾都要顯示)
+            # 🔥 新增：計算原本的庫存總市值 (不管有沒有打勾都要顯示)
             original_mkt = h_total * 1000 * curr_p
                 
             # 只有打勾的才算進擔保品市值
@@ -1437,7 +1494,7 @@ if st.session_state.show_pledge:
                 "✓ 選取": is_pledged,
                 "ETF 名稱": name,
                 "總庫存 (張)": h_total,
-                "庫存市值 (元)": round(original_mkt, 0),
+                "庫存市值 (元)": round(original_mkt, 0), # 🔥 新增欄位：永遠顯示原市值
                 "質押張數": p_shares,
                 "現價": round(curr_p, 2),
                 "質押市值 (元)": round(p_mkt, 0),
@@ -1469,12 +1526,12 @@ if st.session_state.show_pledge:
             column_config={
                 "✓ 選取": st.column_config.CheckboxColumn("✓ 選取質押", help="勾選後才會計入擔保品總市值"),
                 "質押張數": st.column_config.NumberColumn("質押張數 (雙擊編輯)", min_value=0.0, step=1.0, format="%.1f"),
-                "庫存市值 (元)": st.column_config.NumberColumn("庫存市值 (元)", format="%.0f"),
+                "庫存市值 (元)": st.column_config.NumberColumn("庫存市值 (元)", format="%.0f"), # 🔥 設定顯示格式
                 "現價": st.column_config.NumberColumn("現價", format="%.2f"),
                 "質押市值 (元)": st.column_config.NumberColumn("質押市值 (元)", format="%.0f"),
                 "可借上限 (60%)": st.column_config.NumberColumn("可借上限 (60%)", format="%.0f") 
             },
-            disabled=["ETF 名稱", "總庫存 (張)", "庫存市值 (元)", "現價", "質押市值 (元)", "可借上限 (60%)"], 
+            disabled=["ETF 名稱", "總庫存 (張)", "庫存市值 (元)", "現價", "質押市值 (元)", "可借上限 (60%)"], # 🔥 鎖定避免誤改
             use_container_width=True, hide_index=True
         )
         
@@ -1783,25 +1840,16 @@ with st.expander("💰 買賣損益試算器", expanded=False):
 
 st.write("---")
 
-# 🔥 修改：獨立拆分「強制更新除權息」與「手動重新整理股價」功能
-bot_c1, bot_c2, bot_c3 = st.columns([2, 2, 6])
+bot_c1, bot_c2 = st.columns([3, 7])
 
 with bot_c1:
-    if st.button("🔄 手動更新【股價】", use_container_width=True):
-        fetch_data.clear() # 僅清除股價相關快取
+    if st.button("🔄 手動重新整理股價", use_container_width=True):
+        fetch_data.clear()
+        fetch_watchlist_dividend.clear()
+        fetch_taiwan_upcoming_dividends.clear()
         st.rerun()
 
 with bot_c2:
-    if st.button("💰 強制更新【除權息】", use_container_width=True, type="primary"):
-        with st.spinner("🚀 重新連線抓取官方除權息公告中..."):
-            fetch_taiwan_upcoming_dividends.clear() # 清除台股官方公告快取
-            get_div_data.clear() # 清除計算好的除息快取
-            fetch_watchlist_dividend.clear() # 清除自選股的除息快取
-            fetch_data.clear() # 同時清除主數據讓畫面重新渲染
-        st.session_state.update_success = "除權息資料已更新至最新！"
-        st.rerun()
-
-with bot_c3:
     with st.expander("⚙️ 標的管理 (庫存新增 / 修改 / 刪除)", expanded=True):
         st.markdown("#### ➕ 新增庫存標的 (股票/ETF)")
         
@@ -1877,8 +1925,7 @@ if current_etfs:
 else:
     st.info("目前庫存中沒有標的。請由上方「標的管理」面板新增您的愛股！")
 
-# 🔥 修改：讓自動更新綁定您剛才在上面設定的秒數，且只清除股價快取
-if st.session_state.get('auto_refresh_mode') == "✅ 開啟":
-    time.sleep(st.session_state.get("auto_refresh_sec", 5))
-    fetch_data.clear() # 只有清除股價相關的快取
+if st.session_state.auto_refresh_mode == "✅ USE (開啟)":
+    time.sleep(5)
+    st.cache_data.clear() 
     st.rerun()
