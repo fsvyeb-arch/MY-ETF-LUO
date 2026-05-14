@@ -103,7 +103,9 @@ st.markdown("""
     .net-worth-box h3 { color: #f8f9fa; font-size: 18px; margin-bottom: 5px; }
     .net-worth-box h1 { color: #ffc107; font-size: 38px; font-weight: 900; margin: 0; text-shadow: 1px 1px 3px rgba(0,0,0,0.5); }
     
-        </style>
+    /* 自動更新控制區樣式 */
+    .auto-refresh-box { background-color: #f0f7ff; border: 1px solid #cce5ff; border-radius: 8px; padding: 15px; text-align: center; }
+    </style>
     """, unsafe_allow_html=True)
 
 # --- 2. 系統設定與資料庫 ---
@@ -1168,43 +1170,42 @@ if st.session_state.show_tech:
     if not df.empty:
         st.markdown("#### 📡 庫存價格區間監控與技術分析")
         
-    if '配息月份' in df_tech.columns:
-        df_tech = df_tech.sort_values(by='配息月份', ascending=True)
-        
-    def color_profit_loss(val):
-        if isinstance(val, str):
-            if val.startswith('+'): return 'color: #d32f2f; font-weight: bold;' 
-            elif val.startswith('-'): return 'color: #388e3c; font-weight: bold;' 
-        return ''
-        
-    def color_months(val):
-        if not isinstance(val, str): return ''
-        if val == '1,4,7,10月': return 'background-color: #e3f2fd; color: #1565c0; font-weight: bold; text-align: center;' 
-        if val == '2,5,8,11月': return 'background-color: #f3e5f5; color: #6a1b9a; font-weight: bold; text-align: center;' 
-        if val == '3,6,9,12月': return 'background-color: #e8f5e9; color: #2e7d32; font-weight: bold; text-align: center;' 
-        if val == '月配息': return 'background-color: #fff8e1; color: #f57f17; font-weight: bold; text-align: center;' 
-        return 'color: #555; text-align: center;'
+        if '配息月份' in df_tech.columns:
+            df_tech = df_tech.sort_values(by='配息月份', ascending=True)
+            
+        def color_profit_loss(val):
+            if isinstance(val, str):
+                if val.startswith('+'): return 'color: #d32f2f; font-weight: bold;' 
+                elif val.startswith('-'): return 'color: #388e3c; font-weight: bold;' 
+            return ''
+            
+        def color_months(val):
+            if not isinstance(val, str): return ''
+            if val == '1,4,7,10月': return 'background-color: #e3f2fd; color: #1565c0; font-weight: bold; text-align: center;' 
+            if val == '2,5,8,11月': return 'background-color: #f3e5f5; color: #6a1b9a; font-weight: bold; text-align: center;' 
+            if val == '3,6,9,12月': return 'background-color: #e8f5e9; color: #2e7d32; font-weight: bold; text-align: center;' 
+            if val == '月配息': return 'background-color: #fff8e1; color: #f57f17; font-weight: bold; text-align: center;' 
+            return 'color: #555; text-align: center;'
 
-    if "設定高標(停利)" in df_tech.columns and "設定低標(停損)" in df_tech.columns:
-        df_tech_display = df_tech.drop(columns=["設定高標(停利)", "設定低標(停損)"])
-    else:
-        df_tech_display = df_tech
+        if "設定高標(停利)" in df_tech.columns and "設定低標(停損)" in df_tech.columns:
+            df_tech_display = df_tech.drop(columns=["設定高標(停利)", "設定低標(停損)"])
+        else:
+            df_tech_display = df_tech
 
-    try:
-        styled_df_tech = df_tech_display.style.map(color_profit_loss, subset=['今日損益', '今日漲跌幅']).map(color_months, subset=['配息月份'])
-    except AttributeError:
-        styled_df_tech = df_tech_display.style.applymap(color_profit_loss, subset=['今日損益', '今日漲跌幅']).applymap(color_months, subset=['配息月份'])
+        try:
+            styled_df_tech = df_tech_display.style.map(color_profit_loss, subset=['今日損益', '今日漲跌幅']).map(color_months, subset=['配息月份'])
+        except AttributeError:
+            styled_df_tech = df_tech_display.style.applymap(color_profit_loss, subset=['今日損益', '今日漲跌幅']).applymap(color_months, subset=['配息月份'])
 
-    st.dataframe(
-        styled_df_tech,
-        column_config={
-            "現價": st.column_config.NumberColumn("現價", format="%.2f"),
-            "股票張數": st.column_config.NumberColumn("股票張數", format="%.1f") 
-        },
-        use_container_width=True, hide_index=True
-    )
-
-
+        st.dataframe(
+            styled_df_tech,
+            column_config={
+                "現價": st.column_config.NumberColumn("現價", format="%.2f"),
+                "股票張數": st.column_config.NumberColumn("股票張數", format="%.1f") 
+            },
+            use_container_width=True, hide_index=True
+        )
+            
         st.write("")
         st.markdown("#### 📊 詳細持股清單與內扣費率")
         st.dataframe(df.style.format({"現價":"{:.2f}", "均價":"{:.2f}", "市值":"{:,.0f}", "損益":"{:,.0f}"}), use_container_width=True, hide_index=True)
