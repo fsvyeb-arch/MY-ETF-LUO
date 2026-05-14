@@ -414,16 +414,32 @@ def fetch_taiwan_upcoming_dividends():
 
 @st.cache_data(ttl=86400) 
 def get_fund_size(symbol):
+    """強力挖掘 Yahoo Finance 隱藏的 ETF 規模數據"""
     try:
         tk = yf.Ticker(symbol)
-        cap = tk.fast_info.get('marketCap')
-        if cap and cap > 0: return cap
-        shares = tk.fast_info.get('shares')
-        price = tk.fast_info.get('lastPrice') or tk.fast_info.get('previousClose')
-        if shares and price: return shares * price
         info = tk.info
-        cap = info.get('totalAssets') or info.get('marketCap')
-        if cap and cap > 0: return cap
+        
+        # 1. ETF 專用總資產
+        if info.get('totalAssets'): 
+            return info.get('totalAssets')
+            
+        # 2. 市值
+        if info.get('marketCap'): 
+            return info.get('marketCap')
+            
+        # 3. 嘗試從 fast_info 挖取
+        if hasattr(tk, 'fast_info'):
+            try:
+                if tk.fast_info.market_cap: 
+                    return tk.fast_info.market_cap
+            except: pass
+            
+        # 4. 如果都沒有，試著用 (流通股數 * 昨收價) 手動計算
+        shares = info.get('sharesOutstanding')
+        price = info.get('previousClose')
+        if shares and price and shares > 0 and price > 0:
+            return shares * price
+            
     except: pass
     return None
 
@@ -510,7 +526,7 @@ def fetch_watchlist_dividend(wl_list, custom_divs):
             months = DIVIDEND_SCHEDULE.get(sym, [])
             freq = "月配息" if len(months)==12 else "季配息" if len(months)==4 else "半年配" if len(months)==2 else "年配息" if len(months)==1 else "未知"
             results.append({
-                "類別": "👀 自選", "ETF 名稱": item['name'], "基金規模": f"{cap_raw / 100000000:.2f} 億" if cap_raw else "系統無資料",  
+                "類別": "👀 自選", "ETF 名稱": item['name'],
                 "配息頻率": freq, "配息月份": "、".join(map(str, months)) + " 月" if months else "未設定",
                 "狀態": status_msg, "除息日": ex_date, "發放日": pay_date, "每股金額": f"${div_amount:.3f}", "最新填息紀錄": fill_status
             })
@@ -540,7 +556,8 @@ def fetch_data(etf_list, custom_divs):
             vol = tk.fast_info.get('lastVolume') or hist['Volume'].iloc[-1]
             
             shares = item['holdings'] * 1000
-            mkt_val, cost_val = shares * curr_p, shares * item['cost']
+            mkt_val = shares * curr_p
+            cost_val = shares * item['cost']
             profit = mkt_val - cost_val - (mkt_val * 0.00235)
             
             today_diff = curr_p - prev_close
@@ -579,7 +596,7 @@ def fetch_data(etf_list, custom_divs):
                 "經理費": fee_info["經理費"], "保管費": fee_info["保管費"], 
                 "單次預估領息": shares * div_amount, "每股配息": div_amount,
                 "最新公告除息日": ex_date, "預估發放日": pay_date, "已公告": is_announced,
-                "狀態": status_msg, "最新填息紀錄": fill_status, "基金規模": f"{cap_raw / 100000000:.2f} 億" if cap_raw else "系統無資料"
+                "狀態": status_msg, "最新填息紀錄": fill_status, "基金規模": f"{cap_raw / 100000000:.2f} 億" if cap_raw else "Yahoo無資料"
             })
             
             tech_results.append({
@@ -587,7 +604,7 @@ def fetch_data(etf_list, custom_divs):
                 "配息月份": "月配息" if len(months_to_pay) == 12 else ",".join(map(str, months_to_pay)) + "月" if months_to_pay else "-", 
                 "股票張數": item['holdings'], 
                 "現價": round(curr_p, 2),
-                "基金規模": f"{cap_raw / 100000000:.2f} 億" if cap_raw else "系統無資料",
+                "基金規模(市值)": f"{cap_raw / 100000000:.2f} 億" if cap_raw else "Yahoo無資料",
                 "今日損益": f"+${today_profit:,.0f}" if today_profit >= 0 else f"-${abs(today_profit):,.0f}", 
                 "今日漲跌幅": f"+{(today_diff / prev_close * 100):.2f}%" if today_diff >= 0 else f"{(today_diff / prev_close * 100):.2f}%", 
                 "今日交易量": f"{vol:,.0f}" if vol > 0 else "無資料",
@@ -768,7 +785,7 @@ if st.session_state.show_div_db:
     if st.columns([7, 3])[1].button("🔄 強制抓取最新公告", type="primary", use_container_width=True):
         st.cache_data.clear(); st.session_state.update_success = "已強制重新抓取！"; st.rerun()
 
-    db_list = [{"類別": "💼 庫存", "ETF 名稱": row['名稱'], "基金規模": row.get('基金規模', '系統無資料'), "配息頻率": "月配息" if len(DIVIDEND_SCHEDULE.get(row['代號'], []))==12 else "季配息" if len(DIVIDEND_SCHEDULE.get(row['代號'], []))==4 else "其他", "配息月份": "、".join(map(str, DIVIDEND_SCHEDULE.get(row['代號'], []))) + " 月" if DIVIDEND_SCHEDULE.get(row['代號'], []) else "-", "狀態": row['狀態'], "除息日": row['最新公告除息日'], "發放日": row['預估發放日'], "每股金額": f"${row['每股配息']:.3f}", "最新填息紀錄": row['最新填息紀錄']} for _, row in df.iterrows()] if not df.empty else []
+    db_list = [{"類別": "💼 庫存", "ETF 名稱": row['名稱'], "配息頻率": "月配息" if len(DIVIDEND_SCHEDULE.get(row['代號'], []))==12 else "季配息" if len(DIVIDEND_SCHEDULE.get(row['代號'], []))==4 else "其他", "配息月份": "、".join(map(str, DIVIDEND_SCHEDULE.get(row['代號'], []))) + " 月" if DIVIDEND_SCHEDULE.get(row['代號'], []) else "-", "狀態": row['狀態'], "除息日": row['最新公告除息日'], "發放日": row['預估發放日'], "每股金額": f"${row['每股配息']:.3f}", "最新填息紀錄": row['最新填息紀錄']} for _, row in df.iterrows()] if not df.empty else []
     df_wl_div = fetch_watchlist_dividend(st.session_state.my_data.get('watchlist', []), st.session_state.my_data.get('custom_divs', {}))
     final_div_df = pd.concat([pd.DataFrame(db_list), df_wl_div], ignore_index=True) if db_list and not df_wl_div.empty else df_wl_div if not df_wl_div.empty else pd.DataFrame(db_list)
     
