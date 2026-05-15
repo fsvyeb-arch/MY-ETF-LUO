@@ -1486,15 +1486,21 @@ if st.session_state.show_pledge:
         
         pledge_data = st.session_state.my_data['pledge']
         
-        col_p1, col_p2 = st.columns(2)
+        col_p1, col_p2, col_p3 = st.columns([1.5, 1, 1.5])
         with col_p1:
             borrowed = st.number_input("💸 輸入已向券商借入款項總額 (元)", min_value=0, value=int(pledge_data.get('borrowed_amount', 0)), step=10000)
         with col_p2:
+            interest_rate = st.number_input("📈 年利率 (%)", min_value=0.0, value=float(pledge_data.get('interest_rate', 3.25)), step=0.05, format="%.2f")
+        with col_p3:
             new_pledge_paid = st.slider("🗓️ 質押已過期數 (一年半共18期)", min_value=1, max_value=18, value=int(pledge_data.get('months_paid', 1)))
+            
+        monthly_interest = int(borrowed * (interest_rate / 100) / 12)
+        st.info(f"💵 **預估每月需繳利息： {monthly_interest:,} 元** (以年利率 {interest_rate}% 計算)")
         
-        if borrowed != pledge_data.get('borrowed_amount', 0) or new_pledge_paid != pledge_data.get('months_paid', 1):
+        if borrowed != pledge_data.get('borrowed_amount', 0) or new_pledge_paid != pledge_data.get('months_paid', 1) or interest_rate != pledge_data.get('interest_rate', 3.25):
             st.session_state.my_data['pledge']['borrowed_amount'] = borrowed
             st.session_state.my_data['pledge']['months_paid'] = new_pledge_paid
+            st.session_state.my_data['pledge']['interest_rate'] = interest_rate
             save_to_json(st.session_state.my_data)
             st.rerun()
 
