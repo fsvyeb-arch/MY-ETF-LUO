@@ -817,6 +817,13 @@ def fetch_data(etf_list, custom_divs):
             else:
                 month_tag = "-"
                 
+            # User requested specific volume formatting and new columns
+            # Volume converted to Billion TWD (億) based on real-time price
+            vol_money_str = f"{vol * curr_p / 100000000:.2f} 億" if (vol and vol > 0) else "無資料"
+            
+            # Since real-time "number of shareholders", "growth", and "age" are not in Yahoo Finance API,
+            # We provide a clean N/A marker for them.
+            
             tech_results.append({
                 "ETF 名稱": display_name, 
                 "配息月份": month_tag, 
@@ -824,7 +831,10 @@ def fetch_data(etf_list, custom_divs):
                 "現價": round(curr_p, 2),
                 "今日損益": today_pnl_str, 
                 "今日漲跌幅": today_pct_str, 
-                "今日交易量": f"{vol:,.0f}" if vol > 0 else "無資料",
+                "成交金額": vol_money_str,
+                "持股人數": "系統不支援",
+                "增減人數": "系統不支援",
+                "成立年數": "系統不支援",
                 "年殖利率": f"{est_yield:.2f}%", 
                 "今日最高/最低": f"${day_high:.2f} / ${day_low:.2f}",
                 "52週最高/最低": f"${year_high:.2f} / ${year_low:.2f}", 
