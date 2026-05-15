@@ -1359,7 +1359,21 @@ if st.session_state.show_constituents:
     st.write("---")
 
 if st.session_state.show_daily_price:
-    st.markdown("#### 🗓️ 庫存 ETF 每日統計數據 (近 30 個交易日)")
+    head_col1, head_col2, head_col3 = st.columns([6, 2, 2])
+    with head_col1:
+        st.markdown("#### 🗓️ 庫存 ETF 每日統計數據 (近 30 日)")
+    with head_col2:
+        if 'auto_refresh_sec' not in st.session_state:
+            st.session_state.auto_refresh_sec = 5
+        auto_sec = st.number_input("⏳ 更新頻率(秒)", min_value=1, max_value=600, value=st.session_state.auto_refresh_sec, label_visibility="collapsed")
+        if auto_sec != st.session_state.auto_refresh_sec:
+            st.session_state.auto_refresh_sec = auto_sec
+    with head_col3:
+        if 'auto_refresh_mode' not in st.session_state:
+            st.session_state.auto_refresh_mode = False
+        auto_update = st.toggle("⚡ 自動更新", value=st.session_state.auto_refresh_mode)
+        if auto_update != st.session_state.auto_refresh_mode:
+            st.session_state.auto_refresh_mode = auto_update
     
     port_map = {item['symbol']: f"💼 {item['name']}" for item in st.session_state.my_data.get('etfs', [])}
     port_holdings = {f"💼 {item['name']}": item['holdings'] * 1000 for item in st.session_state.my_data.get('etfs', [])}
@@ -1966,4 +1980,9 @@ else:
 if st.session_state.auto_refresh_mode == "✅ USE (開啟)":
     time.sleep(5)
     st.cache_data.clear() 
+    st.rerun()
+
+if st.session_state.get("auto_refresh_mode"):
+    time.sleep(st.session_state.get("auto_refresh_sec", 5))
+    st.cache_data.clear()
     st.rerun()
