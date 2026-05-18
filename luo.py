@@ -1516,24 +1516,49 @@ if st.session_state.show_daily_price:
                         price_df[col] = price_df[col].apply(lambda x: f"{x:.2f}" if pd.notna(x) else "-")
                     
                     st.dataframe(price_df, use_container_width=True)
-                    st.caption("💡 提示：數值紅色代表漲/賺，綠色代表跌/賠。最下方已有當日總賺賠統計！系統已啟動強效補正機制，確保不再有缺漏。")
+                                        st.caption("💡 提示：數值紅色代表漲/賺，綠色代表跌/賠。最下方已有當日總賺賠統計！系統已啟動強效補正機制，確保不再有缺漏。")
 
-                    # --- 每日股價 EXCEL 匯出區 ---
+                                        # --- 每日股價 EXCEL 匯出區 ---
                     st.write("---")
                     st.markdown("##### 📤 匯出每日股價資料 (Excel)")
-                    st.caption("將上方的每日收盤價與賺賠統計下載為 Excel 檔案保存。")
+                    st.caption("將上方的每日收盤價與賺賠統計下載為 Excel 檔案保存 (已套用紅漲綠跌自動上色)。")
                     
                     try:
                         import io
                         buffer = io.BytesIO()
                         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-                            # 匯出收盤價
+                            # 匯出收盤價與賺賠
                             h_display.to_excel(writer, sheet_name='每日收盤價')
-                            # 匯出賺賠
                             pnl_df.to_excel(writer, sheet_name='每日賺賠金額')
+                            
+                            # 取得 xlsxwriter 的 workbook 與 worksheet
+                            workbook  = writer.book
+                            ws_price = writer.sheets['每日收盤價']
+                            ws_pnl = writer.sheets['每日賺賠金額']
+                            
+                            # 調整首欄(ETF名稱)寬度
+                            ws_price.set_column(0, 0, 22)
+                            ws_pnl.set_column(0, 0, 22)
+                            
+                            # 設定紅綠文字格式 (台灣股市：紅漲綠跌)
+                            format_red = workbook.add_format({'font_color': '#d32f2f', 'bold': True})
+                            format_green = workbook.add_format({'font_color': '#388e3c', 'bold': True})
+                            
+                            # 取得資料範圍
+                            max_row = len(pnl_df.index)
+                            max_col = len(pnl_df.columns)
+                            
+                            # 在「每日賺賠金額」表套用條件格式化：
+                            # 針對 [+] 開頭的字串上紅色
+                            ws_pnl.conditional_format(1, 1, max_row, max_col,
+                                {'type': 'text', 'criteria': 'begins with', 'value': '+', 'format': format_red})
+                            
+                            # 針對 [-] 開頭的字串上綠色
+                            ws_pnl.conditional_format(1, 1, max_row, max_col,
+                                {'type': 'text', 'criteria': 'begins with', 'value': '-', 'format': format_green})
                         
                         st.download_button(
-                            label="💾 下載 Excel 檔",
+                            label="💾 下載 Excel 檔 (含紅綠標色)",
                             data=buffer.getvalue(),
                             file_name=f"ETF_每日股價戰情_{datetime.now().strftime('%Y%m%d')}.xlsx",
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
