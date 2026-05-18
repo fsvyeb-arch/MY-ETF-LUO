@@ -1,3 +1,7 @@
+qrcode
+Pillow
 streamlit
 yfinance
 pandas
+altair
+requests
