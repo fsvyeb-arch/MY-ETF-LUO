@@ -1407,6 +1407,8 @@ if st.session_state.show_constituents:
 
 if st.session_state.show_daily_price:
     st.markdown("#### 🗓️ 庫存 ETF 每日統計數據 (近 30 個交易日)")
+
+    
     
     port_map = {item['symbol']: f"💼 {item['name']}" for item in st.session_state.my_data.get('etfs', [])}
     port_holdings = {f"💼 {item['name']}": item['holdings'] * 1000 for item in st.session_state.my_data.get('etfs', [])}
@@ -1514,7 +1516,32 @@ if st.session_state.show_daily_price:
                         price_df[col] = price_df[col].apply(lambda x: f"{x:.2f}" if pd.notna(x) else "-")
                     
                     st.dataframe(price_df, use_container_width=True)
-                    st.caption("💡 提示：數值紅色代表漲/賺，綠色代表跌/賠。最下方已有當日總賺賠統計！系統已啟動強效補正機制，確保不再有缺漏。")
+                                        st.caption("💡 提示：數值紅色代表漲/賺，綠色代表跌/賠。最下方已有當日總賺賠統計！系統已啟動強效補正機制，確保不再有缺漏。")
+
+                    # --- 每日股價 EXCEL 匯出區 ---
+                    st.write("---")
+                    st.markdown("##### 📤 匯出每日股價資料 (Excel)")
+                    st.caption("將上方的每日收盤價與賺賠統計下載為 Excel 檔案保存。")
+                    
+                    try:
+                        import io
+                        buffer = io.BytesIO()
+                        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                            # 匯出收盤價
+                            h_display.to_excel(writer, sheet_name='每日收盤價')
+                            # 匯出賺賠
+                            pnl_df.to_excel(writer, sheet_name='每日賺賠金額')
+                        
+                        st.download_button(
+                            label="💾 下載 Excel 檔",
+                            data=buffer.getvalue(),
+                            file_name=f"ETF_每日股價戰情_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True
+                        )
+                    except Exception as e:
+                        st.warning("⚠️ 系統缺少 xlsxwriter 套件，請在 requirements.txt 中加入 xlsxwriter 以啟用匯出功能。")
+                    # -----------------------------
                 else:
                     st.info("⚠️ 目前無有效庫存數據。")
             except Exception as e:
@@ -1846,25 +1873,6 @@ if st.session_state.show_secret:
             else:
                 st.info("本月尚無任何支出紀錄。")
 
-
-        # --- 每日股價 EXCEL 匯入區 ---
-        st.write("---")
-        st.markdown("##### 📥 手動匯入每日股價資料 (Excel)")
-        st.caption("支援匯入 .xlsx 或 .xls 檔案，上傳後可預覽並更新您的股價紀錄。")
-        uploaded_file = st.file_uploader("請選擇 Excel 檔案", type=["xlsx", "xls"], key="excel_uploader")
-        
-        if uploaded_file is not None:
-            try:
-                df_imported = pd.read_excel(uploaded_file)
-                st.success("✅ Excel 讀取成功！資料預覽：")
-                st.dataframe(df_imported.head())
-                
-                if st.button("💾 確認寫入系統資料庫", use_container_width=True):
-                    st.session_state['imported_stock_prices'] = df_imported
-                    st.success("✅ 股價資料庫已更新！")
-            except Exception as e:
-                st.error(f"❌ 讀取 Excel 失敗：{e}")
-        # -----------------------------
 
         true_net_worth = g_mkt - remaining_balance + remaining_balance_chb
         st.markdown(f"<div class='net-worth-box'><h3>👑 總司令大局淨資產 (ETF市值 - 負債 + 應收帳款)</h3><h1>${true_net_worth:,.0f}</h1></div>", unsafe_allow_html=True)
