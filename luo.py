@@ -1527,35 +1527,20 @@ if st.session_state.show_daily_price:
                         import io
                         buffer = io.BytesIO()
                         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-                            # 匯出收盤價與賺賠
+                            # 匯出收盤價
                             h_display.to_excel(writer, sheet_name='每日收盤價')
-                            pnl_df.to_excel(writer, sheet_name='每日賺賠金額')
                             
-                            # 取得 xlsxwriter 的 workbook 與 worksheet
-                            workbook  = writer.book
+                            # 🔥 匯出賺賠 (直接套用上方網頁的 color_pnl 渲染邏輯，保證顏色 100% 寫入)
+                            styled_pnl = pnl_df.style.apply(color_pnl, axis=None)
+                            styled_pnl.to_excel(writer, sheet_name='每日賺賠金額')
+                            
+                            # 取得 xlsxwriter 的 worksheet 調整欄寬
                             ws_price = writer.sheets['每日收盤價']
                             ws_pnl = writer.sheets['每日賺賠金額']
                             
                             # 調整首欄(ETF名稱)寬度
                             ws_price.set_column(0, 0, 22)
                             ws_pnl.set_column(0, 0, 22)
-                            
-                            # 設定紅綠文字格式 (台灣股市：紅漲綠跌)
-                            format_red = workbook.add_format({'font_color': '#d32f2f', 'bold': True})
-                            format_green = workbook.add_format({'font_color': '#388e3c', 'bold': True})
-                            
-                            # 取得資料範圍
-                            max_row = len(pnl_df.index)
-                            max_col = len(pnl_df.columns)
-                            
-                            # 在「每日賺賠金額」表套用條件格式化：
-                            # 針對 [+] 開頭的字串上紅色
-                            ws_pnl.conditional_format(1, 1, max_row, max_col,
-                                {'type': 'text', 'criteria': 'begins with', 'value': '+', 'format': format_red})
-                            
-                            # 針對 [-] 開頭的字串上綠色
-                            ws_pnl.conditional_format(1, 1, max_row, max_col,
-                                {'type': 'text', 'criteria': 'begins with', 'value': '-', 'format': format_green})
                         
                         st.download_button(
                             label="💾 下載 Excel 檔 (含紅綠標色)",
@@ -1565,7 +1550,7 @@ if st.session_state.show_daily_price:
                             use_container_width=True
                         )
                     except Exception as e:
-                        st.warning("⚠️ 系統缺少 xlsxwriter 套件，請在 requirements.txt 中加入 xlsxwriter 以啟用匯出功能。")
+                        st.warning("⚠️ 匯出時發生錯誤：" + str(e))
                     # -----------------------------
                 else:
                     st.info("⚠️ 目前無有效庫存數據。")
