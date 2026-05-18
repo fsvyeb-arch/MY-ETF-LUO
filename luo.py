@@ -19,23 +19,13 @@ from PIL import Image
 import io
 
 # --- 手機掃碼連線功能 ---
-def get_local_ip():
-    """獲取本機在區域網路內的 IP 地址"""
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except Exception:
-        return "127.0.0.1"
-
 # 建立側邊欄區塊來放 QR Code
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 📱 手機掃碼即時看")
 
-local_ip = get_local_ip()
-app_url = f"http://{local_ip}:8501"
+# 使用 Streamlit Cloud 的固定網址
+app_url = "https://my-etf-wind.streamlit.app/"
+
 
 qr = qrcode.QRCode(
     version=1,
