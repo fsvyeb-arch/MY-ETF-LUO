@@ -16,9 +16,11 @@ st.set_page_config(page_title="ETF 投資戰情室", layout="wide")
 import socket
 import qrcode
 from PIL import Image
+import io
 
 # --- 手機掃碼連線功能 ---
 def get_local_ip():
+    """獲取本機在區域網路內的 IP 地址"""
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))
@@ -44,7 +46,14 @@ qr = qrcode.QRCode(
 qr.add_data(app_url)
 qr.make(fit=True)
 img = qr.make_image(fill_color="black", back_color="white")
-st.sidebar.image(img, caption="請確保手機與電腦連線至同一 Wi-Fi")
+
+# 將圖片暫存在記憶體並轉成 PNG 位元組格式，避免 Streamlit Cloud 報錯
+buf = io.BytesIO()
+img.save(buf, format="PNG")
+byte_im = buf.getvalue()
+
+# 顯示在側邊欄
+st.sidebar.image(byte_im, caption="請確保手機與電腦連線至同一 Wi-Fi")
 # ------------------------
 
 
