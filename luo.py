@@ -13,6 +13,41 @@ import requests
 # --- 1. 網頁基礎設定 ---
 st.set_page_config(page_title="ETF 投資戰情室", layout="wide")
 
+import socket
+import qrcode
+from PIL import Image
+
+# --- 手機掃碼連線功能 ---
+def get_local_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
+
+# 建立側邊欄區塊來放 QR Code
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 📱 手機掃碼即時看")
+
+local_ip = get_local_ip()
+app_url = f"http://{local_ip}:8501"
+
+qr = qrcode.QRCode(
+    version=1,
+    error_correction=qrcode.constants.ERROR_CORRECT_L,
+    box_size=5,
+    border=2,
+)
+qr.add_data(app_url)
+qr.make(fit=True)
+img = qr.make_image(fill_color="black", back_color="white")
+st.sidebar.image(img, caption="請確保手機與電腦連線至同一 Wi-Fi")
+# ------------------------
+
+
 # 全局提示訊息狀態
 if 'update_success' in st.session_state and st.session_state.update_success:
     st.toast(st.session_state.update_success, icon="✅")
