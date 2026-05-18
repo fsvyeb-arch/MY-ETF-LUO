@@ -1516,9 +1516,9 @@ if st.session_state.show_daily_price:
                         price_df[col] = price_df[col].apply(lambda x: f"{x:.2f}" if pd.notna(x) else "-")
                     
                     st.dataframe(price_df, use_container_width=True)
-                                        st.caption("💡 提示：數值紅色代表漲/賺，綠色代表跌/賠。最下方已有當日總賺賠統計！系統已啟動強效補正機制，確保不再有缺漏。")
+                    st.caption("💡 提示：數值紅色代表漲/賺，綠色代表跌/賠。最下方已有當日總賺賠統計！系統已啟動強效補正機制，確保不再有缺漏。")
 
-                                        # --- 每日股價 EXCEL 匯出區 ---
+                    # --- 每日股價 EXCEL 匯出區 ---
                     st.write("---")
                     st.markdown("##### 📤 匯出每日股價資料 (Excel)")
                     st.caption("將上方的每日收盤價與賺賠統計下載為 Excel 檔案保存 (已套用紅漲綠跌自動上色)。")
