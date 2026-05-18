@@ -1846,6 +1846,26 @@ if st.session_state.show_secret:
             else:
                 st.info("本月尚無任何支出紀錄。")
 
+
+        # --- 每日股價 EXCEL 匯入區 ---
+        st.write("---")
+        st.markdown("##### 📥 手動匯入每日股價資料 (Excel)")
+        st.caption("支援匯入 .xlsx 或 .xls 檔案，上傳後可預覽並更新您的股價紀錄。")
+        uploaded_file = st.file_uploader("請選擇 Excel 檔案", type=["xlsx", "xls"], key="excel_uploader")
+        
+        if uploaded_file is not None:
+            try:
+                df_imported = pd.read_excel(uploaded_file)
+                st.success("✅ Excel 讀取成功！資料預覽：")
+                st.dataframe(df_imported.head())
+                
+                if st.button("💾 確認寫入系統資料庫", use_container_width=True):
+                    st.session_state['imported_stock_prices'] = df_imported
+                    st.success("✅ 股價資料庫已更新！")
+            except Exception as e:
+                st.error(f"❌ 讀取 Excel 失敗：{e}")
+        # -----------------------------
+
         true_net_worth = g_mkt - remaining_balance + remaining_balance_chb
         st.markdown(f"<div class='net-worth-box'><h3>👑 總司令大局淨資產 (ETF市值 - 負債 + 應收帳款)</h3><h1>${true_net_worth:,.0f}</h1></div>", unsafe_allow_html=True)
         
