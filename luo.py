@@ -751,7 +751,7 @@ def fetch_data(etf_list, custom_divs):
             cap_raw = get_fund_size(item['symbol'])
             cap_str = f"{cap_raw / 100000000:.2f} 億" if cap_raw else "系統無資料"
 
-                        hist = tk.history(period='5d') 
+            hist = tk.history(period='5d') 
             if hist.empty: continue
             
             # --- 雙重報價引擎：優先使用 twstock (台灣證交所即時資料)，失敗則退回 Yahoo ---
