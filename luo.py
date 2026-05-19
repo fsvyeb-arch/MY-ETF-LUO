@@ -1,5 +1,6 @@
-import streamlit as st
+  import streamlit as st
 import yfinance as yf
+import twstock
 import pandas as pd
 import json
 import os
@@ -750,9 +751,11 @@ def fetch_data(etf_list, custom_divs):
             cap_raw = get_fund_size(item['symbol'])
             cap_str = f"{cap_raw / 100000000:.2f} 億" if cap_raw else "系統無資料"
 
-            hist = tk.history(period='5d') 
+                        hist = tk.history(period='5d') 
             if hist.empty: continue
             
+            # --- 雙重報價引擎：優先使用 twstock (台灣證交所即時資料)，失敗則退回 Yahoo ---
+            # 建立預設歷史資料與 Yahoo 即時資料備案
             rt_curr = tk.fast_info.get('lastPrice')
             curr_p = rt_curr if rt_curr is not None else hist['Close'].iloc[-1]
             
@@ -770,6 +773,31 @@ def fetch_data(etf_list, custom_divs):
             
             year_high = tk.fast_info.get('yearHigh', 0)
             year_low = tk.fast_info.get('yearLow', 0)
+
+            # 嘗試使用 twstock 即時抓取股價
+            stock_id = item['symbol'].split('.')[0]
+            try:
+                rt_data = twstock.realtime.get(stock_id)
+                if rt_data and rt_data.get('success'):
+                    rt = rt_data['realtime']
+                    info = rt_data['info']
+                    
+                    if rt.get('latest_trade_price') and rt['latest_trade_price'] != '-':
+                        curr_p = float(rt['latest_trade_price'])
+                    elif info.get('yclose') and info['yclose'] != '-':
+                        curr_p = float(info['yclose'])
+                        
+                    if info.get('yclose') and info['yclose'] != '-':
+                        prev_close = float(info['yclose'])
+                        
+                    if rt.get('high') and rt['high'] != '-': day_high = float(rt['high'])
+                    if rt.get('low') and rt['low'] != '-': day_low = float(rt['low'])
+                    
+                    # twstock 累積成交量單位為「張」，為統一系統計算單位需轉為「股」(*1000)
+                    if rt.get('accumulate_trade_volume') and rt['accumulate_trade_volume'] != '-':
+                        vol = int(rt['accumulate_trade_volume']) * 1000
+            except Exception as e:
+                pass  # 若 twstock 失敗 (如 API 阻擋或無回應)，無縫退回使用上方取得的 Yahoo Finance 資料
 
             if curr_p > prev_close: status_light = "🔴"
             elif curr_p < prev_close: status_light = "🟢"
