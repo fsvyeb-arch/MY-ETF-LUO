@@ -1,8 +1,8 @@
-qrcode
-Pillow
 streamlit
 yfinance
 pandas
 altair
 requests
-xlsxwriter
+twstock
+qrcode
+Pillow
