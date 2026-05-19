@@ -754,25 +754,15 @@ def fetch_data(etf_list, custom_divs):
             hist = tk.history(period='5d') 
             if hist.empty: continue
             
-            # --- 雙重報價引擎：優先使用 twstock (台灣證交所即時資料)，失敗則退回 Yahoo ---
-            # 建立預設歷史資料與 Yahoo 即時資料備案
-            rt_curr = tk.fast_info.get('lastPrice')
-            curr_p = rt_curr if rt_curr is not None else hist['Close'].iloc[-1]
-            
-            rt_prev = tk.fast_info.get('previousClose')
-            prev_close = rt_prev if rt_prev is not None else (hist['Close'].iloc[-2] if len(hist) >= 2 else curr_p)
-            
-            rt_dh = tk.fast_info.get('dayHigh')
-            day_high = rt_dh if rt_dh is not None else hist['High'].iloc[-1]
-            
-            rt_dl = tk.fast_info.get('dayLow')
-            day_low = rt_dl if rt_dl is not None else hist['Low'].iloc[-1]
-            
-            rt_vol = tk.fast_info.get('lastVolume')
-            vol = rt_vol if rt_vol is not None else hist['Volume'].iloc[-1]
-            
-            year_high = tk.fast_info.get('yearHigh', 0)
-            year_low = tk.fast_info.get('yearLow', 0)
+            # --- 報價引擎：使用 twstock (台灣證交所即時資料)，若失敗則退回 Yahoo 歷史資料 ---
+            # 建立預設歷史資料 (已全面移除 Yahoo fast_info 即時查詢，大幅提升速度)
+            curr_p = hist['Close'].iloc[-1]
+            prev_close = hist['Close'].iloc[-2] if len(hist) >= 2 else curr_p
+            day_high = hist['High'].iloc[-1]
+            day_low = hist['Low'].iloc[-1]
+            vol = hist['Volume'].iloc[-1]
+            year_high = hist['High'].max()
+            year_low = hist['Low'].min()
 
             # 嘗試使用 twstock 即時抓取股價
             stock_id = item['symbol'].split('.')[0]
