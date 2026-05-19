@@ -744,70 +744,33 @@ def fetch_data(etf_list, custom_divs):
     monthly_calendar = {i: {"amount": 0, "sources": []} for i in range(1, 13)} 
     today = datetime.today()
 
-    # --- 🚀 極速優化：批量抓取資料，拒絕迴圈內重複連線 ---
-    symbols = [item['symbol'] for item in etf_list]
-    tw_ids = [sym.split('.')[0] for sym in symbols]
-    
-    # 1. 批量抓取 Yahoo 歷史股價 (取代極慢的 tk.history 迴圈)
-    try:
-        hist_batch = yf.download(symbols, period='1mo', group_by='ticker', progress=False)
-    except:
-        hist_batch = pd.DataFrame()
-        
-    # 2. 批量抓取 twstock 即時報價
-    try:
-        rt_batch = twstock.realtime.get(tw_ids)
-        if isinstance(rt_batch, dict) and rt_batch.get('success'): # 單筆回傳結構處理
-            rt_batch = {tw_ids[0]: rt_batch}
-        elif not isinstance(rt_batch, dict):
-            rt_batch = {}
-    except:
-        rt_batch = {}
-
     for item in etf_list:
         try:
-            sym = item['symbol']
-            stock_id = sym.split('.')[0]
+            tk = yf.Ticker(item['symbol'])
             
-            # 從批量資料中提取單檔歷史數據
-            if len(symbols) == 1:
-                hist = hist_batch
-            else:
-                hist = hist_batch[sym] if sym in hist_batch.columns.levels[0] else pd.DataFrame()
-                
-            if hist.empty or 'Close' not in hist.columns or hist['Close'].dropna().empty: 
-                continue
-                
-            hist_clean = hist.dropna(subset=['Close'])
+            cap_raw = get_fund_size(item['symbol'])
+            cap_str = f"{cap_raw / 100000000:.2f} 億" if cap_raw else "系統無資料"
+
+            hist = tk.history(period='5d') 
+            if hist.empty: continue
             
-            # 建立預設歷史資料
-            curr_p = float(hist_clean['Close'].iloc[-1])
-            prev_close = float(hist_clean['Close'].iloc[-2]) if len(hist_clean) >= 2 else curr_p
-            day_high = float(hist_clean['High'].iloc[-1])
-            day_low = float(hist_clean['Low'].iloc[-1])
-            vol = float(hist_clean['Volume'].iloc[-1])
-            year_high = float(hist_clean['High'].max())
-            year_low = float(hist_clean['Low'].min())
+            rt_curr = tk.fast_info.get('lastPrice')
+            curr_p = rt_curr if rt_curr is not None else hist['Close'].iloc[-1]
             
-            # 使用 twstock 批量資料覆蓋即時報價
-            rt_data = rt_batch.get(stock_id, {})
-            if rt_data and rt_data.get('success'):
-                rt = rt_data['realtime']
-                info = rt_data['info']
-                
-                if rt.get('latest_trade_price') and rt['latest_trade_price'] != '-':
-                    curr_p = float(rt['latest_trade_price'])
-                elif info.get('yclose') and info['yclose'] != '-':
-                    curr_p = float(info['yclose'])
-                    
-                if info.get('yclose') and info['yclose'] != '-':
-                    prev_close = float(info['yclose'])
-                    
-                if rt.get('high') and rt['high'] != '-': day_high = float(rt['high'])
-                if rt.get('low') and rt['low'] != '-': day_low = float(rt['low'])
-                
-                if rt.get('accumulate_trade_volume') and rt['accumulate_trade_volume'] != '-':
-                    vol = int(rt['accumulate_trade_volume']) * 1000
+            rt_prev = tk.fast_info.get('previousClose')
+            prev_close = rt_prev if rt_prev is not None else (hist['Close'].iloc[-2] if len(hist) >= 2 else curr_p)
+            
+            rt_dh = tk.fast_info.get('dayHigh')
+            day_high = rt_dh if rt_dh is not None else hist['High'].iloc[-1]
+            
+            rt_dl = tk.fast_info.get('dayLow')
+            day_low = rt_dl if rt_dl is not None else hist['Low'].iloc[-1]
+            
+            rt_vol = tk.fast_info.get('lastVolume')
+            vol = rt_vol if rt_vol is not None else hist['Volume'].iloc[-1]
+            
+            year_high = tk.fast_info.get('yearHigh', 0)
+            year_low = tk.fast_info.get('yearLow', 0)
 
             if curr_p > prev_close: status_light = "🔴"
             elif curr_p < prev_close: status_light = "🟢"
@@ -871,7 +834,6 @@ def fetch_data(etf_list, custom_divs):
             total_mkt += mkt_val; total_cost += cost_val; total_div += (shares * div_amount)
             
             fee_info = ETF_FEES_DB.get(item['symbol'], {"經理費": "-", "保管費": "-"})
-            cap_str = "系統暫不支援" # 取消原本在迴圈內的 get_fund_size 查詢以提升速度
 
             results.append({
                 "代號": item['symbol'], "名稱": item['name'], "現價": curr_p, "均價": item['cost'],
@@ -890,8 +852,6 @@ def fetch_data(etf_list, custom_divs):
             else:
                 month_tag = "-"
                 
-            vol_money_str = f"{vol * curr_p / 100000000:.2f} 億" if (vol and vol > 0) else "無資料"
-            
             tech_results.append({
                 "ETF 名稱": display_name, 
                 "配息月份": month_tag, 
@@ -899,7 +859,7 @@ def fetch_data(etf_list, custom_divs):
                 "現價": round(curr_p, 2),
                 "今日損益": today_pnl_str, 
                 "今日漲跌幅": today_pct_str, 
-                "成交金額": vol_money_str,
+                "今日交易量": f"{vol:,.0f}" if vol > 0 else "無資料",
                 "年殖利率": f"{est_yield:.2f}%", 
                 "今日最高/最低": f"${day_high:.2f} / ${day_low:.2f}",
                 "52週最高/最低": f"${year_high:.2f} / ${year_low:.2f}", 
@@ -910,6 +870,7 @@ def fetch_data(etf_list, custom_divs):
         except Exception as e: continue
         
     return pd.DataFrame(results), pd.DataFrame(tech_results), total_mkt, total_cost, total_div, total_today_pnl, radar_ex, radar_pay, price_alerts, monthly_calendar
+
 df, df_tech, g_mkt, g_cost, g_div, g_today_pnl, radar_ex, radar_pay, price_alerts, monthly_calendar = fetch_data(st.session_state.my_data['etfs'], st.session_state.my_data.get('custom_divs', {}))
 
 # --- 📡 抓取 ETF 焦點新聞 ---
@@ -2083,6 +2044,6 @@ else:
 
 if st.session_state.get("auto_refresh_mode") == "✅ 開啟" or st.session_state.get("auto_refresh_mode") == "✅ USE (開啟)":
     time.sleep(st.session_state.get("auto_refresh_sec", 5))
-    st.cache_data.clear() 
+    # st.cache_data.clear()  # 移除全局清除，防止拖慢速度 
     st.rerun()
 
