@@ -744,50 +744,70 @@ def fetch_data(etf_list, custom_divs):
     monthly_calendar = {i: {"amount": 0, "sources": []} for i in range(1, 13)} 
     today = datetime.today()
 
+    # --- 🚀 極速優化：批量抓取資料，拒絕迴圈內重複連線 ---
+    symbols = [item['symbol'] for item in etf_list]
+    tw_ids = [sym.split('.')[0] for sym in symbols]
+    
+    # 1. 批量抓取 Yahoo 歷史股價 (取代極慢的 tk.history 迴圈)
+    try:
+        hist_batch = yf.download(symbols, period='1mo', group_by='ticker', progress=False)
+    except:
+        hist_batch = pd.DataFrame()
+        
+    # 2. 批量抓取 twstock 即時報價
+    try:
+        rt_batch = twstock.realtime.get(tw_ids)
+        if isinstance(rt_batch, dict) and rt_batch.get('success'): # 單筆回傳結構處理
+            rt_batch = {tw_ids[0]: rt_batch}
+        elif not isinstance(rt_batch, dict):
+            rt_batch = {}
+    except:
+        rt_batch = {}
+
     for item in etf_list:
         try:
-            tk = yf.Ticker(item['symbol'])
+            sym = item['symbol']
+            stock_id = sym.split('.')[0]
             
-            cap_raw = get_fund_size(item['symbol'])
-            cap_str = f"{cap_raw / 100000000:.2f} 億" if cap_raw else "系統無資料"
-
-            hist = tk.history(period='5d') 
-            if hist.empty: continue
+            # 從批量資料中提取單檔歷史數據
+            if len(symbols) == 1:
+                hist = hist_batch
+            else:
+                hist = hist_batch[sym] if sym in hist_batch.columns.levels[0] else pd.DataFrame()
+                
+            if hist.empty or 'Close' not in hist.columns or hist['Close'].dropna().empty: 
+                continue
+                
+            hist_clean = hist.dropna(subset=['Close'])
             
-            # --- 報價引擎：使用 twstock (台灣證交所即時資料)，若失敗則退回 Yahoo 歷史資料 ---
-            # 建立預設歷史資料 (已全面移除 Yahoo fast_info 即時查詢，大幅提升速度)
-            curr_p = hist['Close'].iloc[-1]
-            prev_close = hist['Close'].iloc[-2] if len(hist) >= 2 else curr_p
-            day_high = hist['High'].iloc[-1]
-            day_low = hist['Low'].iloc[-1]
-            vol = hist['Volume'].iloc[-1]
-            year_high = hist['High'].max()
-            year_low = hist['Low'].min()
-
-            # 嘗試使用 twstock 即時抓取股價
-            stock_id = item['symbol'].split('.')[0]
-            try:
-                rt_data = twstock.realtime.get(stock_id)
-                if rt_data and rt_data.get('success'):
-                    rt = rt_data['realtime']
-                    info = rt_data['info']
+            # 建立預設歷史資料
+            curr_p = float(hist_clean['Close'].iloc[-1])
+            prev_close = float(hist_clean['Close'].iloc[-2]) if len(hist_clean) >= 2 else curr_p
+            day_high = float(hist_clean['High'].iloc[-1])
+            day_low = float(hist_clean['Low'].iloc[-1])
+            vol = float(hist_clean['Volume'].iloc[-1])
+            year_high = float(hist_clean['High'].max())
+            year_low = float(hist_clean['Low'].min())
+            
+            # 使用 twstock 批量資料覆蓋即時報價
+            rt_data = rt_batch.get(stock_id, {})
+            if rt_data and rt_data.get('success'):
+                rt = rt_data['realtime']
+                info = rt_data['info']
+                
+                if rt.get('latest_trade_price') and rt['latest_trade_price'] != '-':
+                    curr_p = float(rt['latest_trade_price'])
+                elif info.get('yclose') and info['yclose'] != '-':
+                    curr_p = float(info['yclose'])
                     
-                    if rt.get('latest_trade_price') and rt['latest_trade_price'] != '-':
-                        curr_p = float(rt['latest_trade_price'])
-                    elif info.get('yclose') and info['yclose'] != '-':
-                        curr_p = float(info['yclose'])
-                        
-                    if info.get('yclose') and info['yclose'] != '-':
-                        prev_close = float(info['yclose'])
-                        
-                    if rt.get('high') and rt['high'] != '-': day_high = float(rt['high'])
-                    if rt.get('low') and rt['low'] != '-': day_low = float(rt['low'])
+                if info.get('yclose') and info['yclose'] != '-':
+                    prev_close = float(info['yclose'])
                     
-                    # twstock 累積成交量單位為「張」，為統一系統計算單位需轉為「股」(*1000)
-                    if rt.get('accumulate_trade_volume') and rt['accumulate_trade_volume'] != '-':
-                        vol = int(rt['accumulate_trade_volume']) * 1000
-            except Exception as e:
-                pass  # 若 twstock 失敗 (如 API 阻擋或無回應)，無縫退回使用上方取得的 Yahoo Finance 資料
+                if rt.get('high') and rt['high'] != '-': day_high = float(rt['high'])
+                if rt.get('low') and rt['low'] != '-': day_low = float(rt['low'])
+                
+                if rt.get('accumulate_trade_volume') and rt['accumulate_trade_volume'] != '-':
+                    vol = int(rt['accumulate_trade_volume']) * 1000
 
             if curr_p > prev_close: status_light = "🔴"
             elif curr_p < prev_close: status_light = "🟢"
@@ -851,6 +871,7 @@ def fetch_data(etf_list, custom_divs):
             total_mkt += mkt_val; total_cost += cost_val; total_div += (shares * div_amount)
             
             fee_info = ETF_FEES_DB.get(item['symbol'], {"經理費": "-", "保管費": "-"})
+            cap_str = "系統暫不支援" # 取消原本在迴圈內的 get_fund_size 查詢以提升速度
 
             results.append({
                 "代號": item['symbol'], "名稱": item['name'], "現價": curr_p, "均價": item['cost'],
@@ -869,12 +890,7 @@ def fetch_data(etf_list, custom_divs):
             else:
                 month_tag = "-"
                 
-            # User requested specific volume formatting and new columns
-            # Volume converted to Billion TWD (億) based on real-time price
             vol_money_str = f"{vol * curr_p / 100000000:.2f} 億" if (vol and vol > 0) else "無資料"
-            
-            # Since real-time "number of shareholders", "growth", and "age" are not in Yahoo Finance API,
-            # We provide a clean N/A marker for them.
             
             tech_results.append({
                 "ETF 名稱": display_name, 
@@ -894,7 +910,6 @@ def fetch_data(etf_list, custom_divs):
         except Exception as e: continue
         
     return pd.DataFrame(results), pd.DataFrame(tech_results), total_mkt, total_cost, total_div, total_today_pnl, radar_ex, radar_pay, price_alerts, monthly_calendar
-
 df, df_tech, g_mkt, g_cost, g_div, g_today_pnl, radar_ex, radar_pay, price_alerts, monthly_calendar = fetch_data(st.session_state.my_data['etfs'], st.session_state.my_data.get('custom_divs', {}))
 
 # --- 📡 抓取 ETF 焦點新聞 ---
