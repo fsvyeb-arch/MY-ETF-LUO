@@ -1970,33 +1970,10 @@ with st.expander("💰 買賣損益試算器", expanded=False):
                 st.warning(f"⚠️ 賣出張數 ({trade_shares_display}) 大於目前庫存 ({current_holdings})，將以全數出清試算並執行。")
                 trade_shares_display = current_holdings
                 
-            # --- 交易成本與預估損益計算 ---
-            sell_amount = current_price * trade_shares_display * 1000
-            buy_cost_total = current_cost * trade_shares_display * 1000
-            
-            # 賣出手續費 (公定 0.1425%，假設券商 6 折，未滿 20 元以 20 元計)
-            sell_fee = max(20, int(sell_amount * 0.001425 * 0.6))
-            # 證交稅 (ETF 0.1%，一般股票 0.3%，這裡以 ETF 0.1% 為預設標準)
-            # --- 這一區塊請貼在 Line 1980 的上方 ---
-        # 確保選單已存在，並將結果存入 selected_calc_etf 變數
-        etf_options = [item['symbol'] for item in st.session_state.my_data['etfs']]
-        if etf_options:
-            selected_calc_etf = st.selectbox("請選擇計算稅率的 ETF", etf_options)
-        else:
-            selected_calc_etf = "0000" # 防呆機制
-            st.warning("目前無庫存 ETF 可供計算")
-
-        # --- 接下來才是您原本的那一行 ---
-        tax_rate = 0.001 if selected_calc_etf.startswith('00') else 0.003
-            tax_rate = 0.001 if selected_calc_etf.startswith('00') else 0.003
-            sell_tax = int(sell_amount * tax_rate)
-            
-            total_sell_cost = sell_fee + sell_tax
-            realized_profit = sell_amount - buy_cost_total - total_sell_cost
+            realized_profit = (current_price - current_cost) * trade_shares_display * 1000
             
             st.markdown("<div class='calc-box'>", unsafe_allow_html=True)
             st.write(f"📝 試算賣出 **{trade_shares_display}** 張")
-            
             if realized_profit > 0:
                 st.markdown(f"🎉 預估已實現損益 (賺)：<div class='calc-result-profit'>+${realized_profit:,.0f}</div>", unsafe_allow_html=True)
             elif realized_profit < 0:
@@ -2004,8 +1981,7 @@ with st.expander("💰 買賣損益試算器", expanded=False):
             else:
                 st.markdown(f"⚖️ 預估已實現損益：<div style='font-size: 24px; font-weight: bold; margin-top: 10px;'>$0</div>", unsafe_allow_html=True)
                 
-            st.markdown(f"<div style='margin-top: 10px; font-size: 16px; color: #555;'>💸 賣出預估總花費：<span style='color: #d32f2f; font-weight: bold;'>${total_sell_cost:,.0f}</span></div>", unsafe_allow_html=True)
-            st.markdown(f"<div class='calc-result-info'>*(含證交稅 ${sell_tax:,.0f} 與手續費 ${sell_fee:,.0f}，以現價 ${current_price:.2f} 計算)</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='calc-result-info'>*不含手續費與證交稅，成交價以系統抓取之現價 ${current_price:.2f} 計算</div>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
             
             st.button("💾 確認賣出並更新庫存", type="primary", use_container_width=True, on_click=execute_trade)
