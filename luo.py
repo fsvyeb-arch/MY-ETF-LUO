@@ -1,6 +1,6 @@
 import streamlit as st
 import yfinance as yf
-
+import twstock
 import pandas as pd
 import json
 import os
@@ -10,25 +10,6 @@ from datetime import datetime, timedelta
 import time
 import altair as alt
 import requests
-# --- X 光機測試區 (請填入新申請的 API Key) ---
-st.warning("🔍 富果 API 原始數據測試")
-test_key = "請替換為您最新的API_KEY"
-test_res = requests.get("https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/0050", headers={"X-API-KEY": test_key})
-if test_res.status_code == 200:
-    st.success("✅ 連線成功！以下是富果回傳的最真實數據：")
-    st.json(test_res.json())  # 這會把原始數據直接印在您的網頁上
-else:
-    st.error(f"❌ 連線失敗，錯誤碼: {test_res.status_code}")
-st.markdown("---")
-# ----------------------------------------
-def color_profit_loss(val):
-    if isinstance(val, str): return 'color: #d32f2f; font-weight: bold;' if val.startswith('+') else ('color: #388e3c; font-weight: bold;' if val.startswith('-') else '')
-    return ''
-
-def color_months(val):
-    if not isinstance(val, str): return ''
-    colors = {'1,4,7,10月': '#e3f2fd; color: #1565c0', '2,5,8,11月': '#f3e5f5; color: #6a1b9a', '3,6,9,12月': '#e8f5e9; color: #2e7d32', '月配息': '#fff8e1; color: #f57f17'}
-    return f'background-color: {colors[val]}; font-weight: bold; text-align: center;' if val in colors else 'color: #555; text-align: center;'
 
 # --- 1. 網頁基礎設定 ---
 st.set_page_config(page_title="ETF 投資戰情室", layout="wide")
@@ -702,24 +683,6 @@ def get_div_data(symbol, custom_div_info=None):
 @st.cache_data(ttl=10)
 def fetch_watchlist_data(wl_list):
     if not wl_list: return pd.DataFrame()
-    
-    # ========== 富果 (Fugle) API 設定 ==========
-    # 請在此填入您在富果開發者平台申請的 API KEY
-    FUGLE_API_KEY = "YTVmY2M0OWYtMGUwYS00NjEzLWI3ZWYtY2M1MzAxNTExYjI4IDdkMTY0NWIyLWFmZmEtNDIwMi1iOTY3LWUyN2Q1OTE3YmQ4Yw=="
-    
-    stock_ids = [item['symbol'].replace('.TW', '').replace('.TWO', '') for item in wl_list]
-    rt_batch = {}
-    
-    if FUGLE_API_KEY != "YTVmY2M0OWYtMGUwYS00NjEzLWI3ZWYtY2M1MzAxNTExYjI4IDdkMTY0NWIyLWFmZmEtNDIwMi1iOTY3LWUyN2Q1OTE3YmQ4Yw==":
-        for stock_id in stock_ids:
-            try:
-                url = f"https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/{stock_id}"
-                res = requests.get(url, headers={"X-API-KEY": FUGLE_API_KEY}, timeout=3)
-                if res.status_code == 200:
-                    rt_batch[stock_id] = res.json()
-            except:
-                pass
-
     results = []
     for item in wl_list:
         try:
@@ -727,55 +690,22 @@ def fetch_watchlist_data(wl_list):
             hist = tk.history(period="2d")
             if hist.empty: continue
             
-            stock_id = item['symbol'].replace('.TW', '').replace('.TWO', '')
-            curr_p = None
+            rt_curr = tk.fast_info.get('lastPrice')
+            curr_p = rt_curr if rt_curr is not None else hist['Close'].iloc[-1]
             
-            # 解析富果 API 回傳資料
-            if rt_batch and stock_id in rt_batch:
-                fugle_res = rt_batch[stock_id]
-                quote_data = fugle_res.get('data', {}).get('quote', {})
-                if not quote_data: quote_data = fugle_res
-                
-                # 富果的最新成交價放在 trade 裡面的 price
-                trade_info = quote_data.get('trade', {})
-                if isinstance(trade_info, dict) and 'price' in trade_info:
-                    curr_p = float(trade_info['price'])
-                # 如果還沒開盤，用昨收價當現價
-                elif 'previousClose' in quote_data:
-                    curr_p = float(quote_data['previousClose'])
-                
-                # 富果的昨收價
-                if 'previousClose' in quote_data:
-                    prev_close = float(quote_data['previousClose'])
-
             rt_prev = tk.fast_info.get('previousClose')
-            prev_close = rt_prev if rt_prev is not None else (hist['Close'].iloc[-2] if len(hist) >= 2 else None)
-
-            if curr_p is None:
-                rt_curr = tk.fast_info.get('lastPrice')
-                curr_p = rt_curr if rt_curr is not None else hist['Close'].iloc[-1]
+            prev_close = rt_prev if rt_prev is not None else (hist['Close'].iloc[-2] if len(hist) >= 2 else curr_p)
             
-            if prev_close and curr_p:
-                diff = curr_p - prev_close
-                pct = round((diff / prev_close) * 100, 2)
-            else:
-                diff = 0
-                pct = 0
-                prev_close = curr_p if curr_p else 0
-                
+            diff = curr_p - prev_close
+            pct = (diff / prev_close * 100) if prev_close else 0
             status_light = "🔴" if diff > 0 else "🟢" if diff < 0 else "⚪"
             
             results.append({
                 "代號": item['symbol'].replace('.TW', ''), "名稱": item['name'],
-                "現價": round(curr_p, 2), "漲跌": round(diff, 2), "漲跌幅": f"{pct:+.2f}%", "狀態": status_light,
-                "RAW_PCT": pct
+                "現價": round(curr_p, 2), "漲跌": round(diff, 2), "漲跌幅": f"{pct:+.2f}%", "狀態": status_light
             })
         except Exception: continue
-        
-    df = pd.DataFrame(results)
-    if not df.empty and "RAW_PCT" in df.columns:
-        df = df.sort_values(by="RAW_PCT", ascending=False).drop(columns=["RAW_PCT"]).reset_index(drop=True)
-    return df
+    return pd.DataFrame(results)
 
 # --- 🎯 抓取自選股除權息資料 ---
 @st.cache_data(ttl=43200)
@@ -814,175 +744,81 @@ def fetch_data(etf_list, custom_divs):
     monthly_calendar = {i: {"amount": 0, "sources": []} for i in range(1, 13)} 
     today = datetime.today()
 
-    # --- 🚀 極速優化：批量抓取資料，拒絕迴圈內重複連線 ---
     symbols = [item['symbol'] for item in etf_list]
     tw_ids = [sym.split('.')[0] for sym in symbols]
     
-    # 1. 批量抓取 Yahoo 歷史股價 (取代極慢的 tk.history 迴圈)
     try:
         hist_batch = yf.download(symbols, period='1mo', group_by='ticker', progress=False)
     except:
         hist_batch = pd.DataFrame()
         
-    # ========== 富果 (Fugle) API 設定 ==========
-    FUGLE_API_KEY = "請替換為您的API_KEY"
-    
-    # 2. 批量抓取 Fugle 即時報價
-    rt_batch = {}
-    if FUGLE_API_KEY != "請替換為您的API_KEY":
-        for tid in tw_ids:
-            try:
-                url = f"https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/{tid}"
-                res = requests.get(url, headers={"X-API-KEY": FUGLE_API_KEY}, timeout=3)
-                if res.status_code == 200:
-                    rt_batch[tid] = res.json()
-            except: pass
+    try:
+        rt_batch = twstock.realtime.get(tw_ids)
+        if isinstance(rt_batch, dict) and rt_batch.get('success'):
+            rt_batch = {tw_ids[0]: rt_batch}
+        elif not isinstance(rt_batch, dict):
+            rt_batch = {}
+    except:
+        rt_batch = {}
 
     for item in etf_list:
         try:
             sym = item['symbol']
             stock_id = sym.split('.')[0]
-            
-            # 從批量資料中提取單檔歷史數據
             if len(symbols) == 1:
                 hist = hist_batch
             else:
                 hist = hist_batch[sym] if sym in hist_batch.columns.levels[0] else pd.DataFrame()
-                
-            if hist.empty or 'Close' not in hist.columns or hist['Close'].dropna().empty: 
-                continue
-                
-            hist_clean = hist.dropna(subset=['Close'])
             
-            # 建立預設歷史資料
+            if hist.empty or 'Close' not in hist.columns: continue
+            hist_clean = hist.dropna(subset=['Close'])
+            if hist_clean.empty: continue
+            
             curr_p = float(hist_clean['Close'].iloc[-1])
             prev_close = float(hist_clean['Close'].iloc[-2]) if len(hist_clean) >= 2 else curr_p
-            day_high = float(hist_clean['High'].iloc[-1])
-            day_low = float(hist_clean['Low'].iloc[-1])
             vol = float(hist_clean['Volume'].iloc[-1])
-            year_high = float(hist_clean['High'].max())
-            year_low = float(hist_clean['Low'].min())
             
-            # 使用 富果 API 批量資料覆蓋即時報價
-            if rt_batch and stock_id in rt_batch:
-                fugle_res = rt_batch[stock_id]
-                quote_data = fugle_res.get('data', {}).get('quote', {})
-                if not quote_data: quote_data = fugle_res
-                
-                trade_info = quote_data.get('trade', {})
-                if isinstance(trade_info, dict) and 'price' in trade_info:
-                    curr_p = float(trade_info['price'])
-                elif 'previousClose' in quote_data:
-                    curr_p = float(quote_data['previousClose'])
-                    
-                if 'previousClose' in quote_data:
-                    prev_close = float(quote_data['previousClose'])
-                    
-                price_high = quote_data.get('priceHigh', {})
-                if isinstance(price_high, dict) and 'price' in price_high:
-                    day_high = float(price_high['price'])
-                    
-                price_low = quote_data.get('priceLow', {})
-                if isinstance(price_low, dict) and 'price' in price_low:
-                    day_low = float(price_low['price'])
-                
-                total_info = quote_data.get('total', {})
-                if isinstance(total_info, dict) and 'tradeVolume' in total_info:
-                    vol = int(total_info['tradeVolume']) * 1000
+            # --- 強制對齊元大銀行漲跌幅邏輯 ---
+            rt_data = rt_batch.get(stock_id, {})
+            if rt_data and rt_data.get('success'):
+                rt = rt_data['realtime']
+                info = rt_data['info']
+                if info.get('yclose') and info['yclose'] != '-':
+                    prev_close = float(info['yclose'])
+                if rt.get('latest_trade_price') and rt['latest_trade_price'] != '-':
+                    curr_p = float(rt['latest_trade_price'])
+                if rt.get('accumulate_trade_volume') and rt['accumulate_trade_volume'] != '-':
+                    vol = int(rt['accumulate_trade_volume']) * 1000
 
             status_light = "🔴" if curr_p > prev_close else ("🟢" if curr_p < prev_close else "⚪")
             display_name = f"{status_light} {item['name']}"
+            
+            today_profit = (item['holdings'] * 1000) * (curr_p - prev_close)
+            today_pct_change = ((curr_p - prev_close) / prev_close * 100) if prev_close else 0
+            today_pnl_str = f"+${today_profit:,.0f}" if today_profit >= 0 else f"-${abs(today_profit):,.0f}"
+            today_pct_str = f"+{today_pct_change:.2f}%" if today_pct_change >= 0 else f"{today_pct_change:.2f}%"
 
             shares = item['holdings'] * 1000
             mkt_val = shares * curr_p
-            cost_val = shares * item['cost']
+            profit = mkt_val - (shares * item['cost']) - (mkt_val * 0.00235)
             
-            sell_cost_estimate = mkt_val * 0.00235
-            profit = mkt_val - cost_val - sell_cost_estimate
-            roi = (profit / cost_val * 100) if cost_val != 0 else 0
+            custom_info = custom_divs.get(sym)
+            is_announced, div_amount, ex_date, pay_date, fill_status, status_msg = get_div_data(sym, custom_info)
             
-            today_diff = curr_p - prev_close
-            today_profit = shares * today_diff
-            today_pct_change = round((today_diff / prev_close * 100), 2) if prev_close else 0
-            
-            total_today_pnl += today_profit
-            today_pnl_str, today_pct_str = (f"+${today_profit:,.0f}", f"+{today_pct_change:.2f}%") if today_profit >= 0 else (f"-${abs(today_profit):,.0f}", f"{today_pct_change:.2f}%")
-
-            a_high = float(item.get('alert_high', 0.0))
-            a_low = float(item.get('alert_low', 0.0))
-            if a_high > 0 and curr_p >= a_high: price_alerts.append({"name": item['name'], "price": curr_p, "target": a_high, "type": "high"})
-            if a_low > 0 and curr_p <= a_low: price_alerts.append({"name": item['name'], "price": curr_p, "target": a_low, "type": "low"})
-
-            custom_info = custom_divs.get(item['symbol'])
-            is_announced, div_amount, ex_date, pay_date, fill_status, status_msg = get_div_data(item['symbol'], custom_info)
-
-            est_yield = 0.0
-            months_to_pay = DIVIDEND_SCHEDULE.get(item['symbol'], [])
-            if len(months_to_pay) > 0 and div_amount > 0 and curr_p > 0:
-                est_yield = (div_amount * len(months_to_pay)) / curr_p * 100
-
-            if is_announced and ex_date != "待官方公告":
-                ex_date_obj = datetime.strptime(ex_date, '%Y-%m-%d')
-                days_diff_ex = (ex_date_obj.date() - today.date()).days
-                if 0 <= days_diff_ex <= 20: radar_ex.append({"symbol": item['symbol'].split('.')[0], "date": ex_date, "days": days_diff_ex})
-                
-            if is_announced and pay_date != "待官方公告":
-                pay_date_obj = datetime.strptime(pay_date, '%Y-%m-%d')
-                days_diff_pay = (pay_date_obj.date() - today.date()).days
-                if 0 <= days_diff_pay <= 20: radar_pay.append({"symbol": item['symbol'].split('.')[0], "date": pay_date, "amount": shares * div_amount, "days": days_diff_pay})
-
-            if div_amount > 0 and shares > 0:
-                explicit_pay_month = None
-                if is_announced and pay_date != "待官方公告":
-                    explicit_pay_month = datetime.strptime(pay_date, '%Y-%m-%d').month
-                    monthly_calendar[explicit_pay_month]["amount"] += (shares * div_amount)
-                    if item['name'] not in monthly_calendar[explicit_pay_month]["sources"]:
-                        monthly_calendar[explicit_pay_month]["sources"].append(item['name'])
-
-                for m in months_to_pay:
-                    pay_m = m + 1 if m < 12 else 1
-                    if pay_m != explicit_pay_month:
-                        monthly_calendar[pay_m]["amount"] += (shares * div_amount)
-                        if item['name'] not in monthly_calendar[pay_m]["sources"]:
-                            monthly_calendar[pay_m]["sources"].append(item['name'])
-
-            total_mkt += mkt_val; total_cost += cost_val; total_div += (shares * div_amount)
-            
-            fee_info = ETF_FEES_DB.get(item['symbol'], {"經理費": "-", "保管費": "-"})
-            cap_str = "系統暫不支援" # 取消原本在迴圈內的 get_fund_size 查詢以提升速度
-
             results.append({
-                "代號": item['symbol'], "名稱": item['name'], "現價": curr_p, "均價": item['cost'],
-                "張數": item['holdings'], "市值": mkt_val, "損益": profit, "報酬率": roi,
-                "經理費": fee_info["經理費"], "保管費": fee_info["保管費"], 
-                "單次預估領息": shares * div_amount, "每股配息": div_amount,
-                "最新公告除息日": ex_date, "預估發放日": pay_date, "已公告": is_announced,
-                "狀態": status_msg,
-                "最新填息紀錄": fill_status, "基金規模": cap_str
+                "代號": sym, "名稱": item['name'], "現價": curr_p, "均價": item['cost'],
+                "張數": item['holdings'], "市值": mkt_val, "損益": profit, "狀態": status_msg
             })
-            
-            months_to_pay = DIVIDEND_SCHEDULE.get(item['symbol'], [])
-            month_tag = "月配息" if len(months_to_pay) == 12 else (",".join(map(str, months_to_pay)) + "月" if months_to_pay else "-")
-                
-            vol_money_str = f"{vol * curr_p / 100000000:.2f} 億" if (vol and vol > 0) else "無資料"
             
             tech_results.append({
                 "ETF 名稱": display_name, 
-                "配息月份": month_tag, 
-                "股票張數": item['holdings'], 
+                "配息月份": "月配息" if len(DIVIDEND_SCHEDULE.get(sym,[]))==12 else (",".join(map(str, DIVIDEND_SCHEDULE.get(sym,[]))) + "月" if DIVIDEND_SCHEDULE.get(sym,[]) else "-"),
                 "現價": round(curr_p, 2),
                 "今日損益": today_pnl_str, 
                 "今日漲跌幅": today_pct_str, 
-                "成交金額": vol_money_str,
-                "年殖利率": f"{est_yield:.2f}%", 
-                "今日最高/最低": f"${day_high:.2f} / ${day_low:.2f}",
-                "52週最高/最低": f"${year_high:.2f} / ${year_low:.2f}", 
-                "設定高標(停利)": a_high, 
-                "設定低標(停損)": a_low
+                "成交金額": f"{vol * curr_p / 100000000:.2f} 億"
             })
-            
-        except Exception as e: continue
-        
+        except: continue
     return pd.DataFrame(results), pd.DataFrame(tech_results), total_mkt, total_cost, total_div, total_today_pnl, radar_ex, radar_pay, price_alerts, monthly_calendar
 df, df_tech, g_mkt, g_cost, g_div, g_today_pnl, radar_ex, radar_pay, price_alerts, monthly_calendar = fetch_data(st.session_state.my_data['etfs'], st.session_state.my_data.get('custom_divs', {}))
 
@@ -1029,7 +865,7 @@ def fetch_macro_data():
                     curr = hist['Close'].iloc[-1]
                     prev = hist['Close'].iloc[-2]
                     diff = curr - prev
-                    pct = round((diff / prev) * 100, 2)
+                    pct = (diff / prev) * 100
                     date_str = hist.index[-1].strftime("%m/%d")
                     res[region][name] = {"price": curr, "diff": diff, "pct": pct, "date": date_str}
             except: pass
@@ -1271,7 +1107,7 @@ if st.session_state.show_div_db:
         if st.button("🔄 強制抓取最新公告", type="primary", use_container_width=True):
             with st.spinner("🚀 強制清洗快取並重新連線抓取中..."):
                 time.sleep(0.6)
-                st.cache_data.clear() 
+# st.cache_data.clear()
             st.session_state.update_success = "已強制重新抓取最新資料！"
             st.rerun()
 
@@ -1348,7 +1184,19 @@ if st.session_state.show_tech:
             if '配息月份' in df_tech.columns:
                 df_tech = df_tech.sort_values(by='配息月份', ascending=True)
                 
-
+            def color_profit_loss(val):
+                if isinstance(val, str):
+                    if val.startswith('+'): return 'color: #d32f2f; font-weight: bold;' 
+                    elif val.startswith('-'): return 'color: #388e3c; font-weight: bold;' 
+                return ''
+                
+            def color_months(val):
+                if not isinstance(val, str): return ''
+                if val == '1,4,7,10月': return 'background-color: #e3f2fd; color: #1565c0; font-weight: bold; text-align: center;' 
+                if val == '2,5,8,11月': return 'background-color: #f3e5f5; color: #6a1b9a; font-weight: bold; text-align: center;' 
+                if val == '3,6,9,12月': return 'background-color: #e8f5e9; color: #2e7d32; font-weight: bold; text-align: center;' 
+                if val == '月配息': return 'background-color: #fff8e1; color: #f57f17; font-weight: bold; text-align: center;' 
+                return 'color: #555; text-align: center;'
 
             if "設定高標(停利)" in df_tech.columns and "設定低標(停損)" in df_tech.columns:
                 df_tech_display = df_tech.drop(columns=["設定高標(停利)", "設定低標(停損)"])
@@ -2103,9 +1951,11 @@ with bot_c2:
 
             st.button("💾 儲存所有修改", use_container_width=True, type="primary", on_click=save_edits)
 
+st.write("---")
+
 
 if st.session_state.get("auto_refresh_mode") == "✅ 開啟" or st.session_state.get("auto_refresh_mode") == "✅ USE (開啟)":
     time.sleep(st.session_state.get("auto_refresh_sec", 5))
-    st.cache_data.clear() 
+# st.cache_data.clear()
     st.rerun()
 
