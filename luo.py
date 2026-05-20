@@ -4,12 +4,23 @@ import twstock
 import pandas as pd
 import json
 import os
-import urllib.request
-import xml.etree.ElementTree as ET
+import requests
 from datetime import datetime, timedelta
 import time
-import altair as alt
-import requests
+import io
+import qrcode
+
+def color_profit_loss(val):
+    if isinstance(val, str): return 'color: #d32f2f; font-weight: bold;' if val.startswith('+') else ('color: #388e3c; font-weight: bold;' if val.startswith('-') else '')
+    return ''
+
+def color_months(val):
+    if not isinstance(val, str): return ''
+    colors = {'1,4,7,10月': '#e3f2fd; color: #1565c0', '2,5,8,11月': '#f3e5f5; color: #6a1b9a', '3,6,9,12月': '#e8f5e9; color: #2e7d32', '月配息': '#fff8e1; color: #f57f17'}
+    return f'background-color: {colors[val]}; font-weight: bold; text-align: center;' if val in colors else 'color: #555; text-align: center;'
+
+# --- 1. 網頁基礎設定 ---
+st.set_page_config(page_title="ETF 投資戰情室", layout="wide")
     
     def color_profit_loss(val):
         if isinstance(val, str): return 'color: #d32f2f; font-weight: bold;' if val.startswith('+') else ('color: #388e3c; font-weight: bold;' if val.startswith('-') else '')
