@@ -1,6 +1,6 @@
 import streamlit as st
 import yfinance as yf
-import twstock
+
 import pandas as pd
 import json
 import os
@@ -695,12 +695,12 @@ def fetch_watchlist_data(wl_list):
     
     # ========== 富果 (Fugle) API 設定 ==========
     # 請在此填入您在富果開發者平台申請的 API KEY
-    FUGLE_API_KEY = "NDBjZmM1YzEtZGE0ZS00ODhmLThkMWItZDEzYTdmYjJlNzZlIDMzNmQzYjUzLTcwNmMtNGMwMi1iMjc5LWJmNDY4MGM3NDVmNg=="
+    FUGLE_API_KEY = "請替換為您的API_KEY"
     
     stock_ids = [item['symbol'].replace('.TW', '').replace('.TWO', '') for item in wl_list]
     rt_batch = {}
     
-    if FUGLE_API_KEY != "NDBjZmM1YzEtZGE0ZS00ODhmLThkMWItZDEzYTdmYjJlNzZlIDMzNmQzYjUzLTcwNmMtNGMwMi1iMjc5LWJmNDY4MGM3NDVmNg==":
+    if FUGLE_API_KEY != "請替換為您的API_KEY":
         for stock_id in stock_ids:
             try:
                 url = f"https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/{stock_id}"
@@ -723,14 +723,20 @@ def fetch_watchlist_data(wl_list):
             # 解析富果 API 回傳資料
             if rt_batch and stock_id in rt_batch:
                 fugle_res = rt_batch[stock_id]
-                # 有些端點回傳直接包在第一層，有些在 data 裡面，抓取 closePrice (現價)
-                if 'closePrice' in fugle_res:
-                    curr_p = float(fugle_res['closePrice'])
-                elif 'data' in fugle_res and 'closePrice' in fugle_res['data']:
-                    curr_p = float(fugle_res['data']['closePrice'])
-                # 如果遇到盤前沒有成交價，嘗試抓取昨收價當作現價基準
-                elif 'previousClose' in fugle_res:
-                    curr_p = float(fugle_res['previousClose'])
+                quote_data = fugle_res.get('data', {}).get('quote', {})
+                if not quote_data: quote_data = fugle_res
+                
+                # 富果的最新成交價放在 trade 裡面的 price
+                trade_info = quote_data.get('trade', {})
+                if isinstance(trade_info, dict) and 'price' in trade_info:
+                    curr_p = float(trade_info['price'])
+                # 如果還沒開盤，用昨收價當現價
+                elif 'previousClose' in quote_data:
+                    curr_p = float(quote_data['previousClose'])
+                
+                # 富果的昨收價
+                if 'previousClose' in quote_data:
+                    prev_close = float(quote_data['previousClose'])
 
             rt_prev = tk.fast_info.get('previousClose')
             prev_close = rt_prev if rt_prev is not None else (hist['Close'].iloc[-2] if len(hist) >= 2 else None)
@@ -808,15 +814,19 @@ def fetch_data(etf_list, custom_divs):
     except:
         hist_batch = pd.DataFrame()
         
-    # 2. 批量抓取 twstock 即時報價
-    try:
-        rt_batch = twstock.realtime.get(tw_ids)
-        if isinstance(rt_batch, dict) and rt_batch.get('success'): # 單筆回傳結構處理
-            rt_batch = {tw_ids[0]: rt_batch}
-        elif not isinstance(rt_batch, dict):
-            rt_batch = {}
-    except:
-        rt_batch = {}
+    # ========== 富果 (Fugle) API 設定 ==========
+    FUGLE_API_KEY = "請替換為您的API_KEY"
+    
+    # 2. 批量抓取 Fugle 即時報價
+    rt_batch = {}
+    if FUGLE_API_KEY != "請替換為您的API_KEY":
+        for tid in tw_ids:
+            try:
+                url = f"https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/{tid}"
+                res = requests.get(url, headers={"X-API-KEY": FUGLE_API_KEY}, timeout=3)
+                if res.status_code == 200:
+                    rt_batch[tid] = res.json()
+            except: pass
 
     for item in etf_list:
         try:
@@ -843,25 +853,32 @@ def fetch_data(etf_list, custom_divs):
             year_high = float(hist_clean['High'].max())
             year_low = float(hist_clean['Low'].min())
             
-            # 使用 twstock 批量資料覆蓋即時報價
-            rt_data = rt_batch.get(stock_id, {})
-            if rt_data and rt_data.get('success'):
-                rt = rt_data['realtime']
-                info = rt_data['info']
+            # 使用 富果 API 批量資料覆蓋即時報價
+            if rt_batch and stock_id in rt_batch:
+                fugle_res = rt_batch[stock_id]
+                quote_data = fugle_res.get('data', {}).get('quote', {})
+                if not quote_data: quote_data = fugle_res
                 
-                if rt.get('latest_trade_price') and rt['latest_trade_price'] != '-':
-                    curr_p = float(rt['latest_trade_price'])
-                elif info.get('yclose') and info['yclose'] != '-':
-                    curr_p = float(info['yclose'])
+                trade_info = quote_data.get('trade', {})
+                if isinstance(trade_info, dict) and 'price' in trade_info:
+                    curr_p = float(trade_info['price'])
+                elif 'previousClose' in quote_data:
+                    curr_p = float(quote_data['previousClose'])
                     
-                if info.get('yclose') and info['yclose'] != '-':
-                    prev_close = float(info['yclose'])
+                if 'previousClose' in quote_data:
+                    prev_close = float(quote_data['previousClose'])
                     
-                if rt.get('high') and rt['high'] != '-': day_high = float(rt['high'])
-                if rt.get('low') and rt['low'] != '-': day_low = float(rt['low'])
+                price_high = quote_data.get('priceHigh', {})
+                if isinstance(price_high, dict) and 'price' in price_high:
+                    day_high = float(price_high['price'])
+                    
+                price_low = quote_data.get('priceLow', {})
+                if isinstance(price_low, dict) and 'price' in price_low:
+                    day_low = float(price_low['price'])
                 
-                if rt.get('accumulate_trade_volume') and rt['accumulate_trade_volume'] != '-':
-                    vol = int(rt['accumulate_trade_volume']) * 1000
+                total_info = quote_data.get('total', {})
+                if isinstance(total_info, dict) and 'tradeVolume' in total_info:
+                    vol = int(total_info['tradeVolume']) * 1000
 
             status_light = "🔴" if curr_p > prev_close else ("🟢" if curr_p < prev_close else "⚪")
             display_name = f"{status_light} {item['name']}"
