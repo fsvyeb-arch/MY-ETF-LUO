@@ -693,10 +693,8 @@ def get_div_data(symbol, custom_div_info=None):
 def fetch_watchlist_data(wl_list):
     if not wl_list: return pd.DataFrame()
     
-    # 1. 將 twstock 移到迴圈外，進行「批量抓取」避免卡死
-    stock_ids = [item['symbol'].split('.')[0] for item in wl_list]
+    stock_ids = [item['symbol'].replace('.TW', '').replace('.TWO', '') for item in wl_list]
     try:
-        # 批量獲取台股即時報價
         rt_batch = twstock.realtime.get(stock_ids)
     except:
         rt_batch = {}
@@ -708,12 +706,10 @@ def fetch_watchlist_data(wl_list):
             hist = tk.history(period="2d")
             if hist.empty: continue
             
-            stock_id = item['symbol'].split('.')[0]
-            
-            # 2. 從批量資料中取得該檔股票的報價
+            stock_id = item['symbol'].replace('.TW', '').replace('.TWO', '')
             curr_p = None
+            
             if isinstance(rt_batch, dict):
-                # 處理單檔與多檔的回傳結構差異
                 rt_data = rt_batch.get(stock_id, rt_batch) if len(stock_ids) > 1 else rt_batch.get(stock_id, rt_batch)
                 if rt_data and rt_data.get('success'):
                     latest_price = rt_data.get('realtime', {}).get('latest_trade_price')
@@ -723,7 +719,6 @@ def fetch_watchlist_data(wl_list):
             rt_prev = tk.fast_info.get('previousClose')
             prev_close = rt_prev if rt_prev is not None else (hist['Close'].iloc[-2] if len(hist) >= 2 else None)
 
-            # 3. 如果 twstock 沒抓到，退回使用 yfinance 保底
             if curr_p is None:
                 rt_curr = tk.fast_info.get('lastPrice')
                 curr_p = rt_curr if rt_curr is not None else hist['Close'].iloc[-1]
@@ -736,25 +731,246 @@ def fetch_watchlist_data(wl_list):
                 pct = 0
                 prev_close = curr_p if curr_p else 0
                 
-            status_light = "🔴" if curr_p > prev_close else ("🟢" if curr_p < prev_close else "⚪")
-            display_name = f"{status_light} {item['name']}"
+            status_light = "🔴" if diff > 0 else "🟢" if diff < 0 else "⚪"
             
             results.append({
-                "名稱": display_name,
-                "代號": item['symbol'],
-                "現價": f"{curr_p:.2f}",
-                "漲跌": f"{diff:+.2f}",
-                "幅度": f"{pct:+.2f}%",
+                "代號": item['symbol'].replace('.TW', ''), "名稱": item['name'],
+                "現價": round(curr_p, 2), "漲跌": round(diff, 2), "漲跌幅": f"{pct:+.2f}%", "狀態": status_light,
                 "RAW_PCT": pct
             })
-        except Exception as e:
-            pass
-            
+        except Exception: continue
+        
     df = pd.DataFrame(results)
-    if not df.empty:
+    if not df.empty and "RAW_PCT" in df.columns:
         df = df.sort_values(by="RAW_PCT", ascending=False).drop(columns=["RAW_PCT"]).reset_index(drop=True)
     return df
 
+# --- 🎯 抓取自選股除權息資料 ---
+@st.cache_data(ttl=43200)
+def fetch_watchlist_dividend(wl_list, custom_divs):
+    if not wl_list: return pd.DataFrame()
+    results = []
+    for item in wl_list:
+        sym = item['symbol']
+        try:
+            cap_raw = get_fund_size(sym)
+            cap_str = f"{cap_raw / 100000000:.2f} 億" if cap_raw else "系統無資料"
+
+            custom_info = custom_divs.get(sym)
+            is_announced, div_amount, ex_date, pay_date, fill_status, status_msg = get_div_data(sym, custom_info)
+            
+            months = DIVIDEND_SCHEDULE.get(sym, [])
+            freq = "月配息" if len(months)==12 else "季配息" if len(months)==4 else "半年配" if len(months)==2 else "年配息" if len(months)==1 else "未知"
+
+            results.append({
+                "類別": "👀 自選", "ETF 名稱": item['name'], "基金規模": cap_str,  
+                "配息頻率": freq, "配息月份": "、".join(map(str, months)) + " 月" if months else "未設定",
+                "狀態": status_msg, 
+                "除息日": ex_date, "發放日": pay_date, "每股金額": f"${div_amount:.3f}", "最新填息紀錄": fill_status
+            })
+        except Exception:
+            continue
+    return pd.DataFrame(results)
+
+# --- 4. 核心數據計算 ---
+@st.cache_data(ttl=10)
+def fetch_data(etf_list, custom_divs):
+    if not etf_list: return pd.DataFrame(), pd.DataFrame(), 0, 0, 0, 0, [], [], [], {i: {"amount": 0, "sources": []} for i in range(1, 13)}
+    results, tech_results = [], []
+    total_mkt, total_cost, total_div, total_today_pnl = 0, 0, 0, 0
+    radar_ex, radar_pay, price_alerts = [], [], []
+    monthly_calendar = {i: {"amount": 0, "sources": []} for i in range(1, 13)} 
+    today = datetime.today()
+
+    # --- 🚀 極速優化：批量抓取資料，拒絕迴圈內重複連線 ---
+    symbols = [item['symbol'] for item in etf_list]
+    tw_ids = [sym.split('.')[0] for sym in symbols]
+    
+    # 1. 批量抓取 Yahoo 歷史股價 (取代極慢的 tk.history 迴圈)
+    try:
+        hist_batch = yf.download(symbols, period='1mo', group_by='ticker', progress=False)
+    except:
+        hist_batch = pd.DataFrame()
+        
+    # 2. 批量抓取 twstock 即時報價
+    try:
+        rt_batch = twstock.realtime.get(tw_ids)
+        if isinstance(rt_batch, dict) and rt_batch.get('success'): # 單筆回傳結構處理
+            rt_batch = {tw_ids[0]: rt_batch}
+        elif not isinstance(rt_batch, dict):
+            rt_batch = {}
+    except:
+        rt_batch = {}
+
+    for item in etf_list:
+        try:
+            sym = item['symbol']
+            stock_id = sym.split('.')[0]
+            
+            # 從批量資料中提取單檔歷史數據
+            if len(symbols) == 1:
+                hist = hist_batch
+            else:
+                hist = hist_batch[sym] if sym in hist_batch.columns.levels[0] else pd.DataFrame()
+                
+            if hist.empty or 'Close' not in hist.columns or hist['Close'].dropna().empty: 
+                continue
+                
+            hist_clean = hist.dropna(subset=['Close'])
+            
+            # 建立預設歷史資料
+            curr_p = float(hist_clean['Close'].iloc[-1])
+            prev_close = float(hist_clean['Close'].iloc[-2]) if len(hist_clean) >= 2 else curr_p
+            day_high = float(hist_clean['High'].iloc[-1])
+            day_low = float(hist_clean['Low'].iloc[-1])
+            vol = float(hist_clean['Volume'].iloc[-1])
+            year_high = float(hist_clean['High'].max())
+            year_low = float(hist_clean['Low'].min())
+            
+            # 使用 twstock 批量資料覆蓋即時報價
+            rt_data = rt_batch.get(stock_id, {})
+            if rt_data and rt_data.get('success'):
+                rt = rt_data['realtime']
+                info = rt_data['info']
+                
+                if rt.get('latest_trade_price') and rt['latest_trade_price'] != '-':
+                    curr_p = float(rt['latest_trade_price'])
+                elif info.get('yclose') and info['yclose'] != '-':
+                    curr_p = float(info['yclose'])
+                    
+                if info.get('yclose') and info['yclose'] != '-':
+                    prev_close = float(info['yclose'])
+                    
+                if rt.get('high') and rt['high'] != '-': day_high = float(rt['high'])
+                if rt.get('low') and rt['low'] != '-': day_low = float(rt['low'])
+                
+                if rt.get('accumulate_trade_volume') and rt['accumulate_trade_volume'] != '-':
+                    vol = int(rt['accumulate_trade_volume']) * 1000
+
+            status_light = "🔴" if curr_p > prev_close else ("🟢" if curr_p < prev_close else "⚪")
+            display_name = f"{status_light} {item['name']}"
+
+            shares = item['holdings'] * 1000
+            mkt_val = shares * curr_p
+            cost_val = shares * item['cost']
+            
+            sell_cost_estimate = mkt_val * 0.00235
+            profit = mkt_val - cost_val - sell_cost_estimate
+            roi = (profit / cost_val * 100) if cost_val != 0 else 0
+            
+            today_diff = curr_p - prev_close
+            today_profit = shares * today_diff
+            today_pct_change = round((today_diff / prev_close * 100), 2) if prev_close else 0
+            
+            total_today_pnl += today_profit
+            today_pnl_str, today_pct_str = (f"+${today_profit:,.0f}", f"+{today_pct_change:.2f}%") if today_profit >= 0 else (f"-${abs(today_profit):,.0f}", f"{today_pct_change:.2f}%")
+
+            a_high = float(item.get('alert_high', 0.0))
+            a_low = float(item.get('alert_low', 0.0))
+            if a_high > 0 and curr_p >= a_high: price_alerts.append({"name": item['name'], "price": curr_p, "target": a_high, "type": "high"})
+            if a_low > 0 and curr_p <= a_low: price_alerts.append({"name": item['name'], "price": curr_p, "target": a_low, "type": "low"})
+
+            custom_info = custom_divs.get(item['symbol'])
+            is_announced, div_amount, ex_date, pay_date, fill_status, status_msg = get_div_data(item['symbol'], custom_info)
+
+            est_yield = 0.0
+            months_to_pay = DIVIDEND_SCHEDULE.get(item['symbol'], [])
+            if len(months_to_pay) > 0 and div_amount > 0 and curr_p > 0:
+                est_yield = (div_amount * len(months_to_pay)) / curr_p * 100
+
+            if is_announced and ex_date != "待官方公告":
+                ex_date_obj = datetime.strptime(ex_date, '%Y-%m-%d')
+                days_diff_ex = (ex_date_obj.date() - today.date()).days
+                if 0 <= days_diff_ex <= 20: radar_ex.append({"symbol": item['symbol'].split('.')[0], "date": ex_date, "days": days_diff_ex})
+                
+            if is_announced and pay_date != "待官方公告":
+                pay_date_obj = datetime.strptime(pay_date, '%Y-%m-%d')
+                days_diff_pay = (pay_date_obj.date() - today.date()).days
+                if 0 <= days_diff_pay <= 20: radar_pay.append({"symbol": item['symbol'].split('.')[0], "date": pay_date, "amount": shares * div_amount, "days": days_diff_pay})
+
+            if div_amount > 0 and shares > 0:
+                explicit_pay_month = None
+                if is_announced and pay_date != "待官方公告":
+                    explicit_pay_month = datetime.strptime(pay_date, '%Y-%m-%d').month
+                    monthly_calendar[explicit_pay_month]["amount"] += (shares * div_amount)
+                    if item['name'] not in monthly_calendar[explicit_pay_month]["sources"]:
+                        monthly_calendar[explicit_pay_month]["sources"].append(item['name'])
+
+                for m in months_to_pay:
+                    pay_m = m + 1 if m < 12 else 1
+                    if pay_m != explicit_pay_month:
+                        monthly_calendar[pay_m]["amount"] += (shares * div_amount)
+                        if item['name'] not in monthly_calendar[pay_m]["sources"]:
+                            monthly_calendar[pay_m]["sources"].append(item['name'])
+
+            total_mkt += mkt_val; total_cost += cost_val; total_div += (shares * div_amount)
+            
+            fee_info = ETF_FEES_DB.get(item['symbol'], {"經理費": "-", "保管費": "-"})
+            cap_str = "系統暫不支援" # 取消原本在迴圈內的 get_fund_size 查詢以提升速度
+
+            results.append({
+                "代號": item['symbol'], "名稱": item['name'], "現價": curr_p, "均價": item['cost'],
+                "張數": item['holdings'], "市值": mkt_val, "損益": profit, "報酬率": roi,
+                "經理費": fee_info["經理費"], "保管費": fee_info["保管費"], 
+                "單次預估領息": shares * div_amount, "每股配息": div_amount,
+                "最新公告除息日": ex_date, "預估發放日": pay_date, "已公告": is_announced,
+                "狀態": status_msg,
+                "最新填息紀錄": fill_status, "基金規模": cap_str
+            })
+            
+            months_to_pay = DIVIDEND_SCHEDULE.get(item['symbol'], [])
+            month_tag = "月配息" if len(months_to_pay) == 12 else (",".join(map(str, months_to_pay)) + "月" if months_to_pay else "-")
+                
+            vol_money_str = f"{vol * curr_p / 100000000:.2f} 億" if (vol and vol > 0) else "無資料"
+            
+            tech_results.append({
+                "ETF 名稱": display_name, 
+                "配息月份": month_tag, 
+                "股票張數": item['holdings'], 
+                "現價": round(curr_p, 2),
+                "今日損益": today_pnl_str, 
+                "今日漲跌幅": today_pct_str, 
+                "成交金額": vol_money_str,
+                "年殖利率": f"{est_yield:.2f}%", 
+                "今日最高/最低": f"${day_high:.2f} / ${day_low:.2f}",
+                "52週最高/最低": f"${year_high:.2f} / ${year_low:.2f}", 
+                "設定高標(停利)": a_high, 
+                "設定低標(停損)": a_low
+            })
+            
+        except Exception as e: continue
+        
+    return pd.DataFrame(results), pd.DataFrame(tech_results), total_mkt, total_cost, total_div, total_today_pnl, radar_ex, radar_pay, price_alerts, monthly_calendar
+df, df_tech, g_mkt, g_cost, g_div, g_today_pnl, radar_ex, radar_pay, price_alerts, monthly_calendar = fetch_data(st.session_state.my_data['etfs'], st.session_state.my_data.get('custom_divs', {}))
+
+# --- 📡 抓取 ETF 焦點新聞 ---
+@st.cache_data(ttl=3600)
+def fetch_etf_news():
+    news_list = []
+    today_str = datetime.now().strftime("%m/%d")
+    try:
+        url = "https://news.google.com/rss/search?q=%E5%8F%B0%E7%81%A3+ETF+%E6%96%B0%E4%B8%8A%E5%B8%82+OR+%E9%85%8D%E6%81%AF+OR+%E6%88%90%E5%88%86%E8%82%A1&hl=zh-TW&gl=TW&ceid=TW:zh-Hant"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=3) as response:
+            root = ET.fromstring(response.read())
+            for item in root.findall('.//item')[:4]:
+                title = item.find('title').text
+                if " - " in title: title = title.rsplit(" - ", 1)[0]
+                link = item.find('link').text
+                news_list.append({"title": f"{today_str} {title}", "link": link})
+    except Exception: pass
+    
+    if not news_list:
+        news_list = [
+            {"title": f"{today_str} 盤前觀察：半導體龍頭動向 (影響 00927 走勢)", "link": "#"},
+            {"title": f"{today_str} 高股息標的篩選：關注 00878、0056 成分股調整", "link": "#"},
+            {"title": f"{today_str} 焦點情報：多檔新上市主動式 ETF 展開募集與掛牌", "link": "#"},
+            {"title": f"{today_str} 大盤壓力測試：正二 (00631L) 槓桿風險控管建議", "link": "#"}
+        ]
+    return news_list
+
+# --- 📈 抓取美台股大盤指標 ---
+@st.cache_data(ttl=300) 
 def fetch_macro_data():
     tickers = {
         "us": {"道瓊工業": "^DJI", "那斯達克": "^IXIC", "費城半導體": "^SOX", "輝達 NVIDIA": "NVDA", "台積電 ADR": "TSM"},
