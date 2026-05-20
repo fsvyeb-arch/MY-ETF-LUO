@@ -693,11 +693,22 @@ def get_div_data(symbol, custom_div_info=None):
 def fetch_watchlist_data(wl_list):
     if not wl_list: return pd.DataFrame()
     
+    # ========== 富果 (Fugle) API 設定 ==========
+    # 請在此填入您在富果開發者平台申請的 API KEY
+    FUGLE_API_KEY = "NDBjZmM1YzEtZGE0ZS00ODhmLThkMWItZDEzYTdmYjJlNzZlIDMzNmQzYjUzLTcwNmMtNGMwMi1iMjc5LWJmNDY4MGM3NDVmNg=="
+    
     stock_ids = [item['symbol'].replace('.TW', '').replace('.TWO', '') for item in wl_list]
-    try:
-        rt_batch = twstock.realtime.get(stock_ids)
-    except:
-        rt_batch = {}
+    rt_batch = {}
+    
+    if FUGLE_API_KEY != "請替換為您的API_KEY":
+        for stock_id in stock_ids:
+            try:
+                url = f"https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/{stock_id}"
+                res = requests.get(url, headers={"X-API-KEY": FUGLE_API_KEY}, timeout=3)
+                if res.status_code == 200:
+                    rt_batch[stock_id] = res.json()
+            except:
+                pass
 
     results = []
     for item in wl_list:
@@ -709,12 +720,17 @@ def fetch_watchlist_data(wl_list):
             stock_id = item['symbol'].replace('.TW', '').replace('.TWO', '')
             curr_p = None
             
-            if isinstance(rt_batch, dict):
-                rt_data = rt_batch.get(stock_id, rt_batch) if len(stock_ids) > 1 else rt_batch.get(stock_id, rt_batch)
-                if rt_data and rt_data.get('success'):
-                    latest_price = rt_data.get('realtime', {}).get('latest_trade_price')
-                    if latest_price and latest_price != '-':
-                        curr_p = float(latest_price)
+            # 解析富果 API 回傳資料
+            if rt_batch and stock_id in rt_batch:
+                fugle_res = rt_batch[stock_id]
+                # 有些端點回傳直接包在第一層，有些在 data 裡面，抓取 closePrice (現價)
+                if 'closePrice' in fugle_res:
+                    curr_p = float(fugle_res['closePrice'])
+                elif 'data' in fugle_res and 'closePrice' in fugle_res['data']:
+                    curr_p = float(fugle_res['data']['closePrice'])
+                # 如果遇到盤前沒有成交價，嘗試抓取昨收價當作現價基準
+                elif 'previousClose' in fugle_res:
+                    curr_p = float(fugle_res['previousClose'])
 
             rt_prev = tk.fast_info.get('previousClose')
             prev_close = rt_prev if rt_prev is not None else (hist['Close'].iloc[-2] if len(hist) >= 2 else None)
