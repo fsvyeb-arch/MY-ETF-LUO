@@ -10,7 +10,17 @@ from datetime import datetime, timedelta
 import time
 import altair as alt
 import requests
-
+# --- X 光機測試區 (請填入新申請的 API Key) ---
+st.warning("🔍 富果 API 原始數據測試")
+test_key = "請替換為您最新的API_KEY"
+test_res = requests.get("https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/0050", headers={"X-API-KEY": test_key})
+if test_res.status_code == 200:
+    st.success("✅ 連線成功！以下是富果回傳的最真實數據：")
+    st.json(test_res.json())  # 這會把原始數據直接印在您的網頁上
+else:
+    st.error(f"❌ 連線失敗，錯誤碼: {test_res.status_code}")
+st.markdown("---")
+# ----------------------------------------
 def color_profit_loss(val):
     if isinstance(val, str): return 'color: #d32f2f; font-weight: bold;' if val.startswith('+') else ('color: #388e3c; font-weight: bold;' if val.startswith('-') else '')
     return ''
