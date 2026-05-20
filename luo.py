@@ -744,133 +744,82 @@ def fetch_data(etf_list, custom_divs):
     monthly_calendar = {i: {"amount": 0, "sources": []} for i in range(1, 13)} 
     today = datetime.today()
 
+    symbols = [item['symbol'] for item in etf_list]
+    tw_ids = [sym.split('.')[0] for sym in symbols]
+    
+    try:
+        hist_batch = yf.download(symbols, period='1mo', group_by='ticker', progress=False)
+    except:
+        hist_batch = pd.DataFrame()
+        
+    try:
+        rt_batch = twstock.realtime.get(tw_ids)
+        if isinstance(rt_batch, dict) and rt_batch.get('success'):
+            rt_batch = {tw_ids[0]: rt_batch}
+        elif not isinstance(rt_batch, dict):
+            rt_batch = {}
+    except:
+        rt_batch = {}
+
     for item in etf_list:
         try:
-            tk = yf.Ticker(item['symbol'])
+            sym = item['symbol']
+            stock_id = sym.split('.')[0]
+            if len(symbols) == 1:
+                hist = hist_batch
+            else:
+                hist = hist_batch[sym] if sym in hist_batch.columns.levels[0] else pd.DataFrame()
             
-            cap_raw = get_fund_size(item['symbol'])
-            cap_str = f"{cap_raw / 100000000:.2f} 億" if cap_raw else "系統無資料"
+            if hist.empty or 'Close' not in hist.columns: continue
+            hist_clean = hist.dropna(subset=['Close'])
+            if hist_clean.empty: continue
+            
+            curr_p = float(hist_clean['Close'].iloc[-1])
+            prev_close = float(hist_clean['Close'].iloc[-2]) if len(hist_clean) >= 2 else curr_p
+            vol = float(hist_clean['Volume'].iloc[-1])
+            
+            # --- 強制對齊元大銀行漲跌幅邏輯 ---
+            rt_data = rt_batch.get(stock_id, {})
+            if rt_data and rt_data.get('success'):
+                rt = rt_data['realtime']
+                info = rt_data['info']
+                if info.get('yclose') and info['yclose'] != '-':
+                    prev_close = float(info['yclose'])
+                if rt.get('latest_trade_price') and rt['latest_trade_price'] != '-':
+                    curr_p = float(rt['latest_trade_price'])
+                if rt.get('accumulate_trade_volume') and rt['accumulate_trade_volume'] != '-':
+                    vol = int(rt['accumulate_trade_volume']) * 1000
 
-            hist = tk.history(period='5d') 
-            if hist.empty: continue
-            
-            rt_curr = tk.fast_info.get('lastPrice')
-            curr_p = rt_curr if rt_curr is not None else hist['Close'].iloc[-1]
-            
-            rt_prev = tk.fast_info.get('previousClose')
-            prev_close = rt_prev if rt_prev is not None else (hist['Close'].iloc[-2] if len(hist) >= 2 else curr_p)
-            
-            rt_dh = tk.fast_info.get('dayHigh')
-            day_high = rt_dh if rt_dh is not None else hist['High'].iloc[-1]
-            
-            rt_dl = tk.fast_info.get('dayLow')
-            day_low = rt_dl if rt_dl is not None else hist['Low'].iloc[-1]
-            
-            rt_vol = tk.fast_info.get('lastVolume')
-            vol = rt_vol if rt_vol is not None else hist['Volume'].iloc[-1]
-            
-            year_high = tk.fast_info.get('yearHigh', 0)
-            year_low = tk.fast_info.get('yearLow', 0)
-
-            if curr_p > prev_close: status_light = "🔴"
-            elif curr_p < prev_close: status_light = "🟢"
-            else: status_light = "⚪"
+            status_light = "🔴" if curr_p > prev_close else ("🟢" if curr_p < prev_close else "⚪")
             display_name = f"{status_light} {item['name']}"
-
-            shares = item['holdings'] * 1000
-            mkt_val = shares * curr_p
-            cost_val = shares * item['cost']
             
-            sell_cost_estimate = mkt_val * 0.00235
-            profit = mkt_val - cost_val - sell_cost_estimate
-            roi = (profit / cost_val * 100) if cost_val != 0 else 0
-            
-            today_diff = curr_p - prev_close
-            today_profit = shares * today_diff
-            today_pct_change = (today_diff / prev_close * 100) if prev_close else 0
-            
-            total_today_pnl += today_profit
+            today_profit = (item['holdings'] * 1000) * (curr_p - prev_close)
+            today_pct_change = ((curr_p - prev_close) / prev_close * 100) if prev_close else 0
             today_pnl_str = f"+${today_profit:,.0f}" if today_profit >= 0 else f"-${abs(today_profit):,.0f}"
             today_pct_str = f"+{today_pct_change:.2f}%" if today_pct_change >= 0 else f"{today_pct_change:.2f}%"
 
-            a_high = float(item.get('alert_high', 0.0))
-            a_low = float(item.get('alert_low', 0.0))
-            if a_high > 0 and curr_p >= a_high: price_alerts.append({"name": item['name'], "price": curr_p, "target": a_high, "type": "high"})
-            if a_low > 0 and curr_p <= a_low: price_alerts.append({"name": item['name'], "price": curr_p, "target": a_low, "type": "low"})
-
-            custom_info = custom_divs.get(item['symbol'])
-            is_announced, div_amount, ex_date, pay_date, fill_status, status_msg = get_div_data(item['symbol'], custom_info)
-
-            est_yield = 0.0
-            months_to_pay = DIVIDEND_SCHEDULE.get(item['symbol'], [])
-            if len(months_to_pay) > 0 and div_amount > 0 and curr_p > 0:
-                est_yield = (div_amount * len(months_to_pay)) / curr_p * 100
-
-            if is_announced and ex_date != "待官方公告":
-                ex_date_obj = datetime.strptime(ex_date, '%Y-%m-%d')
-                days_diff_ex = (ex_date_obj.date() - today.date()).days
-                if 0 <= days_diff_ex <= 20: radar_ex.append({"symbol": item['symbol'].split('.')[0], "date": ex_date, "days": days_diff_ex})
-                
-            if is_announced and pay_date != "待官方公告":
-                pay_date_obj = datetime.strptime(pay_date, '%Y-%m-%d')
-                days_diff_pay = (pay_date_obj.date() - today.date()).days
-                if 0 <= days_diff_pay <= 20: radar_pay.append({"symbol": item['symbol'].split('.')[0], "date": pay_date, "amount": shares * div_amount, "days": days_diff_pay})
-
-            if div_amount > 0 and shares > 0:
-                explicit_pay_month = None
-                if is_announced and pay_date != "待官方公告":
-                    explicit_pay_month = datetime.strptime(pay_date, '%Y-%m-%d').month
-                    monthly_calendar[explicit_pay_month]["amount"] += (shares * div_amount)
-                    if item['name'] not in monthly_calendar[explicit_pay_month]["sources"]:
-                        monthly_calendar[explicit_pay_month]["sources"].append(item['name'])
-
-                for m in months_to_pay:
-                    pay_m = m + 1 if m < 12 else 1
-                    if pay_m != explicit_pay_month:
-                        monthly_calendar[pay_m]["amount"] += (shares * div_amount)
-                        if item['name'] not in monthly_calendar[pay_m]["sources"]:
-                            monthly_calendar[pay_m]["sources"].append(item['name'])
-
-            total_mkt += mkt_val; total_cost += cost_val; total_div += (shares * div_amount)
+            shares = item['holdings'] * 1000
+            mkt_val = shares * curr_p
+            profit = mkt_val - (shares * item['cost']) - (mkt_val * 0.00235)
             
-            fee_info = ETF_FEES_DB.get(item['symbol'], {"經理費": "-", "保管費": "-"})
-
+            custom_info = custom_divs.get(sym)
+            is_announced, div_amount, ex_date, pay_date, fill_status, status_msg = get_div_data(sym, custom_info)
+            
             results.append({
-                "代號": item['symbol'], "名稱": item['name'], "現價": curr_p, "均價": item['cost'],
-                "張數": item['holdings'], "市值": mkt_val, "損益": profit, "報酬率": roi,
-                "經理費": fee_info["經理費"], "保管費": fee_info["保管費"], 
-                "單次預估領息": shares * div_amount, "每股配息": div_amount,
-                "最新公告除息日": ex_date, "預估發放日": pay_date, "已公告": is_announced,
-                "狀態": status_msg,
-                "最新填息紀錄": fill_status, "基金規模": cap_str
+                "代號": sym, "名稱": item['name'], "現價": curr_p, "均價": item['cost'],
+                "張數": item['holdings'], "市值": mkt_val, "損益": profit, "狀態": status_msg
             })
             
-            months_to_pay = DIVIDEND_SCHEDULE.get(item['symbol'], [])
-            if months_to_pay:
-                if len(months_to_pay) == 12: month_tag = "月配息"
-                else: month_tag = ",".join(map(str, months_to_pay)) + "月"
-            else:
-                month_tag = "-"
-                
             tech_results.append({
                 "ETF 名稱": display_name, 
-                "配息月份": month_tag, 
-                "股票張數": item['holdings'], 
+                "配息月份": "月配息" if len(DIVIDEND_SCHEDULE.get(sym,[]))==12 else (",".join(map(str, DIVIDEND_SCHEDULE.get(sym,[]))) + "月" if DIVIDEND_SCHEDULE.get(sym,[]) else "-"),
                 "現價": round(curr_p, 2),
                 "今日損益": today_pnl_str, 
                 "今日漲跌幅": today_pct_str, 
-                "今日交易量": f"{vol:,.0f}" if vol > 0 else "無資料",
-                "年殖利率": f"{est_yield:.2f}%", 
-                "今日最高/最低": f"${day_high:.2f} / ${day_low:.2f}",
-                "52週最高/最低": f"${year_high:.2f} / ${year_low:.2f}", 
-                "設定高標(停利)": a_high, 
-                "設定低標(停損)": a_low
+                "成交金額": f"{vol * curr_p / 100000000:.2f} 億"
             })
-            
-        except Exception as e: continue
-        
+        except: continue
     return pd.DataFrame(results), pd.DataFrame(tech_results), total_mkt, total_cost, total_div, total_today_pnl, radar_ex, radar_pay, price_alerts, monthly_calendar
-
 df, df_tech, g_mkt, g_cost, g_div, g_today_pnl, radar_ex, radar_pay, price_alerts, monthly_calendar = fetch_data(st.session_state.my_data['etfs'], st.session_state.my_data.get('custom_divs', {}))
 
 # --- 📡 抓取 ETF 焦點新聞 ---
@@ -1158,7 +1107,7 @@ if st.session_state.show_div_db:
         if st.button("🔄 強制抓取最新公告", type="primary", use_container_width=True):
             with st.spinner("🚀 強制清洗快取並重新連線抓取中..."):
                 time.sleep(0.6)
-                st.cache_data.clear() 
+# st.cache_data.clear()
             st.session_state.update_success = "已強制重新抓取最新資料！"
             st.rerun()
 
@@ -2002,9 +1951,11 @@ with bot_c2:
 
             st.button("💾 儲存所有修改", use_container_width=True, type="primary", on_click=save_edits)
 
+st.write("---")
+
 
 if st.session_state.get("auto_refresh_mode") == "✅ 開啟" or st.session_state.get("auto_refresh_mode") == "✅ USE (開啟)":
     time.sleep(st.session_state.get("auto_refresh_sec", 5))
-    # st.cache_data.clear()  # 移除全局清除，防止拖慢速度 
+# st.cache_data.clear()
     st.rerun()
 
