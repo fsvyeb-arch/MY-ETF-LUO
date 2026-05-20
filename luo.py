@@ -11,6 +11,15 @@ import time
 import altair as alt
 import requests
 
+def color_profit_loss(val):
+    if isinstance(val, str): return 'color: #d32f2f; font-weight: bold;' if val.startswith('+') else ('color: #388e3c; font-weight: bold;' if val.startswith('-') else '')
+    return ''
+
+def color_months(val):
+    if not isinstance(val, str): return ''
+    colors = {'1,4,7,10月': '#e3f2fd; color: #1565c0', '2,5,8,11月': '#f3e5f5; color: #6a1b9a', '3,6,9,12月': '#e8f5e9; color: #2e7d32', '月配息': '#fff8e1; color: #f57f17'}
+    return f'background-color: {colors[val]}; font-weight: bold; text-align: center;' if val in colors else 'color: #555; text-align: center;'
+
 # --- 1. 網頁基礎設定 ---
 st.set_page_config(page_title="ETF 投資戰情室", layout="wide")
 
@@ -744,54 +753,72 @@ def fetch_data(etf_list, custom_divs):
     monthly_calendar = {i: {"amount": 0, "sources": []} for i in range(1, 13)} 
     today = datetime.today()
 
+    # --- 🚀 極速優化：批量抓取資料，拒絕迴圈內重複連線 ---
+    symbols = [item['symbol'] for item in etf_list]
+    tw_ids = [sym.split('.')[0] for sym in symbols]
+    
+    # 1. 批量抓取 Yahoo 歷史股價 (取代極慢的 tk.history 迴圈)
+    try:
+        hist_batch = yf.download(symbols, period='1mo', group_by='ticker', progress=False)
+    except:
+        hist_batch = pd.DataFrame()
+        
+    # 2. 批量抓取 twstock 即時報價
+    try:
+        rt_batch = twstock.realtime.get(tw_ids)
+        if isinstance(rt_batch, dict) and rt_batch.get('success'): # 單筆回傳結構處理
+            rt_batch = {tw_ids[0]: rt_batch}
+        elif not isinstance(rt_batch, dict):
+            rt_batch = {}
+    except:
+        rt_batch = {}
+
     for item in etf_list:
         try:
-            tk = yf.Ticker(item['symbol'])
+            sym = item['symbol']
+            stock_id = sym.split('.')[0]
             
-            cap_raw = get_fund_size(item['symbol'])
-            cap_str = f"{cap_raw / 100000000:.2f} 億" if cap_raw else "系統無資料"
-
-            hist = tk.history(period='5d') 
-            if hist.empty: continue
+            # 從批量資料中提取單檔歷史數據
+            if len(symbols) == 1:
+                hist = hist_batch
+            else:
+                hist = hist_batch[sym] if sym in hist_batch.columns.levels[0] else pd.DataFrame()
+                
+            if hist.empty or 'Close' not in hist.columns or hist['Close'].dropna().empty: 
+                continue
+                
+            hist_clean = hist.dropna(subset=['Close'])
             
-            # --- 報價引擎：使用 twstock (台灣證交所即時資料)，若失敗則退回 Yahoo 歷史資料 ---
-            # 建立預設歷史資料 (已全面移除 Yahoo fast_info 即時查詢，大幅提升速度)
-            curr_p = hist['Close'].iloc[-1]
-            prev_close = hist['Close'].iloc[-2] if len(hist) >= 2 else curr_p
-            day_high = hist['High'].iloc[-1]
-            day_low = hist['Low'].iloc[-1]
-            vol = hist['Volume'].iloc[-1]
-            year_high = hist['High'].max()
-            year_low = hist['Low'].min()
-
-            # 嘗試使用 twstock 即時抓取股價
-            stock_id = item['symbol'].split('.')[0]
-            try:
-                rt_data = twstock.realtime.get(stock_id)
-                if rt_data and rt_data.get('success'):
-                    rt = rt_data['realtime']
-                    info = rt_data['info']
+            # 建立預設歷史資料
+            curr_p = float(hist_clean['Close'].iloc[-1])
+            prev_close = float(hist_clean['Close'].iloc[-2]) if len(hist_clean) >= 2 else curr_p
+            day_high = float(hist_clean['High'].iloc[-1])
+            day_low = float(hist_clean['Low'].iloc[-1])
+            vol = float(hist_clean['Volume'].iloc[-1])
+            year_high = float(hist_clean['High'].max())
+            year_low = float(hist_clean['Low'].min())
+            
+            # 使用 twstock 批量資料覆蓋即時報價
+            rt_data = rt_batch.get(stock_id, {})
+            if rt_data and rt_data.get('success'):
+                rt = rt_data['realtime']
+                info = rt_data['info']
+                
+                if rt.get('latest_trade_price') and rt['latest_trade_price'] != '-':
+                    curr_p = float(rt['latest_trade_price'])
+                elif info.get('yclose') and info['yclose'] != '-':
+                    curr_p = float(info['yclose'])
                     
-                    if rt.get('latest_trade_price') and rt['latest_trade_price'] != '-':
-                        curr_p = float(rt['latest_trade_price'])
-                    elif info.get('yclose') and info['yclose'] != '-':
-                        curr_p = float(info['yclose'])
-                        
-                    if info.get('yclose') and info['yclose'] != '-':
-                        prev_close = float(info['yclose'])
-                        
-                    if rt.get('high') and rt['high'] != '-': day_high = float(rt['high'])
-                    if rt.get('low') and rt['low'] != '-': day_low = float(rt['low'])
+                if info.get('yclose') and info['yclose'] != '-':
+                    prev_close = float(info['yclose'])
                     
-                    # twstock 累積成交量單位為「張」，為統一系統計算單位需轉為「股」(*1000)
-                    if rt.get('accumulate_trade_volume') and rt['accumulate_trade_volume'] != '-':
-                        vol = int(rt['accumulate_trade_volume']) * 1000
-            except Exception as e:
-                pass  # 若 twstock 失敗 (如 API 阻擋或無回應)，無縫退回使用上方取得的 Yahoo Finance 資料
+                if rt.get('high') and rt['high'] != '-': day_high = float(rt['high'])
+                if rt.get('low') and rt['low'] != '-': day_low = float(rt['low'])
+                
+                if rt.get('accumulate_trade_volume') and rt['accumulate_trade_volume'] != '-':
+                    vol = int(rt['accumulate_trade_volume']) * 1000
 
-            if curr_p > prev_close: status_light = "🔴"
-            elif curr_p < prev_close: status_light = "🟢"
-            else: status_light = "⚪"
+            status_light = "🔴" if curr_p > prev_close else ("🟢" if curr_p < prev_close else "⚪")
             display_name = f"{status_light} {item['name']}"
 
             shares = item['holdings'] * 1000
@@ -807,8 +834,7 @@ def fetch_data(etf_list, custom_divs):
             today_pct_change = (today_diff / prev_close * 100) if prev_close else 0
             
             total_today_pnl += today_profit
-            today_pnl_str = f"+${today_profit:,.0f}" if today_profit >= 0 else f"-${abs(today_profit):,.0f}"
-            today_pct_str = f"+{today_pct_change:.2f}%" if today_pct_change >= 0 else f"{today_pct_change:.2f}%"
+            today_pnl_str, today_pct_str = (f"+${today_profit:,.0f}", f"+{today_pct_change:.2f}%") if today_profit >= 0 else (f"-${abs(today_profit):,.0f}", f"{today_pct_change:.2f}%")
 
             a_high = float(item.get('alert_high', 0.0))
             a_low = float(item.get('alert_low', 0.0))
@@ -851,6 +877,7 @@ def fetch_data(etf_list, custom_divs):
             total_mkt += mkt_val; total_cost += cost_val; total_div += (shares * div_amount)
             
             fee_info = ETF_FEES_DB.get(item['symbol'], {"經理費": "-", "保管費": "-"})
+            cap_str = "系統暫不支援" # 取消原本在迴圈內的 get_fund_size 查詢以提升速度
 
             results.append({
                 "代號": item['symbol'], "名稱": item['name'], "現價": curr_p, "均價": item['cost'],
@@ -863,18 +890,9 @@ def fetch_data(etf_list, custom_divs):
             })
             
             months_to_pay = DIVIDEND_SCHEDULE.get(item['symbol'], [])
-            if months_to_pay:
-                if len(months_to_pay) == 12: month_tag = "月配息"
-                else: month_tag = ",".join(map(str, months_to_pay)) + "月"
-            else:
-                month_tag = "-"
+            month_tag = "月配息" if len(months_to_pay) == 12 else (",".join(map(str, months_to_pay)) + "月" if months_to_pay else "-")
                 
-            # User requested specific volume formatting and new columns
-            # Volume converted to Billion TWD (億) based on real-time price
             vol_money_str = f"{vol * curr_p / 100000000:.2f} 億" if (vol and vol > 0) else "無資料"
-            
-            # Since real-time "number of shareholders", "growth", and "age" are not in Yahoo Finance API,
-            # We provide a clean N/A marker for them.
             
             tech_results.append({
                 "ETF 名稱": display_name, 
@@ -894,7 +912,6 @@ def fetch_data(etf_list, custom_divs):
         except Exception as e: continue
         
     return pd.DataFrame(results), pd.DataFrame(tech_results), total_mkt, total_cost, total_div, total_today_pnl, radar_ex, radar_pay, price_alerts, monthly_calendar
-
 df, df_tech, g_mkt, g_cost, g_div, g_today_pnl, radar_ex, radar_pay, price_alerts, monthly_calendar = fetch_data(st.session_state.my_data['etfs'], st.session_state.my_data.get('custom_divs', {}))
 
 # --- 📡 抓取 ETF 焦點新聞 ---
@@ -1259,19 +1276,7 @@ if st.session_state.show_tech:
             if '配息月份' in df_tech.columns:
                 df_tech = df_tech.sort_values(by='配息月份', ascending=True)
                 
-            def color_profit_loss(val):
-                if isinstance(val, str):
-                    if val.startswith('+'): return 'color: #d32f2f; font-weight: bold;' 
-                    elif val.startswith('-'): return 'color: #388e3c; font-weight: bold;' 
-                return ''
-                
-            def color_months(val):
-                if not isinstance(val, str): return ''
-                if val == '1,4,7,10月': return 'background-color: #e3f2fd; color: #1565c0; font-weight: bold; text-align: center;' 
-                if val == '2,5,8,11月': return 'background-color: #f3e5f5; color: #6a1b9a; font-weight: bold; text-align: center;' 
-                if val == '3,6,9,12月': return 'background-color: #e8f5e9; color: #2e7d32; font-weight: bold; text-align: center;' 
-                if val == '月配息': return 'background-color: #fff8e1; color: #f57f17; font-weight: bold; text-align: center;' 
-                return 'color: #555; text-align: center;'
+
 
             if "設定高標(停利)" in df_tech.columns and "設定低標(停損)" in df_tech.columns:
                 df_tech_display = df_tech.drop(columns=["設定高標(停利)", "設定低標(停損)"])
@@ -2026,45 +2031,6 @@ with bot_c2:
 
             st.button("💾 儲存所有修改", use_container_width=True, type="primary", on_click=save_edits)
 
-st.write("---")
-st.markdown("### 📈 持股歷史股價趨勢 (近 30 日)")
-
-current_etfs = [item['symbol'] for item in st.session_state.my_data.get('etfs', [])]
-
-if current_etfs:
-    with st.spinner("正在繪製高精度股價戰報..."):
-        try:
-            price_history = yf.download(current_etfs, period="1mo")['Close']
-            
-            if len(current_etfs) == 1:
-                price_history = price_history.to_frame()
-                price_history.columns = [st.session_state.my_data['etfs'][0]['name']]
-            else:
-                name_map = {item['symbol']: item['name'] for item in st.session_state.my_data['etfs']}
-                price_history = price_history.rename(columns=name_map)
-            
-            df_chart = price_history.reset_index()
-            date_col = df_chart.columns[0]
-            df_melted = df_chart.melt(id_vars=[date_col], var_name='ETF', value_name='Price')
-
-            chart = alt.Chart(df_melted).mark_line().encode(
-                x=alt.X(f'{date_col}:T', axis=alt.Axis(format='%d日', title=None, grid=False)),
-                y=alt.Y('Price:Q', scale=alt.Scale(zero=False), axis=alt.Axis(title=None, labelFontSize=10, tickMinStep=1, tickCount=40, gridColor='#f0f2f6')),
-                color=alt.Color('ETF:N', legend=alt.Legend(title=None, orient="bottom")),
-                tooltip=[
-                    alt.Tooltip(f'{date_col}:T', format='%Y/%m/%d', title='日期'),
-                    alt.Tooltip('ETF:N', title='標的'),
-                    alt.Tooltip('Price:Q', format='.2f', title='收盤價')
-                ]
-            ).properties(height=450).interactive()
-
-            st.altair_chart(chart, use_container_width=True)
-            st.caption("數據來源：Yahoo Finance (近一個月每日收盤價趨勢)")
-        except Exception as e:
-            st.error(f"圖表產生失敗：{e}")
-            st.info("提示：請確認網路連線正常或 ETF 代碼是否正確。")
-else:
-    st.info("目前庫存中沒有標的。請由上方「標的管理」面板新增您的愛股！")
 
 if st.session_state.get("auto_refresh_mode") == "✅ 開啟" or st.session_state.get("auto_refresh_mode") == "✅ USE (開啟)":
     time.sleep(st.session_state.get("auto_refresh_sec", 5))
