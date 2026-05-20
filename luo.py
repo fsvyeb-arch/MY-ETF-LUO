@@ -699,14 +699,28 @@ def fetch_watchlist_data(wl_list):
             hist = tk.history(period="2d")
             if hist.empty: continue
             
-            rt_curr = tk.fast_info.get('lastPrice')
-            curr_p = rt_curr if rt_curr is not None else hist['Close'].iloc[-1]
-            
+            stock_id = item['symbol'].replace(".TW", "").replace(".TWO", "")
+            rt_data = twstock.realtime.get(stock_id)
+            curr_p = None
+            if rt_data and rt_data.get('success'):
+                latest_price = rt_data['realtime'].get('latest_trade_price')
+                if latest_price and latest_price != '-':
+                    curr_p = float(latest_price)
+
             rt_prev = tk.fast_info.get('previousClose')
-            prev_close = rt_prev if rt_prev is not None else (hist['Close'].iloc[-2] if len(hist) >= 2 else curr_p)
+            prev_close = rt_prev if rt_prev is not None else (hist['Close'].iloc[-2] if len(hist) >= 2 else None)
+
+            if curr_p is None:
+                rt_curr = tk.fast_info.get('lastPrice')
+                curr_p = rt_curr if rt_curr is not None else hist['Close'].iloc[-1]
             
-            diff = curr_p - prev_close
-            pct = (diff / prev_close * 100) if prev_close else 0
+            if prev_close and curr_p:
+                diff = curr_p - prev_close
+                pct = round((diff / prev_close) * 100, 2)
+            else:
+                diff = 0
+                pct = 0
+                prev_close = curr_p if curr_p else 0
             status_light = "🔴" if diff > 0 else "🟢" if diff < 0 else "⚪"
             
             results.append({
@@ -831,7 +845,7 @@ def fetch_data(etf_list, custom_divs):
             
             today_diff = curr_p - prev_close
             today_profit = shares * today_diff
-            today_pct_change = (today_diff / prev_close * 100) if prev_close else 0
+            today_pct_change = round((today_diff / prev_close * 100), 2) if prev_close else 0
             
             total_today_pnl += today_profit
             today_pnl_str, today_pct_str = (f"+${today_profit:,.0f}", f"+{today_pct_change:.2f}%") if today_profit >= 0 else (f"-${abs(today_profit):,.0f}", f"{today_pct_change:.2f}%")
@@ -957,7 +971,7 @@ def fetch_macro_data():
                     curr = hist['Close'].iloc[-1]
                     prev = hist['Close'].iloc[-2]
                     diff = curr - prev
-                    pct = (diff / prev) * 100
+                    pct = round((diff / prev) * 100, 2)
                     date_str = hist.index[-1].strftime("%m/%d")
                     res[region][name] = {"price": curr, "diff": diff, "pct": pct, "date": date_str}
             except: pass
