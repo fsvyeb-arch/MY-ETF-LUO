@@ -1,15 +1,15 @@
-    import streamlit as st
-    import yfinance as yf
-    import twstock
-    import pandas as pd
-    import json
-    import os
-    import urllib.request
-    import xml.etree.ElementTree as ET
-    from datetime import datetime, timedelta
-    import time
-    import altair as alt
-    import requests
+import streamlit as st
+import yfinance as yf
+import twstock
+import pandas as pd
+import json
+import os
+import urllib.request
+import xml.etree.ElementTree as ET
+from datetime import datetime, timedelta
+import time
+import altair as alt
+import requests
     
     def color_profit_loss(val):
         if isinstance(val, str): return 'color: #d32f2f; font-weight: bold;' if val.startswith('+') else ('color: #388e3c; font-weight: bold;' if val.startswith('-') else '')
