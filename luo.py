@@ -1977,6 +1977,17 @@ with st.expander("💰 買賣損益試算器", expanded=False):
             # 賣出手續費 (公定 0.1425%，假設券商 6 折，未滿 20 元以 20 元計)
             sell_fee = max(20, int(sell_amount * 0.001425 * 0.6))
             # 證交稅 (ETF 0.1%，一般股票 0.3%，這裡以 ETF 0.1% 為預設標準)
+            # --- 這一區塊請貼在 Line 1980 的上方 ---
+        # 確保選單已存在，並將結果存入 selected_calc_etf 變數
+        etf_options = [item['symbol'] for item in st.session_state.my_data['etfs']]
+        if etf_options:
+            selected_calc_etf = st.selectbox("請選擇計算稅率的 ETF", etf_options)
+        else:
+            selected_calc_etf = "0000" # 防呆機制
+            st.warning("目前無庫存 ETF 可供計算")
+
+        # --- 接下來才是您原本的那一行 ---
+        tax_rate = 0.001 if selected_calc_etf.startswith('00') else 0.003
             tax_rate = 0.001 if selected_calc_etf.startswith('00') else 0.003
             sell_tax = int(sell_amount * tax_rate)
             
