@@ -695,12 +695,12 @@ def fetch_watchlist_data(wl_list):
     
     # ========== 富果 (Fugle) API 設定 ==========
     # 請在此填入您在富果開發者平台申請的 API KEY
-    FUGLE_API_KEY = "NDBjZmM1YzEtZGE0ZS00ODhmLThkMWItZDEzYTdmYjJlNzZlIDMzNmQzYjUzLTcwNmMtNGMwMi1iMjc5LWJmNDY4MGM3NDVmNg=="
+    FUGLE_API_KEY = "YTVmY2M0OWYtMGUwYS00NjEzLWI3ZWYtY2M1MzAxNTExYjI4IDdkMTY0NWIyLWFmZmEtNDIwMi1iOTY3LWUyN2Q1OTE3YmQ4Yw=="
     
     stock_ids = [item['symbol'].replace('.TW', '').replace('.TWO', '') for item in wl_list]
     rt_batch = {}
     
-    if FUGLE_API_KEY != "NDBjZmM1YzEtZGE0ZS00ODhmLThkMWItZDEzYTdmYjJlNzZlIDMzNmQzYjUzLTcwNmMtNGMwMi1iMjc5LWJmNDY4MGM3NDVmNg==":
+    if FUGLE_API_KEY != "YTVmY2M0OWYtMGUwYS00NjEzLWI3ZWYtY2M1MzAxNTExYjI4IDdkMTY0NWIyLWFmZmEtNDIwMi1iOTY3LWUyN2Q1OTE3YmQ4Yw==":
         for stock_id in stock_ids:
             try:
                 url = f"https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/{stock_id}"
