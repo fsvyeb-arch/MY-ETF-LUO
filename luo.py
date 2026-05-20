@@ -852,7 +852,24 @@ def fetch_data(etf_list, custom_divs):
             if is_announced and ex_date != "待官方公告":
                 ex_date_obj = datetime.strptime(ex_date, '%Y-%m-%d')
                 days_diff_ex = (ex_date_obj.date() - today.date()).days
-                if 0 <= days_diff_ex <= 20: radar_ex.append({"symbol": item['symbol'].split('.')[0], "date": ex_date, "days": days_diff_ex})
+                if 0 <= days_diff_ex <= 30: 
+                    radar_ex.append({"symbol": item['symbol'].split('.')[0], "date": ex_date, "days": days_diff_ex, "status": "announced"})
+            else:
+                months = DIVIDEND_SCHEDULE.get(item['symbol'], [])
+                if months:
+                    current_m = today.month
+                    next_months = [m for m in sorted(months) if m >= current_m]
+                    if next_months and next_months[0] == current_m:
+                        if ex_date != "待官方公告":
+                            try:
+                                last_ex = datetime.strptime(ex_date, "%Y-%m-%d")
+                                if last_ex.month == current_m and last_ex.date() < today.date():
+                                    next_months.pop(0) 
+                            except: pass
+                    
+                    next_m = next_months[0] if next_months else min(months)
+                    if next_m == current_m or next_m == (current_m % 12) + 1:
+                        radar_ex.append({"symbol": item['symbol'].split('.')[0], "date": f"預計 {next_m} 月", "days": 99, "status": "pending"})
                 
             if is_announced and pay_date != "待官方公告":
                 pay_date_obj = datetime.strptime(pay_date, '%Y-%m-%d')
@@ -2036,4 +2053,3 @@ if st.session_state.get("auto_refresh_mode") == "✅ 開啟" or st.session_state
     time.sleep(st.session_state.get("auto_refresh_sec", 5))
     st.cache_data.clear() 
     st.rerun()
-
