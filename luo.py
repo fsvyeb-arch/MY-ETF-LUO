@@ -700,7 +700,7 @@ def fetch_watchlist_data(wl_list):
     stock_ids = [item['symbol'].replace('.TW', '').replace('.TWO', '') for item in wl_list]
     rt_batch = {}
     
-    if FUGLE_API_KEY != "請替換為您的API_KEY":
+    if FUGLE_API_KEY != "NDBjZmM1YzEtZGE0ZS00ODhmLThkMWItZDEzYTdmYjJlNzZlIDMzNmQzYjUzLTcwNmMtNGMwMi1iMjc5LWJmNDY4MGM3NDVmNg==":
         for stock_id in stock_ids:
             try:
                 url = f"https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/{stock_id}"
