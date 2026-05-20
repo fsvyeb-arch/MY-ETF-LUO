@@ -746,86 +746,137 @@ def fetch_watchlist_dividend(wl_list, custom_divs):
 # --- 4. 核心數據計算 ---
 @st.cache_data(ttl=10)
 def fetch_data(etf_list, custom_divs):
+    def fetch_data(etf_list, custom_divs):
     if not etf_list: return pd.DataFrame(), pd.DataFrame(), 0, 0, 0, 0, [], [], [], {i: {"amount": 0, "sources": []} for i in range(1, 13)}
+    
     results, tech_results = [], []
     total_mkt, total_cost, total_div, total_today_pnl = 0, 0, 0, 0
     radar_ex, radar_pay, price_alerts = [], [], []
+    # 這裡就是被漏掉的關鍵：正確初始化 1~12 月的配息日曆
     monthly_calendar = {i: {"amount": 0, "sources": []} for i in range(1, 13)} 
     today = datetime.today()
 
     symbols = [item['symbol'] for item in etf_list]
     tw_ids = [sym.split('.')[0] for sym in symbols]
     
-    try:
-        hist_batch = yf.download(symbols, period='1mo', group_by='ticker', progress=False)
-    except:
-        hist_batch = pd.DataFrame()
+    try: hist_batch = yf.download(symbols, period='1mo', group_by='ticker', progress=False)
+    except: hist_batch = pd.DataFrame()
         
     try:
         rt_batch = twstock.realtime.get(tw_ids)
-        if isinstance(rt_batch, dict) and rt_batch.get('success'):
-            rt_batch = {tw_ids[0]: rt_batch}
-        elif not isinstance(rt_batch, dict):
-            rt_batch = {}
-    except:
-        rt_batch = {}
+        if isinstance(rt_batch, dict) and rt_batch.get('success'): rt_batch = {tw_ids[0]: rt_batch}
+        elif not isinstance(rt_batch, dict): rt_batch = {}
+    except: rt_batch = {}
 
     for item in etf_list:
         try:
             sym = item['symbol']
             stock_id = sym.split('.')[0]
-            hist = hist_batch[sym] if len(symbols) > 1 and sym in hist_batch.columns.levels[0] else hist_batch
             
-            if hist.empty or 'Close' not in hist.columns: continue
+            if len(symbols) == 1: hist = hist_batch
+            else: hist = hist_batch[sym] if sym in hist_batch.columns.levels[0] else pd.DataFrame()
+                
+            if hist.empty or 'Close' not in hist.columns or hist['Close'].dropna().empty: continue
             hist_clean = hist.dropna(subset=['Close'])
             
+            # --- 終極校準：確保昨日收盤價與今日現價絕對精準 ---
             curr_p = float(hist_clean['Close'].iloc[-1])
             prev_close = float(hist_clean['Close'].iloc[-2]) if len(hist_clean) >= 2 else curr_p
-            vol = float(hist_clean['Volume'].iloc[-1])
             
-            # --- 強制對齊元大銀行漲跌幅邏輯 ---
+            day_high = float(hist_clean['High'].iloc[-1])
+            day_low = float(hist_clean['Low'].iloc[-1])
+            vol = float(hist_clean['Volume'].iloc[-1])
+            year_high = float(hist_clean['High'].max())
+            year_low = float(hist_clean['Low'].min())
+            
             rt_data = rt_batch.get(stock_id, {})
             if rt_data and rt_data.get('success'):
-                rt = rt_data['realtime']
-                info = rt_data['info']
-                if info.get('yclose') and info['yclose'] != '-':
-                    prev_close = float(info['yclose'])
-                if rt.get('latest_trade_price') and rt['latest_trade_price'] != '-':
-                    curr_p = float(rt['latest_trade_price'])
-                if rt.get('accumulate_trade_volume') and rt['accumulate_trade_volume'] != '-':
-                    vol = int(rt['accumulate_trade_volume']) * 1000
+                rt, info = rt_data['realtime'], rt_data['info']
+                if info.get('yclose') and info['yclose'] != '-': prev_close = float(info['yclose'])
+                if rt.get('latest_trade_price') and rt['latest_trade_price'] != '-': curr_p = float(rt['latest_trade_price'])
+                if rt.get('high') and rt['high'] != '-': day_high = float(rt['high'])
+                if rt.get('low') and rt['low'] != '-': day_low = float(rt['low'])
+                if rt.get('accumulate_trade_volume') and rt['accumulate_trade_volume'] != '-': vol = int(rt['accumulate_trade_volume']) * 1000
 
+            # 3. 最純粹的數學計算：(現價 - 昨收) / 昨收
             status_light = "🔴" if curr_p > prev_close else ("🟢" if curr_p < prev_close else "⚪")
             display_name = f"{status_light} {item['name']}"
-            
-            today_profit = (item['holdings'] * 1000) * (curr_p - prev_close)
-            today_pct_change = ((curr_p - prev_close) / prev_close * 100) if prev_close else 0
-            today_pnl_str, today_pct_str = (f"+${today_profit:,.0f}", f"+{today_pct_change:.2f}%") if today_profit >= 0 else (f"-${abs(today_profit):,.0f}", f"{today_pct_change:.2f}%")
 
-            # 計算邏輯... (其餘邏輯同原本)
             shares = item['holdings'] * 1000
             mkt_val = shares * curr_p
-            profit = mkt_val - (shares * item['cost']) - (mkt_val * 0.00235)
+            cost_val = shares * item['cost']
             
+            profit = mkt_val - cost_val - (mkt_val * 0.00235)
+            roi = (profit / cost_val * 100) if cost_val != 0 else 0
+            
+            today_diff = curr_p - prev_close
+            today_profit = shares * today_diff
+            today_pct_change = (today_diff / prev_close * 100) if prev_close > 0 else 0
+            
+            total_today_pnl += today_profit
+            today_pnl_str = f"+${today_profit:,.0f}" if today_profit >= 0 else f"-${abs(today_profit):,.0f}"
+            today_pct_str = f"+{today_pct_change:.2f}%" if today_pct_change >= 0 else f"{today_pct_change:.2f}%"
+
+            a_high, a_low = float(item.get('alert_high', 0.0)), float(item.get('alert_low', 0.0))
+            if a_high > 0 and curr_p >= a_high: price_alerts.append({"name": item['name'], "price": curr_p, "target": a_high, "type": "high"})
+            if a_low > 0 and curr_p <= a_low: price_alerts.append({"name": item['name'], "price": curr_p, "target": a_low, "type": "low"})
+
             custom_info = custom_divs.get(sym)
-            _, div_amount, ex_date, pay_date, fill_status, status_msg = get_div_data(sym, custom_info)
+            is_announced, div_amount, ex_date, pay_date, fill_status, status_msg = get_div_data(sym, custom_info)
+
+            est_yield = 0.0
+            months_to_pay = DIVIDEND_SCHEDULE.get(sym, [])
+            if len(months_to_pay) > 0 and div_amount > 0 and curr_p > 0: est_yield = (div_amount * len(months_to_pay)) / curr_p * 100
+
+            if is_announced and ex_date != "待官方公告":
+                days_diff_ex = (datetime.strptime(ex_date, '%Y-%m-%d').date() - today.date()).days
+                if 0 <= days_diff_ex <= 20: radar_ex.append({"symbol": stock_id, "date": ex_date, "days": days_diff_ex})
+                
+            if is_announced and pay_date != "待官方公告":
+                days_diff_pay = (datetime.strptime(pay_date, '%Y-%m-%d').date() - today.date()).days
+                if 0 <= days_diff_pay <= 20: radar_pay.append({"symbol": stock_id, "date": pay_date, "amount": shares * div_amount, "days": days_diff_pay})
+
+            # 配息日曆加總邏輯 (這就是引發 KeyError 的元兇，已經補回)
+            if div_amount > 0 and shares > 0:
+                explicit_pay_month = datetime.strptime(pay_date, '%Y-%m-%d').month if (is_announced and pay_date != "待官方公告") else None
+                if explicit_pay_month:
+                    monthly_calendar[explicit_pay_month]["amount"] += (shares * div_amount)
+                    if item['name'] not in monthly_calendar[explicit_pay_month]["sources"]: monthly_calendar[explicit_pay_month]["sources"].append(item['name'])
+
+                for m in months_to_pay:
+                    pay_m = m + 1 if m < 12 else 1
+                    if pay_m != explicit_pay_month:
+                        monthly_calendar[pay_m]["amount"] += (shares * div_amount)
+                        if item['name'] not in monthly_calendar[pay_m]["sources"]: monthly_calendar[pay_m]["sources"].append(item['name'])
+
+            total_mkt += mkt_val; total_cost += cost_val; total_div += (shares * div_amount)
             
+            fee_info = ETF_FEES_DB.get(sym, {"經理費": "-", "保管費": "-"})
+            cap_str = "系統暫不支援"
+
             results.append({
                 "代號": sym, "名稱": item['name'], "現價": curr_p, "均價": item['cost'],
-                "張數": item['holdings'], "市值": mkt_val, "損益": profit, "狀態": status_msg
+                "張數": item['holdings'], "市值": mkt_val, "損益": profit, "報酬率": roi,
+                "經理費": fee_info["經理費"], "保管費": fee_info["保管費"], 
+                "單次預估領息": shares * div_amount, "每股配息": div_amount,
+                "最新公告除息日": ex_date, "預估發放日": pay_date, "已公告": is_announced,
+                "狀態": status_msg, "最新填息紀錄": fill_status, "基金規模": cap_str
             })
             
+            month_tag = "月配息" if len(months_to_pay) == 12 else (",".join(map(str, months_to_pay)) + "月" if months_to_pay else "-")
+            vol_money_str = f"{vol * curr_p / 100000000:.2f} 億" if (vol and vol > 0) else "無資料"
+            
             tech_results.append({
-                "ETF 名稱": display_name, 
-                "配息月份": "月配息" if len(DIVIDEND_SCHEDULE.get(sym,[]))==12 else (",".join(map(str, DIVIDEND_SCHEDULE.get(sym,[]))) + "月" if DIVIDEND_SCHEDULE.get(sym,[]) else "-"),
-                "現價": round(curr_p, 2),
-                "今日損益": today_pnl_str, 
-                "今日漲跌幅": today_pct_str, 
-                "成交金額": f"{vol * curr_p / 100000000:.2f} 億"
+                "ETF 名稱": display_name, "配息月份": month_tag, "股票張數": item['holdings'], 
+                "現價": round(curr_p, 2), "今日損益": today_pnl_str, "今日漲跌幅": today_pct_str, 
+                "成交金額": vol_money_str, "年殖利率": f"{est_yield:.2f}%", 
+                "今日最高/最低": f"${day_high:.2f} / ${day_low:.2f}",
+                "52週最高/最低": f"${year_high:.2f} / ${year_low:.2f}", 
+                "設定高標(停利)": a_high, "設定低標(停損)": a_low
             })
-        except: continue
-    return pd.DataFrame(results), pd.DataFrame(tech_results), 0, 0, 0, 0, [], [], [], {}
-    results, tech_results = [], []
+        except Exception as e: continue
+        
+    return pd.DataFrame(results), pd.DataFrame(tech_results), total_mkt, total_cost, total_div, total_today_pnl, radar_ex, radar_pay, price_alerts, monthly_calendar    results, tech_results = [], []
     total_mkt, total_cost, total_div, total_today_pnl = 0, 0, 0, 0
     radar_ex, radar_pay, price_alerts = [], [], []
     monthly_calendar = {i: {"amount": 0, "sources": []} for i in range(1, 13)} 
