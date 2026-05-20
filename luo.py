@@ -753,6 +753,84 @@ def fetch_data(etf_list, custom_divs):
     monthly_calendar = {i: {"amount": 0, "sources": []} for i in range(1, 13)} 
     today = datetime.today()
 
+    symbols = [item['symbol'] for item in etf_list]
+    tw_ids = [sym.split('.')[0] for sym in symbols]
+    
+    try:
+        hist_batch = yf.download(symbols, period='1mo', group_by='ticker', progress=False)
+    except:
+        hist_batch = pd.DataFrame()
+        
+    try:
+        rt_batch = twstock.realtime.get(tw_ids)
+        if isinstance(rt_batch, dict) and rt_batch.get('success'):
+            rt_batch = {tw_ids[0]: rt_batch}
+        elif not isinstance(rt_batch, dict):
+            rt_batch = {}
+    except:
+        rt_batch = {}
+
+    for item in etf_list:
+        try:
+            sym = item['symbol']
+            stock_id = sym.split('.')[0]
+            hist = hist_batch[sym] if len(symbols) > 1 and sym in hist_batch.columns.levels[0] else hist_batch
+            
+            if hist.empty or 'Close' not in hist.columns: continue
+            hist_clean = hist.dropna(subset=['Close'])
+            
+            curr_p = float(hist_clean['Close'].iloc[-1])
+            prev_close = float(hist_clean['Close'].iloc[-2]) if len(hist_clean) >= 2 else curr_p
+            vol = float(hist_clean['Volume'].iloc[-1])
+            
+            # --- 強制對齊元大銀行漲跌幅邏輯 ---
+            rt_data = rt_batch.get(stock_id, {})
+            if rt_data and rt_data.get('success'):
+                rt = rt_data['realtime']
+                info = rt_data['info']
+                if info.get('yclose') and info['yclose'] != '-':
+                    prev_close = float(info['yclose'])
+                if rt.get('latest_trade_price') and rt['latest_trade_price'] != '-':
+                    curr_p = float(rt['latest_trade_price'])
+                if rt.get('accumulate_trade_volume') and rt['accumulate_trade_volume'] != '-':
+                    vol = int(rt['accumulate_trade_volume']) * 1000
+
+            status_light = "🔴" if curr_p > prev_close else ("🟢" if curr_p < prev_close else "⚪")
+            display_name = f"{status_light} {item['name']}"
+            
+            today_profit = (item['holdings'] * 1000) * (curr_p - prev_close)
+            today_pct_change = ((curr_p - prev_close) / prev_close * 100) if prev_close else 0
+            today_pnl_str, today_pct_str = (f"+${today_profit:,.0f}", f"+{today_pct_change:.2f}%") if today_profit >= 0 else (f"-${abs(today_profit):,.0f}", f"{today_pct_change:.2f}%")
+
+            # 計算邏輯... (其餘邏輯同原本)
+            shares = item['holdings'] * 1000
+            mkt_val = shares * curr_p
+            profit = mkt_val - (shares * item['cost']) - (mkt_val * 0.00235)
+            
+            custom_info = custom_divs.get(sym)
+            _, div_amount, ex_date, pay_date, fill_status, status_msg = get_div_data(sym, custom_info)
+            
+            results.append({
+                "代號": sym, "名稱": item['name'], "現價": curr_p, "均價": item['cost'],
+                "張數": item['holdings'], "市值": mkt_val, "損益": profit, "狀態": status_msg
+            })
+            
+            tech_results.append({
+                "ETF 名稱": display_name, 
+                "配息月份": "月配息" if len(DIVIDEND_SCHEDULE.get(sym,[]))==12 else (",".join(map(str, DIVIDEND_SCHEDULE.get(sym,[]))) + "月" if DIVIDEND_SCHEDULE.get(sym,[]) else "-"),
+                "現價": round(curr_p, 2),
+                "今日損益": today_pnl_str, 
+                "今日漲跌幅": today_pct_str, 
+                "成交金額": f"{vol * curr_p / 100000000:.2f} 億"
+            })
+        except: continue
+    return pd.DataFrame(results), pd.DataFrame(tech_results), 0, 0, 0, 0, [], [], [], {}
+    results, tech_results = [], []
+    total_mkt, total_cost, total_div, total_today_pnl = 0, 0, 0, 0
+    radar_ex, radar_pay, price_alerts = [], [], []
+    monthly_calendar = {i: {"amount": 0, "sources": []} for i in range(1, 13)} 
+    today = datetime.today()
+
     # --- 🚀 極速優化：批量抓取資料，拒絕迴圈內重複連線 ---
     symbols = [item['symbol'] for item in etf_list]
     tw_ids = [sym.split('.')[0] for sym in symbols]
