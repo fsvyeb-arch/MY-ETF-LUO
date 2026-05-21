@@ -23,9 +23,7 @@ def color_months(val):
 # --- 1. 網頁基礎設定 ---
 st.set_page_config(page_title="ETF 投資戰情室", layout="wide")
 
-import socket
 import qrcode
-from PIL import Image
 import io
 
 # --- 手機掃碼連線功能 ---
