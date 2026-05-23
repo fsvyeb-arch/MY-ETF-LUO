@@ -1641,20 +1641,28 @@ if st.session_state.show_calculator:
             st.radio("交易動作：", ["賣出 (計算已實現損益)", "買進 (計算買入成本與新均價)"], key="calc_trade_type")
         with col_c2:
             st.number_input("輸入交易張數", min_value=0.1, step=1.0, key="calc_trade_shares")
-        if st.session_state.calc_trade_type == "賣出 (計算已實現損益)":
+        iif st.session_state.calc_trade_type == "賣出 (計算已實現損益)":
             trade_shares_display = st.session_state.calc_trade_shares
             if trade_shares_display > current_holdings:
                 st.warning(f"⚠️ 賣出張數 ({trade_shares_display}) 大於目前庫存 ({current_holdings})，將以全數出清試算並執行。")
                 trade_shares_display = current_holdings
+            
             realized_profit = (current_price - current_cost) * trade_shares_display * 1000
+            sell_value_total = current_price * trade_shares_display * 1000 # + 新增計算賣出總金額
+
             st.markdown("<div class='calc-box'>", unsafe_allow_html=True)
             st.write(f"📝 試算賣出 **{trade_shares_display}** 張")
+            
+            # + 新增這行：顯示預估賣出總額
+            st.markdown(f"💸 預估賣出總額 (預計拿回現金)：<div style='font-size: 24px; font-weight: bold; margin-top: 10px; margin-bottom: 15px;'>${sell_value_total:,.0f}</div>", unsafe_allow_html=True)
+
             if realized_profit > 0:
                 st.markdown(f"🎉 預估已實現損益 (賺)：<div class='calc-result-profit'>+${realized_profit:,.0f}</div>", unsafe_allow_html=True)
             elif realized_profit < 0:
                 st.markdown(f"📉 預估已實現損益 (賠)：<div class='calc-result-loss'>-${abs(realized_profit):,.0f}</div>", unsafe_allow_html=True)
             else:
                 st.markdown(f"⚖️ 預估已實現損益：<div style='font-size: 24px; font-weight: bold; margin-top: 10px;'>$0</div>", unsafe_allow_html=True)
+            
             st.markdown(f"<div class='calc-result-info'>*不含手續費與證交稅，成交價以系統抓取之現價 ${current_price:.2f} 計算</div>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
             st.button("💾 確認賣出並更新庫存", type="primary", use_container_width=True, on_click=execute_trade)
