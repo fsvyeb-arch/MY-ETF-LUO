@@ -1049,6 +1049,16 @@ with cols_btn_r3[0]: st.button(b7_lbl, on_click=toggle_constituents, type=b7_typ
 with cols_btn_r3[1]: st.button(b8_lbl, on_click=toggle_pledge, type=b8_typ, use_container_width=True) 
 with cols_btn_r3[2]: st.button(b9_lbl, on_click=toggle_secret, type=b9_typ, use_container_width=True) 
 with cols_btn_r4[0]: st.button(b10_lbl, on_click=toggle_daily_price, type=b10_typ, use_container_width=True) 
+with cols_btn_r4[0]: 
+    st.button(b10_lbl, on_click=toggle_daily_price, type=b10_typ, use_container_width=True)
+    # 🌟 在每日股價按鈕下方加上 API 連線成功提示
+    if 'FUGLE_API_KEY' in globals() and FUGLE_API_KEY != "請在此填入您的富果API金鑰":
+        st.markdown("<div style='color: #2e7d32; font-weight: bold; margin-top: 8px; font-size: 15px; text-align: center;'>✅ API 連線成功</div>", unsafe_allow_html=True)
+
+with cols_btn_r4[1]: 
+    st.button(b11_lbl, on_click=toggle_calculator, type=b11_typ, use_container_width=True)
+
+st.write("---")
 with cols_btn_r4[1]: st.button(b11_lbl, on_click=toggle_calculator, type=b11_typ, use_container_width=True)
 
 st.write("---")
