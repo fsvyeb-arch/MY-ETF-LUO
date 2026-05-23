@@ -628,6 +628,7 @@ def fetch_watchlist_dividend(wl_list, custom_divs):
             continue
     return pd.DataFrame(results)
 # --- 4. 核心數據計算 ---
+# --- 4. 核心數據計算 ---
 @st.cache_data(ttl=10)
 def fetch_data(etf_list, custom_divs):
     if not etf_list: return pd.DataFrame(), pd.DataFrame(), 0, 0, 0, 0, [], [], [], {i: {"amount": 0, "sources": []} for i in range(1, 13)}
@@ -636,76 +637,80 @@ def fetch_data(etf_list, custom_divs):
     radar_ex, radar_pay, price_alerts = [], [], []
     monthly_calendar = {i: {"amount": 0, "sources": []} for i in range(1, 13)} 
     today = datetime.today()
+    
     # --- 🚀 極速優化：批量抓取資料，拒絕迴圈內重複連線 ---
     symbols = [item['symbol'] for item in etf_list]
     tw_ids = [sym.split('.')[0] for sym in symbols]
+    
     try:
-            hist_batch = yf.download(symbols, period='1mo', group_by='ticker', progress=False)
-        except:
-            hist_batch = pd.DataFrame()
-            
-        # 🌟 改用 Fugle API 取得報價
-        fugle_quotes = {}
-        if FUGLE_API_KEY and FUGLE_API_KEY != "請在此填入您的富果API金鑰":
-            headers = {"X-API-KEY": FUGLE_API_KEY}
-            for stock_id in set(tw_ids):
-                try:
-                    # 富果 v1.0 行情 API 端點
-                    url = f"https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/{stock_id}"
-                    res = requests.get(url, headers=headers, timeout=2)
-                    if res.status_code == 200:
-                        fugle_quotes[stock_id] = res.json()
-                except:
-                    continue
-
-        for item in etf_list:
+        hist_batch = yf.download(symbols, period='1mo', group_by='ticker', progress=False)
+    except:
+        hist_batch = pd.DataFrame()
+        
+    # 🌟 改用 Fugle API 取得報價
+    fugle_quotes = {}
+    if FUGLE_API_KEY and FUGLE_API_KEY != "請在此填入您的富果API金鑰":
+        headers = {"X-API-KEY": FUGLE_API_KEY}
+        for stock_id in set(tw_ids):
             try:
-                sym = item['symbol']
-                stock_id = sym.split('.')[0]
+                # 富果 v1.0 行情 API 端點
+                url = f"https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/{stock_id}"
+                res = requests.get(url, headers=headers, timeout=2)
+                if res.status_code == 200:
+                    fugle_quotes[stock_id] = res.json()
+            except:
+                continue
+
+    for item in etf_list:
+        try:
+            sym = item['symbol']
+            stock_id = sym.split('.')[0]
+            
+            # 處理 yfinance 歷史資料
+            if len(symbols) == 1:
+                hist = hist_batch
+            else:
+                hist = hist_batch[sym] if sym in hist_batch.columns.levels[0] else pd.DataFrame()
                 
-                # 處理 yfinance 歷史資料
-                if len(symbols) == 1:
-                    hist = hist_batch
-                else:
-                    hist = hist_batch[sym] if sym in hist_batch.columns.levels[0] else pd.DataFrame()
-                    
-                if hist.empty or 'Close' not in hist.columns or hist['Close'].dropna().empty: 
-                    continue
-                    
-                hist_clean = hist.dropna(subset=['Close'])
-                curr_p = float(hist_clean['Close'].iloc[-1])
-                prev_close = float(hist_clean['Close'].iloc[-2]) if len(hist_clean) >= 2 else curr_p
-                day_high = float(hist_clean['High'].iloc[-1])
-                day_low = float(hist_clean['Low'].iloc[-1])
-                vol = float(hist_clean['Volume'].iloc[-1])
-                year_high = float(hist_clean['High'].max())
-                year_low = float(hist_clean['Low'].min())
+            if hist.empty or 'Close' not in hist.columns or hist['Close'].dropna().empty: 
+                continue
                 
-                # 🌟 解析 Fugle API 回傳的資料並覆蓋歷史價格
-                fg_data = fugle_quotes.get(stock_id, {})
-                if fg_data:
-                    # 取得現價 (優先取最新成交價，若無則取收盤價)
-                    if fg_data.get('lastPrice') is not None: 
-                        curr_p = float(fg_data['lastPrice'])
-                    elif fg_data.get('closePrice') is not None: 
-                        curr_p = float(fg_data['closePrice'])
+            hist_clean = hist.dropna(subset=['Close'])
+            curr_p = float(hist_clean['Close'].iloc[-1])
+            prev_close = float(hist_clean['Close'].iloc[-2]) if len(hist_clean) >= 2 else curr_p
+            day_high = float(hist_clean['High'].iloc[-1])
+            day_low = float(hist_clean['Low'].iloc[-1])
+            vol = float(hist_clean['Volume'].iloc[-1])
+            year_high = float(hist_clean['High'].max())
+            year_low = float(hist_clean['Low'].min())
+            
+            # 🌟 解析 Fugle API 回傳的資料並覆蓋歷史價格
+            fg_data = fugle_quotes.get(stock_id, {})
+            if fg_data:
+                # 取得現價 (優先取最新成交價，若無則取收盤價)
+                if fg_data.get('lastPrice') is not None: 
+                    curr_p = float(fg_data['lastPrice'])
+                elif fg_data.get('closePrice') is not None: 
+                    curr_p = float(fg_data['closePrice'])
+                
+                # 取得昨收價
+                if fg_data.get('previousClose') is not None: 
+                    prev_close = float(fg_data['previousClose'])
+                elif fg_data.get('referencePrice') is not None: 
+                    prev_close = float(fg_data['referencePrice'])
+                
+                # 取得最高與最低價
+                if fg_data.get('highPrice') is not None: 
+                    day_high = float(fg_data['highPrice'])
+                if fg_data.get('lowPrice') is not None: 
+                    day_low = float(fg_data['lowPrice'])
+                
+                # 取得成交量 (富果的 tradeVolume 單位預設為股)
+                total_data = fg_data.get('total', {})
+                if total_data.get('tradeVolume') is not None:
+                    vol = float(total_data['tradeVolume'])
                     
-                    # 取得昨收價
-                    if fg_data.get('previousClose') is not None: 
-                        prev_close = float(fg_data['previousClose'])
-                    elif fg_data.get('referencePrice') is not None: 
-                        prev_close = float(fg_data['referencePrice'])
-                    
-                    # 取得最高與最低價
-                    if fg_data.get('highPrice') is not None: 
-                        day_high = float(fg_data['highPrice'])
-                    if fg_data.get('lowPrice') is not None: 
-                        day_low = float(fg_data['lowPrice'])
-                    
-                    # 取得成交量 (富果的 tradeVolume 單位預設為股)
-                    total_data = fg_data.get('total', {})
-                    if total_data.get('tradeVolume') is not None:
-                        vol = float(total_data['tradeVolume'])
+            status_light = "🔴" if curr_p > prev_close else ("🟢" if curr_p < prev_close else "⚪")
     except:
         rt_batch = {}
     except:
