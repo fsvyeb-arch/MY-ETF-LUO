@@ -1050,11 +1050,18 @@ with cols_btn_r3[1]: st.button(b8_lbl, on_click=toggle_pledge, type=b8_typ, use_
 with cols_btn_r3[2]: st.button(b9_lbl, on_click=toggle_secret, type=b9_typ, use_container_width=True) 
 with cols_btn_r4[0]: st.button(b10_lbl, on_click=toggle_daily_price, type=b10_typ, use_container_width=True) 
 with cols_btn_r4[0]: 
+    # 使用固定 key="btn_daily_price" 來確保 ID 不會衝突
     st.button(b10_lbl, on_click=toggle_daily_price, type=b10_typ, use_container_width=True, key="btn_daily_price")
-    # 🌟 API 連線成功提示
-    if 'FUGLE_API_KEY' in globals() and FUGLE_API_KEY != "NTRjNWZiZjAtMWYyMC00Mzc5LWI5Y2UtNWZhZDQ5YWU2MTRjIDhhZWM2NmVjLWEwNzYtNDgxYS04ZGY4LTM3ZjE4N2YzNGIzMA==":
+    st.button(b10_lbl, on_click=toggle_daily_price, type=b10_typ, use_container_width=True, key="btn_daily_price")
+    st.button(b10_lbl, on_click=toggle_daily_price, type=b10_typ, use_container_width=True, key="btn_daily_price")
+    if 'FUGLE_API_KEY' in globals() and FUGLE_API_KEY != "":
         st.markdown("<div style='color: #2e7d32; font-weight: bold; margin-top: 8px; font-size: 15px; text-align: center;'>✅ API 連線成功</div>", unsafe_allow_html=True)
 
+with cols_btn_r4[1]: 
+    # 將 label 改為固定文字，並用 key 來標記，這樣就絕不會產生 DuplicateElementId 錯誤
+    st.button(b11_lbl, on_click=toggle_calculator, type=b11_typ, use_container_width=True, key="btn_calculator")
+
+st.write("---")
 with cols_btn_r4[1]: 
     st.button(b11_lbl, on_click=toggle_calculator, type=b11_typ, use_container_width=True, key="btn_calculator")
 
