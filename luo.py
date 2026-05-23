@@ -666,7 +666,11 @@ def fetch_data(etf_list, custom_divs):
             st.json(fugle_quotes)
     elif FUGLE_API_KEY != "NTRjNWZiZjAtMWYyMC00Mzc5LWI5Y2UtNWZhZDQ5YWU2MTRjIDhhZWM2NmVjLWEwNzYtNDgxYS04ZGY4LTM3ZjE4N2YzNGIzMA==":
         st.sidebar.error("❌ 富果 API 連線失敗，請檢查金鑰或網路。")
-        
+    else:
+                st.sidebar.success("🟢 富果 API 連線成功！")
+            
+            for item in etf_list:
+                try:    
     for item in etf_list:
         try:
             sym = item['symbol']
