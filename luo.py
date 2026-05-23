@@ -1,6 +1,5 @@
 import streamlit as st
 import yfinance as yf
-import twstock
 import pandas as pd
 import json
 import os
@@ -10,6 +9,7 @@ from datetime import datetime, timedelta
 import time
 import altair as alt
 import requests
+FUGLE_API_KEY = "請在此填入您的富果API金鑰" # 🌟 NTRjNWZiZjAtMWYyMC00Mzc5LWI5Y2UtNWZhZDQ5YWU2MTRjIDhhZWM2NmVjLWEwNzYtNDgxYS04ZGY4LTM3ZjE4N2YzNGIzMA==
 def color_profit_loss(val):
     if isinstance(val, str): return 'color: #d32f2f; font-weight: bold;' if val.startswith('+') else ('color: #388e3c; font-weight: bold;' if val.startswith('-') else '')
     return ''
@@ -643,12 +643,21 @@ def fetch_data(etf_list, custom_divs):
         hist_batch = yf.download(symbols, period='1mo', group_by='ticker', progress=False)
     except:
         hist_batch = pd.DataFrame()
-    try:
-        rt_batch = twstock.realtime.get(tw_ids)
-        if isinstance(rt_batch, dict) and rt_batch.get('success'): # 單筆回傳結構處理
-            rt_batch = {tw_ids[0]: rt_batch}
-        elif not isinstance(rt_batch, dict):
-            rt_batch = {}
+    # 🌟 改用 Fugle API 取得報價
+    fugle_quotes = {}
+    if FUGLE_API_KEY and FUGLE_API_KEY != "NTRjNWZiZjAtMWYyMC00Mzc5LWI5Y2UtNWZhZDQ5YWU2MTRjIDhhZWM2NmVjLWEwNzYtNDgxYS04ZGY4LTM3ZjE4N2YzNGIzMA==":
+        headers = {"X-API-KEY": FUGLE_API_KEY}
+        for stock_id in set(tw_ids):
+            try:
+                # 富果 v1.0 行情 API 端點
+                url = f"https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/{stock_id}"
+                res = requests.get(url, headers=headers, timeout=2)
+                if res.status_code == 200:
+                    fugle_quotes[stock_id] = res.json()
+            except:
+                continue
+    except:
+        rt_batch = {}
     except:
         rt_batch = {}
     for item in etf_list:
@@ -670,20 +679,32 @@ def fetch_data(etf_list, custom_divs):
             year_high = float(hist_clean['High'].max())
             year_low = float(hist_clean['Low'].min())
             rt_data = rt_batch.get(stock_id, {})
-            if rt_data and rt_data.get('success'):
-                rt = rt_data['realtime']
-                info = rt_data['info']
-                if rt.get('latest_trade_price') and rt['latest_trade_price'] != '-':
-                    curr_p = float(rt['latest_trade_price'])
-                elif info.get('yclose') and info['yclose'] != '-':
-                    curr_p = float(info['yclose'])
-                if info.get('yclose') and info['yclose'] != '-':
-                    prev_close = float(info['yclose'])
-                if rt.get('high') and rt['high'] != '-': day_high = float(rt['high'])
-                if rt.get('low') and rt['low'] != '-': day_low = float(rt['low'])
-                if rt.get('accumulate_trade_volume') and rt['accumulate_trade_volume'] != '-':
-                    vol = int(rt['accumulate_trade_volume']) * 1000
-            status_light = "🔴" if curr_p > prev_close else ("🟢" if curr_p < prev_close else "⚪")
+            # 🌟 解析 Fugle API 回傳的資料
+            fg_data = fugle_quotes.get(stock_id, {})
+            if fg_data:
+                # 取得現價 (優先取最新成交價，若無則取收盤價)
+                if fg_data.get('lastPrice') is not None: 
+                    curr_p = float(fg_data['lastPrice'])
+                elif fg_data.get('closePrice') is not None: 
+                    curr_p = float(fg_data['closePrice'])
+                
+                # 取得昨收價
+                if fg_data.get('previousClose') is not None: 
+                    prev_close = float(fg_data['previousClose'])
+                elif fg_data.get('referencePrice') is not None: 
+                    prev_close = float(fg_data['referencePrice'])
+                
+                # 取得最高與最低價
+                if fg_data.get('highPrice') is not None: 
+                    day_high = float(fg_data['highPrice'])
+                if fg_data.get('lowPrice') is not None: 
+                    day_low = float(fg_data['lowPrice'])
+                
+                # 取得成交量 (富果的 tradeVolume 單位預設為股)
+                total_data = fg_data.get('total', {})
+                if total_data.get('tradeVolume') is not None:
+                    vol = float(total_data['tradeVolume'])
+                status_light = "🔴" if curr_p > prev_close else ("🟢" if curr_p < prev_close else "⚪")
             display_name = f"{status_light} {item['name']}"
             shares = item['holdings'] * 1000
             mkt_val = shares * curr_p
