@@ -649,7 +649,7 @@ def fetch_data(etf_list, custom_divs):
     # 🌟 改用 Fugle API 取得報價
     fugle_quotes = {}
     # (請確保你在檔案最上方有設定 FUGLE_API_KEY = "你的金鑰")
-    if 'FUGLE_API_KEY' in globals() and FUGLE_API_KEY != "請在此填入您的富果API金鑰":
+    if 'FUGLE_API_KEY' in globals() and FUGLE_API_KEY != "NTRjNWZiZjAtMWYyMC00Mzc5LWI5Y2UtNWZhZDQ5YWU2MTRjIDhhZWM2NmVjLWEwNzYtNDgxYS04ZGY4LTM3ZjE4N2YzNGIzMA==":
         headers = {"X-API-KEY": FUGLE_API_KEY}
         for stock_id in set(tw_ids):
             try:
@@ -1166,7 +1166,7 @@ if st.session_state.show_tech:
             st.markdown("<div style='background-color: #f0f7ff; border: 1px solid #cce5ff; border-radius: 8px; padding: 10px 8px; text-align: center; box-shadow: 1px 1px 3px rgba(0,0,0,0.05);'>", unsafe_allow_html=True)
             st.markdown("<div style='font-size: 15px; font-weight: bold; color: #1e3c72; margin-bottom: 4px;'>⚡ 自動更新</div>", unsafe_allow_html=True)
             if 'auto_refresh_sec' not in st.session_state:
-                st.session_state.auto_refresh_sec = 5
+                st.session_state.auto_refresh_sec = 30
             auto_sec = st.number_input("更新頻率(秒)", min_value=1, max_value=600, value=st.session_state.auto_refresh_sec)
             if auto_sec != st.session_state.auto_refresh_sec:
                 st.session_state.auto_refresh_sec = auto_sec
@@ -1756,6 +1756,6 @@ with bot_c2:
                     st.button(f"🗑️ 刪除 {item['name']}", key=f"del_{i}", on_click=delete_etf, args=(i,), use_container_width=True)
             st.button("💾 儲存所有修改", use_container_width=True, type="primary", on_click=save_edits)
 if st.session_state.get("auto_refresh_mode") == "✅ 開啟" or st.session_state.get("auto_refresh_mode") == "✅ USE (開啟)":
-    time.sleep(st.session_state.get("auto_refresh_sec", 5))
+    time.sleep(st.session_state.get("auto_refresh_sec", 30))
     st.cache_data.clear() 
     st.rerun()
