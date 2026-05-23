@@ -628,7 +628,6 @@ def fetch_watchlist_dividend(wl_list, custom_divs):
             continue
     return pd.DataFrame(results)
 # --- 4. 核心數據計算 ---
-# --- 4. 核心數據計算 ---
 @st.cache_data(ttl=10)
 def fetch_data(etf_list, custom_divs):
     if not etf_list: return pd.DataFrame(), pd.DataFrame(), 0, 0, 0, 0, [], [], [], {i: {"amount": 0, "sources": []} for i in range(1, 13)}
@@ -649,7 +648,8 @@ def fetch_data(etf_list, custom_divs):
         
     # 🌟 改用 Fugle API 取得報價
     fugle_quotes = {}
-    if FUGLE_API_KEY and FUGLE_API_KEY != "請在此填入您的富果API金鑰":
+    # (請確保你在檔案最上方有設定 FUGLE_API_KEY = "你的金鑰")
+    if 'FUGLE_API_KEY' in globals() and FUGLE_API_KEY != "請在此填入您的富果API金鑰":
         headers = {"X-API-KEY": FUGLE_API_KEY}
         for stock_id in set(tw_ids):
             try:
@@ -711,55 +711,6 @@ def fetch_data(etf_list, custom_divs):
                     vol = float(total_data['tradeVolume'])
                     
             status_light = "🔴" if curr_p > prev_close else ("🟢" if curr_p < prev_close else "⚪")
-    except:
-        rt_batch = {}
-    except:
-        rt_batch = {}
-    for item in etf_list:
-        try:
-            sym = item['symbol']
-            stock_id = sym.split('.')[0]
-            if len(symbols) == 1:
-                hist = hist_batch
-            else:
-                hist = hist_batch[sym] if sym in hist_batch.columns.levels[0] else pd.DataFrame()
-            if hist.empty or 'Close' not in hist.columns or hist['Close'].dropna().empty: 
-                continue
-            hist_clean = hist.dropna(subset=['Close'])
-            curr_p = float(hist_clean['Close'].iloc[-1])
-            prev_close = float(hist_clean['Close'].iloc[-2]) if len(hist_clean) >= 2 else curr_p
-            day_high = float(hist_clean['High'].iloc[-1])
-            day_low = float(hist_clean['Low'].iloc[-1])
-            vol = float(hist_clean['Volume'].iloc[-1])
-            year_high = float(hist_clean['High'].max())
-            year_low = float(hist_clean['Low'].min())
-            rt_data = rt_batch.get(stock_id, {})
-            # 🌟 解析 Fugle API 回傳的資料
-            fg_data = fugle_quotes.get(stock_id, {})
-            if fg_data:
-                # 取得現價 (優先取最新成交價，若無則取收盤價)
-                if fg_data.get('lastPrice') is not None: 
-                    curr_p = float(fg_data['lastPrice'])
-                elif fg_data.get('closePrice') is not None: 
-                    curr_p = float(fg_data['closePrice'])
-                
-                # 取得昨收價
-                if fg_data.get('previousClose') is not None: 
-                    prev_close = float(fg_data['previousClose'])
-                elif fg_data.get('referencePrice') is not None: 
-                    prev_close = float(fg_data['referencePrice'])
-                
-                # 取得最高與最低價
-                if fg_data.get('highPrice') is not None: 
-                    day_high = float(fg_data['highPrice'])
-                if fg_data.get('lowPrice') is not None: 
-                    day_low = float(fg_data['lowPrice'])
-                
-                # 取得成交量 (富果的 tradeVolume 單位預設為股)
-                total_data = fg_data.get('total', {})
-                if total_data.get('tradeVolume') is not None:
-                    vol = float(total_data['tradeVolume'])
-                status_light = "🔴" if curr_p > prev_close else ("🟢" if curr_p < prev_close else "⚪")
             display_name = f"{status_light} {item['name']}"
             shares = item['holdings'] * 1000
             mkt_val = shares * curr_p
@@ -772,16 +723,19 @@ def fetch_data(etf_list, custom_divs):
             today_pct_change = (today_diff / prev_close * 100) if prev_close else 0
             total_today_pnl += today_profit
             today_pnl_str, today_pct_str = (f"+${today_profit:,.0f}", f"+{today_pct_change:.2f}%") if today_profit >= 0 else (f"-${abs(today_profit):,.0f}", f"{today_pct_change:.2f}%")
+            
             a_high = float(item.get('alert_high', 0.0))
             a_low = float(item.get('alert_low', 0.0))
             if a_high > 0 and curr_p >= a_high: price_alerts.append({"name": item['name'], "price": curr_p, "target": a_high, "type": "high"})
             if a_low > 0 and curr_p <= a_low: price_alerts.append({"name": item['name'], "price": curr_p, "target": a_low, "type": "low"})
+            
             custom_info = custom_divs.get(item['symbol'])
             is_announced, div_amount, ex_date, pay_date, fill_status, status_msg = get_div_data(item['symbol'], custom_info)
             est_yield = 0.0
             months_to_pay = DIVIDEND_SCHEDULE.get(item['symbol'], [])
             if len(months_to_pay) > 0 and div_amount > 0 and curr_p > 0:
                 est_yield = (div_amount * len(months_to_pay)) / curr_p * 100
+                
             is_valid_announced = False
             days_diff_ex = -999
             if is_announced and ex_date != "待官方公告":
@@ -792,6 +746,7 @@ def fetch_data(etf_list, custom_divs):
                         radar_ex.append({"symbol": item['symbol'].split('.')[0], "date": ex_date, "days": days_diff_ex, "status": "announced"})
                         is_valid_announced = True
                 except: pass
+                
             if not is_valid_announced:
                 months = DIVIDEND_SCHEDULE.get(item['symbol'], [])
                 if months:
@@ -803,10 +758,12 @@ def fetch_data(etf_list, custom_divs):
                     next_m = next_months[0] if next_months else min(months)
                     if next_m == current_m or next_m == (current_m % 12) + 1:
                         radar_ex.append({"symbol": item['symbol'].split('.')[0], "date": f"預計 {next_m} 月", "days": 99, "status": "pending"})
+                        
             if is_announced and pay_date != "待官方公告":
                 pay_date_obj = datetime.strptime(pay_date, '%Y-%m-%d')
                 days_diff_pay = (pay_date_obj.date() - today.date()).days
                 if 0 <= days_diff_pay <= 20: radar_pay.append({"symbol": item['symbol'].split('.')[0], "date": pay_date, "amount": shares * div_amount, "days": days_diff_pay})
+                
             if div_amount > 0 and shares > 0:
                 explicit_pay_month = None
                 if is_announced and pay_date != "待官方公告":
@@ -820,9 +777,11 @@ def fetch_data(etf_list, custom_divs):
                         monthly_calendar[pay_m]["amount"] += (shares * div_amount)
                         if item['name'] not in monthly_calendar[pay_m]["sources"]:
                             monthly_calendar[pay_m]["sources"].append(item['name'])
+                            
             total_mkt += mkt_val; total_cost += cost_val; total_div += (shares * div_amount)
             fee_info = ETF_FEES_DB.get(item['symbol'], {"經理費": "-", "保管費": "-"})
-            cap_str = "系統暫不支援" # 取消原本在迴圈內的 get_fund_size 查詢以提升速度
+            cap_str = "系統暫不支援" 
+            
             results.append({
                 "代號": item['symbol'], "名稱": item['name'], "現價": curr_p, "均價": item['cost'],
                 "張數": item['holdings'], "市值": mkt_val, "損益": profit, "報酬率": roi,
@@ -832,9 +791,11 @@ def fetch_data(etf_list, custom_divs):
                 "狀態": status_msg,
                 "最新填息紀錄": fill_status, "基金規模": cap_str
             })
+            
             months_to_pay = DIVIDEND_SCHEDULE.get(item['symbol'], [])
             month_tag = "月配息" if len(months_to_pay) == 12 else (",".join(map(str, months_to_pay)) + "月" if months_to_pay else "-")
             vol_money_str = f"{vol * curr_p / 100000000:.2f} 億" if (vol and vol > 0) else "無資料"
+            
             tech_results.append({
                 "ETF 名稱": display_name, 
                 "配息月份": month_tag, 
@@ -849,7 +810,9 @@ def fetch_data(etf_list, custom_divs):
                 "設定高標(停利)": a_high, 
                 "設定低標(停損)": a_low
             })
-        except Exception as e: continue
+        except Exception as e: 
+            continue
+            
     return pd.DataFrame(results), pd.DataFrame(tech_results), total_mkt, total_cost, total_div, total_today_pnl, radar_ex, radar_pay, price_alerts, monthly_calendar
 df, df_tech, g_mkt, g_cost, g_div, g_today_pnl, radar_ex, radar_pay, price_alerts, monthly_calendar = fetch_data(st.session_state.my_data['etfs'], st.session_state.my_data.get('custom_divs', {}))
 # --- 📡 抓取 ETF 焦點新聞 ---
