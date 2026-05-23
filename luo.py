@@ -669,7 +669,7 @@ def fetch_data(etf_list, custom_divs):
     else:
                 st.sidebar.success("🟢 富果 API 連線成功！")
             
-            for item in etf_list:
+    for item in etf_list:
                 try:    
     for item in etf_list:
         try:
