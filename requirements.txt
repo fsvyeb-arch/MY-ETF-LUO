@@ -6,3 +6,4 @@ requests
 twstock
 qrcode
 Pillow
+xlsxwriter
