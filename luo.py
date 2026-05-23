@@ -413,10 +413,13 @@ if 'show_daily_price' not in st.session_state: st.session_state.show_daily_price
 if 'show_pledge' not in st.session_state: st.session_state.show_pledge = False 
 if 'show_secret' not in st.session_state: st.session_state.show_secret = False
 if 'is_unlocked' not in st.session_state: st.session_state.is_unlocked = False
+if 'show_calculator' not in st.session_state: st.session_state.show_calculator = False # + 新增這行
 def toggle_us(): st.session_state.show_us = not st.session_state.show_us
-def toggle_tw(): st.session_state.show_tw = not st.session_state.show_tw
-def toggle_calendar(): st.session_state.show_calendar = not st.session_state.show_calendar
-def toggle_div_db(): st.session_state.show_div_db = not st.session_state.show_div_db
+# ... 中間省略 ...
+def toggle_daily_price(): st.session_state.show_daily_price = not st.session_state.show_daily_price 
+def toggle_pledge(): st.session_state.show_pledge = not st.session_state.show_pledge 
+def toggle_secret(): st.session_state.show_secret = not st.session_state.show_secret
+def toggle_calculator(): st.session_state.show_calculator = not st.session_state.show_calculator # + 新增這行
 def toggle_tech(): st.session_state.show_tech = not st.session_state.show_tech
 def toggle_holdings(): st.session_state.show_holdings = not st.session_state.show_holdings
 def toggle_constituents(): st.session_state.show_constituents = not st.session_state.show_constituents
@@ -972,18 +975,20 @@ b5_lbl, b5_typ = ("🔽 收起股價監控", "primary") if st.session_state.show
 b6_lbl, b6_typ = ("🔽 收起持股明細", "primary") if st.session_state.show_holdings else ("📊 展開持股明細", "secondary")
 b7_lbl, b7_typ = ("🔽 收起ETF成份股", "primary") if st.session_state.show_constituents else ("🧩 展開ETF成份股", "secondary")
 b8_lbl, b8_typ = ("🔽 收起質押專區", "primary") if st.session_state.show_pledge else ("🏦 展開質押專區", "secondary") 
-b9_lbl, b9_typ = ("🔽 收起機密面板", "primary") if st.session_state.show_secret else ("🔐 展開機密面板", "secondary")
+bb9_lbl, b9_typ = ("🔽 收起高度機密", "primary") if st.session_state.show_secret else ("🔐 展開機密面板", "secondary")
 b10_lbl, b10_typ = ("🔽 收起每日股價", "primary") if st.session_state.show_daily_price else ("🗓️ 展開每日股價", "secondary") 
-with cols_btn_r1[0]: st.button(b1_lbl, on_click=toggle_us, type=b1_typ, use_container_width=True)
-with cols_btn_r1[1]: st.button(b2_lbl, on_click=toggle_tw, type=b2_typ, use_container_width=True)
-with cols_btn_r1[2]: st.button(b3_lbl, on_click=toggle_calendar, type=b3_typ, use_container_width=True)
-with cols_btn_r2[0]: st.button(b4_lbl, on_click=toggle_div_db, type=b4_typ, use_container_width=True)
-with cols_btn_r2[1]: st.button(b5_lbl, on_click=toggle_tech, type=b5_typ, use_container_width=True)
+b11_lbl, b11_typ = ("🔽 收起買賣試算", "primary") if st.session_state.show_calculator else ("💰 展開買賣試算", "secondary") # + 新增這行
+with cols_btn_r3[0]: st.button(b7_lbl, on_click=toggle_constituents, type=b7_typ, use_container_width=True) 
+with cols_btn_r3[1]: st.button(b8_lbl, on_click=toggle_pledge, type=b8_typ, use_container_width=True) 
+with cols_btn_r3[2]: st.button(b9_lbl, on_click=toggle_secret, type=b9_typ, use_container_width=True) 
+with cols_btn_r4[0]: st.button(b10_lbl, on_click=toggle_daily_price, type=b10_typ, use_container_width=True) 
+with cols_btn_r4[1]: st.button(b11_lbl, on_click=toggle_calculator, type=b11_typ, use_container_width=True) # + 新增這行放入中間
 with cols_btn_r2[2]: st.button(b6_lbl, on_click=toggle_holdings, type=b6_typ, use_container_width=True)
 with cols_btn_r3[0]: st.button(b7_lbl, on_click=toggle_constituents, type=b7_typ, use_container_width=True) 
 with cols_btn_r3[1]: st.button(b8_lbl, on_click=toggle_pledge, type=b8_typ, use_container_width=True) 
 with cols_btn_r3[2]: st.button(b9_lbl, on_click=toggle_secret, type=b9_typ, use_container_width=True) 
 with cols_btn_r4[0]: st.button(b10_lbl, on_click=toggle_daily_price, type=b10_typ, use_container_width=True) 
+
 st.write("---")
 if st.session_state.show_us and "us" in macro_data and macro_data["us"]:
     st.markdown("#### 🌏 關鍵美股指標")
@@ -1599,7 +1604,8 @@ if st.session_state.show_secret:
             st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
     st.write("---")
-with st.expander("💰 買賣損益試算器", expanded=False):
+if st.session_state.show_calculator:
+    st.markdown("#### 💰 買賣損益試算器")
     st.markdown("<div class='calc-title'>依照即時現價，試算買進或賣出後的損益狀況，並可直接寫入庫存！</div>", unsafe_allow_html=True)
     if not df.empty:
         calc_options = [row['名稱'] for _, row in df.iterrows()]
