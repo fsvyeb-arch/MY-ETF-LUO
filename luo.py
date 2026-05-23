@@ -1641,7 +1641,7 @@ if st.session_state.show_calculator:
             st.radio("交易動作：", ["賣出 (計算已實現損益)", "買進 (計算買入成本與新均價)"], key="calc_trade_type")
         with col_c2:
             st.number_input("輸入交易張數", min_value=0.1, step=1.0, key="calc_trade_shares")
-        iif st.session_state.calc_trade_type == "賣出 (計算已實現損益)":
+        if st.session_state.calc_trade_type == "賣出 (計算已實現損益)":
             trade_shares_display = st.session_state.calc_trade_shares
             if trade_shares_display > current_holdings:
                 st.warning(f"⚠️ 賣出張數 ({trade_shares_display}) 大於目前庫存 ({current_holdings})，將以全數出清試算並執行。")
