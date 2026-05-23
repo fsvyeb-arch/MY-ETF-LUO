@@ -963,6 +963,20 @@ if "tw" in macro_data and macro_data["tw"]:
     tw_up = sum(1 for v in macro_data["tw"].values() if v['diff'] >= 0)
     tw_down = len(macro_data["tw"]) - tw_up
     tw_icon = "🔴" if tw_up >= tw_down else "🟢"
+# === 1. 確保所有切換函式都在按鈕的「正上方」定義 ===
+def toggle_us(): st.session_state.show_us = not st.session_state.show_us
+def toggle_tw(): st.session_state.show_tw = not st.session_state.show_tw
+def toggle_calendar(): st.session_state.show_calendar = not st.session_state.show_calendar
+def toggle_div_db(): st.session_state.show_div_db = not st.session_state.show_div_db
+def toggle_tech(): st.session_state.show_tech = not st.session_state.show_tech
+def toggle_holdings(): st.session_state.show_holdings = not st.session_state.show_holdings
+def toggle_constituents(): st.session_state.show_constituents = not st.session_state.show_constituents
+def toggle_daily_price(): st.session_state.show_daily_price = not st.session_state.show_daily_price 
+def toggle_pledge(): st.session_state.show_pledge = not st.session_state.show_pledge 
+def toggle_secret(): st.session_state.show_secret = not st.session_state.show_secret
+def toggle_calculator(): st.session_state.show_calculator = not st.session_state.show_calculator
+
+# === 2. 排版與按鈕設定 ===
 cols_btn_r1 = st.columns(3)
 cols_btn_r2 = st.columns(3)
 cols_btn_r3 = st.columns(3)
@@ -980,6 +994,7 @@ b9_lbl, b9_typ = ("🔽 收起機密面板", "primary") if st.session_state.show
 b10_lbl, b10_typ = ("🔽 收起每日股價", "primary") if st.session_state.show_daily_price else ("🗓️ 展開每日股價", "secondary") 
 b11_lbl, b11_typ = ("🔽 收起試算器", "primary") if st.session_state.show_calculator else ("💰 展開試算器", "secondary")
 
+# === 3. 將按鈕放入對應的區塊中 ===
 with cols_btn_r1[0]: st.button(b1_lbl, on_click=toggle_us, type=b1_typ, use_container_width=True)
 with cols_btn_r1[1]: st.button(b2_lbl, on_click=toggle_tw, type=b2_typ, use_container_width=True)
 with cols_btn_r1[2]: st.button(b3_lbl, on_click=toggle_calendar, type=b3_typ, use_container_width=True)
