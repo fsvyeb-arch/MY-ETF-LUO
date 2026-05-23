@@ -666,6 +666,8 @@ def fetch_data(etf_list, custom_divs):
             st.json(fugle_quotes)
     elif FUGLE_API_KEY != "NTRjNWZiZjAtMWYyMC00Mzc5LWI5Y2UtNWZhZDQ5YWU2MTRjIDhhZWM2NmVjLWEwNzYtNDgxYS04ZGY4LTM3ZjE4N2YzNGIzMA==":
         st.sidebar.error("❌ 富果 API 連線失敗，請檢查金鑰或網路。")
+        else:
+                st.sidebar.success("🟢 富果 API 連線成功！")
     for item in etf_list:
         try:
             sym = item['symbol']
@@ -1050,7 +1052,6 @@ with cols_btn_r3[1]: st.button(b8_lbl, on_click=toggle_pledge, type=b8_typ, use_
 with cols_btn_r3[2]: st.button(b9_lbl, on_click=toggle_secret, type=b9_typ, use_container_width=True) 
 with cols_btn_r4[0]: st.button(b10_lbl, on_click=toggle_daily_price, type=b10_typ, use_container_width=True) 
 with cols_btn_r4[1]: st.button(b11_lbl, on_click=toggle_calculator, type=b11_typ, use_container_width=True)
-
 st.write("---")
 if st.session_state.show_us and "us" in macro_data and macro_data["us"]:
     st.markdown("#### 🌏 關鍵美股指標")
