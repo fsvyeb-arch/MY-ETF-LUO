@@ -628,6 +628,7 @@ def fetch_watchlist_dividend(wl_list, custom_divs):
             continue
     return pd.DataFrame(results)
 # --- 4. 核心數據計算 ---
+# --- 4. 核心數據計算 ---
 @st.cache_data(ttl=10)
 def fetch_data(etf_list, custom_divs):
     if not etf_list: return pd.DataFrame(), pd.DataFrame(), 0, 0, 0, 0, [], [], [], {i: {"amount": 0, "sources": []} for i in range(1, 13)}
@@ -649,8 +650,7 @@ def fetch_data(etf_list, custom_divs):
     # 🌟 修正後的 Fugle API 取得報價邏輯
     fugle_quotes = {}
     
-    # 確保金鑰有填寫，且不是預設的防呆文字
-    if 'FUGLE_API_KEY' in globals() and FUGLE_API_KEY and FUGLE_API_KEY != "NTRjNWZiZjAtMWYyMC00Mzc5LWI5Y2UtNWZhZDQ5YWU2MTRjIDhhZWM2NmVjLWEwNzYtNDgxYS04ZGY4LTM3ZjE4N2YzNGIzMA==":
+    if 'FUGLE_API_KEY' in globals() and FUGLE_API_KEY and FUGLE_API_KEY != "請在此填入您的富果API金鑰":
         headers = {"X-API-KEY": FUGLE_API_KEY}
         for stock_id in set(tw_ids):
             try:
@@ -660,16 +660,7 @@ def fetch_data(etf_list, custom_divs):
                     fugle_quotes[stock_id] = res.json()
             except:
                 continue
-                
-    # (⚠️ 原本寫在這裡的 st.sidebar 提示已經被完全移除，避免 Cache 錯誤)
 
-    for item in etf_list:
-    if fugle_quotes:
-        st.sidebar.success("✅ 富果 API 連線成功！")
-        with st.sidebar.expander("🔍 查看 API 原始回傳資料"):
-            st.json(fugle_quotes)
-    elif FUGLE_API_KEY != "請在此填入您的富果API金鑰":
-        st.sidebar.error("❌ 富果 API 連線失敗，請檢查金鑰或網路。")
     for item in etf_list:
         try:
             sym = item['symbol']
@@ -696,7 +687,7 @@ def fetch_data(etf_list, custom_divs):
             # 🌟 解析 Fugle API 回傳的資料並覆蓋歷史價格
             fg_data = fugle_quotes.get(stock_id, {})
             if fg_data:
-                # 取得現價 (優先取最新成交價，若無則取收盤價)
+                # 取得現價
                 if fg_data.get('lastPrice') is not None: 
                     curr_p = float(fg_data['lastPrice'])
                 elif fg_data.get('closePrice') is not None: 
@@ -714,7 +705,7 @@ def fetch_data(etf_list, custom_divs):
                 if fg_data.get('lowPrice') is not None: 
                     day_low = float(fg_data['lowPrice'])
                 
-                # 取得成交量 (富果的 tradeVolume 單位預設為股)
+                # 取得成交量
                 total_data = fg_data.get('total', {})
                 if total_data.get('tradeVolume') is not None:
                     vol = float(total_data['tradeVolume'])
