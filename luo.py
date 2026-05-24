@@ -639,7 +639,9 @@ if FUGLE_API_KEY:
             except Exception as e:
                 print(f"獲取 {stock_id} 報價失敗: {e}")
             finally:
-                time.sleep(0.1)        # current_price = trade.get('price', 0.0)
+                # 這裡強制執行，對齊 try 和 except
+                import time
+                time.sleep(0.1)
                     
                 if current_price > 0:
                     for stock_id in set(tw_ids):
