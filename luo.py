@@ -619,7 +619,7 @@ def fetch_watchlist_data(wl_list):
     tw_ids = [item['symbol'].split('.')[0] for item in wl_list]
     
  # === 確保您的 if 寫在對的縮排位置 ===
-        if FUGLE_API_KEY:
+if FUGLE_API_KEY:
             headers = {"X-API-KEY": FUGLE_API_KEY}  # 確保這行有在迴圈外面
             
             # 這裡開始往內縮排一格 (通常是 4 個空白鍵)
