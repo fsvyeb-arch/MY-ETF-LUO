@@ -620,32 +620,32 @@ def fetch_watchlist_data(wl_list):
     
  # === 確保您的 if 寫在對的縮排位置 ===
 if FUGLE_API_KEY:
-        headers = {"X-API-KEY": FUGLE_API_KEY}
+    headers = {"X-API-KEY": FUGLE_API_KEY}
         
         # 👇 注意這裡！for 一定要在 if 的右邊 (有縮排)
-        for stock_id in set(tw_ids):
-            try:
-                url = f"https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/{stock_id}"
-                res = requests.get(url, headers=headers, timeout=5)
+    for stock_id in set(tw_ids):
+        try:
+            url = f"https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/{stock_id}"
+            res = requests.get(url, headers=headers, timeout=5)
                 
-                if res.status_code == 200:
-                    data = res.json()
+            if res.status_code == 200:
+                data = res.json()
                     
                     # 安全取值防呆機制
-                    api_data = data.get('data', {})
-                    quote = api_data.get('quote', {})
-                    trade = quote.get('trade', {})
-                    current_price = trade.get('price', 0.0)
+                api_data = data.get('data', {})
+                quote = api_data.get('quote', {})
+                trade = quote.get('trade', {})
+                current_price = trade.get('price', 0.0)
                     
-                    if current_price > 0:
-                        fugle_quotes[stock_id] = current_price
+                if current_price > 0:
+                    fugle_quotes[stock_id] = current_price
                         
-            except Exception as e:
-                print(f"獲取 {stock_id} 報價失敗: {e}")
+        except Exception as e:
+            print(f"獲取 {stock_id} 報價失敗: {e}")
                 
-            finally:
-                import time
-                time.sleep(0.1)   
+        finally:
+            import time
+            time.sleep(0.1)   
         # === Fugle 報價抓取結束 ===                   
         # current_price = trade.get('price', 0.0)
                     
