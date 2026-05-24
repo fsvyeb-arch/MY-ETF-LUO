@@ -619,13 +619,11 @@ def fetch_watchlist_data(wl_list):
     tw_ids = [item['symbol'].split('.')[0] for item in wl_list]
     
  # === 確保您的 if 寫在對的縮排位置 ===
-if FUGLE_API_KEY:
+ if FUGLE_API_KEY:
         headers = {"X-API-KEY": FUGLE_API_KEY}
         
         for stock_id in set(tw_ids):
-            # 第一層結構
             try:
-                # 這裡面是嘗試執行的程式
                 url = f"https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/{stock_id}"
                 res = requests.get(url, headers=headers, timeout=5)
                 
@@ -638,14 +636,10 @@ if FUGLE_API_KEY:
                     
                     if current_price > 0:
                         fugle_quotes[stock_id] = current_price
-
-            # 第二層結構：必須與 try 對齊
             except Exception as e:
                 print(f"獲取 {stock_id} 報價失敗: {e}")
-
-            # 第三層結構：必須與 try 對齊
             finally:
-                time.sleep(0.1)                    
+                time.sleep(0.1)                   
                 if current_price > 0:
                     for stock_id in set(tw_ids):
                         try:
