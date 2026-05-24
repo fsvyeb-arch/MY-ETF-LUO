@@ -628,6 +628,7 @@ def fetch_watchlist_dividend(wl_list, custom_divs):
             continue
     return pd.DataFrame(results)
 # --- 4. 核心數據計算 ---
+@# --- 4. 核心數據計算 ---
 @st.cache_data(ttl=10)
 def fetch_data(etf_list, custom_divs):
     if not etf_list: return pd.DataFrame(), pd.DataFrame(), 0, 0, 0, 0, [], [], [], {i: {"amount": 0, "sources": []} for i in range(1, 13)}
@@ -646,20 +647,24 @@ def fetch_data(etf_list, custom_divs):
     except:
         hist_batch = pd.DataFrame()
         
-    # 🌟 改用 Fugle API 取得報價
+    # 🌟 修正後的 Fugle API 取得報價邏輯
     fugle_quotes = {}
-    # (請確保你在檔案最上方有設定 FUGLE_API_KEY = "你的金鑰")
-    if 'FUGLE_API_KEY' in globals() and FUGLE_API_KEY != "NTRjNWZiZjAtMWYyMC00Mzc5LWI5Y2UtNWZhZDQ5YWU2MTRjIDhhZWM2NmVjLWEwNzYtNDgxYS04ZGY4LTM3ZjE4N2YzNGIzMA==":
+    
+    # 確保金鑰有填寫，且不是預設的防呆文字
+    if 'FUGLE_API_KEY' in globals() and FUGLE_API_KEY and FUGLE_API_KEY != "NTRjNWZiZjAtMWYyMC00Mzc5LWI5Y2UtNWZhZDQ5YWU2MTRjIDhhZWM2NmVjLWEwNzYtNDgxYS04ZGY4LTM3ZjE4N2YzNGIzMA==":
         headers = {"X-API-KEY": FUGLE_API_KEY}
         for stock_id in set(tw_ids):
             try:
-                # 富果 v1.0 行情 API 端點
                 url = f"https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/{stock_id}"
                 res = requests.get(url, headers=headers, timeout=2)
                 if res.status_code == 200:
                     fugle_quotes[stock_id] = res.json()
             except:
                 continue
+                
+    # (⚠️ 原本寫在這裡的 st.sidebar 提示已經被完全移除，避免 Cache 錯誤)
+
+    for item in etf_list:
     if fugle_quotes:
         st.sidebar.success("✅ 富果 API 連線成功！")
         with st.sidebar.expander("🔍 查看 API 原始回傳資料"):
