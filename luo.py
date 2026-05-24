@@ -681,7 +681,7 @@ def fetch_watchlist_data(wl_list):
                 if res.status_code == 200:
                     fugle_quotes[stock_id] = res.json()
             except:
-                continue
+            continue
 
     for item in wl_list:
         sym = item['symbol']
