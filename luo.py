@@ -635,7 +635,29 @@ def fetch_watchlist_data(wl_list):
                     current_price = trade.get('price', 0.0)
                     
                     if current_price > 0:
-                        # ...(後面接續您原本計算價差的程式碼)...
+                    for stock_id in set(tw_ids):
+            try:
+                url = f"https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/{stock_id}"
+                res = requests.get(url, headers=headers, timeout=5)
+                
+                if res.status_code == 200:
+                    data = res.json()
+                    
+                    # ⚡ 安全取值防護
+                    api_data = data.get('data', {})
+                    quote = api_data.get('quote', {})
+                    trade = quote.get('trade', {})
+                    current_price = trade.get('price', 0.0)
+                    
+                    # 判斷如果有抓到大於 0 的價格，就存起來
+                    if current_price > 0:
+                        fugle_quotes[stock_id] = current_price  # 👈 這一行補上去，Python 就不會報錯了
+                        
+            except Exception as e:
+                print(f"獲取 {stock_id} 報價失敗: {e}")
+                
+            finally:
+                time.sleep(0.1) # 休息 0.1 秒避免被伺服器封鎖    # ...(後面接續您原本計算價差的程式碼)...
                     
             except Exception as e:
                 print(f"獲取 {stock_id} 報價失敗: {e}") # 改為印出錯誤，不要直接 continue
