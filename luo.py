@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 import time
 import altair as alt
 import requests
-FUGLE_API_KEY = "請在此填入您的富果API金鑰" # 🌟 NTRjNWZiZjAtMWYyMC00Mzc5LWI5Y2UtNWZhZDQ5YWU2MTRjIDhhZWM2NmVjLWEwNzYtNDgxYS04ZGY4LTM3ZjE4N2YzNGIzMA==
+FUGLE_API_KEY = "NTRjNWZiZjAtMWYyMC00Mzc5LWI5Y2UtNWZhZDQ5YWU2MTRjIDhhZWM2NmVjLWEwNzYtNDgxYS04ZGY4LTM3ZjE4N2YzNGIzMA=="
 def color_profit_loss(val):
     if isinstance(val, str): return 'color: #d32f2f; font-weight: bold;' if val.startswith('+') else ('color: #388e3c; font-weight: bold;' if val.startswith('-') else '')
     return ''
@@ -1169,7 +1169,13 @@ if st.session_state.show_tech:
             )
         with auto_tech_col:
             st.markdown("<div style='background-color: #f0f7ff; border: 1px solid #cce5ff; border-radius: 8px; padding: 10px 8px; text-align: center; box-shadow: 1px 1px 3px rgba(0,0,0,0.05);'>", unsafe_allow_html=True)
+            
+            # 🌟 新增：在自動更新上方顯示 API 連線成功提示 (帶有淺綠色底框)
+            if 'FUGLE_API_KEY' in globals() and FUGLE_API_KEY != "請在此填入您的富果API金鑰":
+                st.markdown("<div style='color: #2e7d32; font-size: 13px; font-weight: bold; margin-bottom: 8px; background-color: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 4px; padding: 4px;'>✅ API 連線成功</div>", unsafe_allow_html=True)
+            
             st.markdown("<div style='font-size: 15px; font-weight: bold; color: #1e3c72; margin-bottom: 4px;'>⚡ 自動更新</div>", unsafe_allow_html=True)
+            
             if 'auto_refresh_sec' not in st.session_state:
                 st.session_state.auto_refresh_sec = 30
             auto_sec = st.number_input("更新頻率(秒)", min_value=1, max_value=600, value=st.session_state.auto_refresh_sec)
