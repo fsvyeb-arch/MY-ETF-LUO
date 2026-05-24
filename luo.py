@@ -1240,6 +1240,10 @@ if st.session_state.show_tech:
                 horizontal=False,
                 label_visibility="collapsed"
             )
+            if FUGLE_API_KEY:
+                st.markdown("<div style='color: #2e7d32; font-size: 13px; font-weight: bold; margin-top: 12px; background-color: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 4px; padding: 6px; text-align: center;'>✅ 富果 API 已連線</div>", unsafe_allow_html=True)
+            else:
+                st.markdown("<div style='color: #d32f2f; font-size: 13px; font-weight: bold; margin-top: 12px; background-color: #ffebee; border: 1px solid #ffcdd2; border-radius: 4px; padding: 6px; text-align: center;'>❌ API 未設定或連線失敗</div>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
         st.write("")
         st.markdown("#### 📊 詳細持股清單與內扣費率")
