@@ -4,19 +4,28 @@ import pandas as pd
 import json
 import os
 DATA_FILE = "my_portfolio_data.json"
-
 def load_data():
+    """程式啟動時，從檔案讀取資料，並自動修復缺漏的欄位"""
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r", encoding="utf-8") as f:
             try:
-                return json.load(f)
+                data = json.load(f)
+                
+                # ⚡ 自動修復機制：檢查每一個庫存，如果沒有 symbol 就自動補上
+                for item in data.get('etfs', []):
+                    if 'symbol' not in item:
+                        try:
+                            # 從名稱(例如 "00878 國泰...") 抓取 "00878" 並加上 ".TW"
+                            stock_id = item.get('name', '0050').split()[0]
+                            item['symbol'] = f"{stock_id}.TW"
+                        except:
+                            item['symbol'] = "0050.TW" # 防呆機制
+                            
+                return data
             except json.JSONDecodeError:
                 pass
+    # 如果沒有檔案，回傳預設的空清單
     return {'etfs': [], 'pledges': []}
-
-def save_data(data):
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
 # ------------------------------
 import urllib.request
 import xml.etree.ElementTree as ET
