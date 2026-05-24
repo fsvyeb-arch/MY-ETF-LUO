@@ -697,7 +697,7 @@ def fetch_data(etf_list, custom_divs):
     # 🌟 修正後的 Fugle API 取得報價邏輯
     fugle_quotes = {}
     
-    if 'FUGLE_API_KEY' in globals() and FUGLE_API_KEY and FUGLE_API_KEY != "請在此填入您的富果API金鑰":
+    if 'FUGLE_API_KEY' in globals() and FUGLE_API_KEY and FUGLE_API_KEY != "NTRjNWZiZjAtMWYyMC00Mzc5LWI5Y2UtNWZhZDQ5YWU2MTRjIDhhZWM2NmVjLWEwNzYtNDgxYS04ZGY4LTM3ZjE4N2YzNGIzMA==":
         headers = {"X-API-KEY": FUGLE_API_KEY}
         for stock_id in set(tw_ids):
             try:
@@ -735,6 +735,7 @@ def fetch_data(etf_list, custom_divs):
                 year_high = float(hist_clean['High'].max())
                 year_low = float(hist_clean['Low'].min()) 
             # 🌟 解析 Fugle API 回傳的資料並覆蓋歷史價格
+            # 🌟 解析 Fugle API 回傳的資料並覆蓋歷史價格
             fg_data = fugle_quotes.get(stock_id, {})
             if fg_data:
                 # 1. 取得即時現價 (優先抓取盤中最後一筆撮合價)
@@ -760,9 +761,10 @@ def fetch_data(etf_list, custom_divs):
                 total_data = fg_data.get('total', {})
                 if total_data.get('tradeVolume') is not None:
                     vol = float(total_data['tradeVolume'])
-                # 確保兩邊 API 都徹底失效時，才略過該檔標的
-                if curr_p == 0:
-                    continue
+                    
+            # 🛡️ 守門員移到外面：確保兩邊 API 都徹底失效時，才略過該檔標的
+            if curr_p == 0:
+                continue
                     
             status_light = "🔴" if curr_p > prev_close else ("🟢" if curr_p < prev_close else "⚪")
             display_name = f"{status_light} {item['name']}"
