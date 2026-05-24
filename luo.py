@@ -668,13 +668,15 @@ if FUGLE_API_KEY:
                 time.sleep(0.1) # 休息 0.1 秒避免被伺服器封鎖    # ...(後面接續您原本計算價差的程式碼)...
                     
             except Exception as e:
-                print(f"獲取 {stock_id} 報價失敗: {e}") # 改為印出錯誤，不要直接 continue
+            
+            print(f"獲取 {stock_id} 報價失敗: {e}") # 改為印出錯誤，不要直接 continue
+            
             
             finally:
                 # ⚡ 關鍵防護：不管成功失敗，每次抓完強迫休息 0.1 秒
-                time.sleep(0.1)   
+            time.sleep(0.1)   
             except:
-                continue           
+            continue           
             try:
                 url = f"https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/{stock_id}"
                 res = requests.get(url, headers=headers, timeout=5)
