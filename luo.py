@@ -624,6 +624,31 @@ def fetch_watchlist_data(wl_list):
                 url = f"https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/{stock_id}"
                 res = requests.get(url, headers=headers, timeout=5)
                 if res.status_code == 200:
+                    data = res.json()
+                    
+                    # ⚡ 關鍵防護：用 .get() 取代中括號，避免遇到冷門股沒交易時當機
+                    api_data = data.get('data', {})
+                    quote = api_data.get('quote', {})
+                    trade = quote.get('trade', {})
+                    
+                    # 如果今天沒有成交價，給預設值 0.0
+                    current_price = trade.get('price', 0.0)
+                    
+                    if current_price > 0:
+                        # ...(後面接續您原本計算價差的程式碼)...
+                    
+            except Exception as e:
+                print(f"獲取 {stock_id} 報價失敗: {e}") # 改為印出錯誤，不要直接 continue
+            
+            finally:
+                # ⚡ 關鍵防護：不管成功失敗，每次抓完強迫休息 0.1 秒
+                time.sleep(0.1)   
+            except:
+                continue           
+            try:
+                url = f"https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/{stock_id}"
+                res = requests.get(url, headers=headers, timeout=5)
+                if res.status_code == 200:
                     fugle_quotes[stock_id] = res.json()
             except:
                 continue
@@ -1254,7 +1279,9 @@ if st.session_state.show_tech:
             
             if 'auto_refresh_sec' not in st.session_state:
                 st.session_state.auto_refresh_sec = 30
-            auto_sec = st.number_input("更新頻率(秒)", min_value=1, max_value=600, value=st.session_state.auto_refresh_sec)
+            # ⚡ 關鍵防護：把 min_value=1 改成 30，避免使用者狂刷 API 把額度耗盡
+            auto_sec = st.number_input("更新頻率(秒)", min_value=30, max_value=600, value=st.session_state.auto_refresh_sec)
+            st.caption("保護系統連線，最低更新間隔為 30 秒。")
             if auto_sec != st.session_state.auto_refresh_sec:
                 st.session_state.auto_refresh_sec = auto_sec
             if 'auto_refresh_mode' not in st.session_state:
