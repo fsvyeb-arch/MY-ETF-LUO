@@ -1240,6 +1240,36 @@ if st.session_state.show_tech:
                 horizontal=False,
                 label_visibility="collapsed"
             )
+            1. 顯示 API 連線狀態文字
+        if FUGLE_API_KEY:
+            st.markdown("<div style='color: #2e7d32; font-size: 13px; font-weight: bold; margin-top: 12px; background-color: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 4px; padding: 6px; text-align: center;'>✅ 富果 API 已連線</div>", unsafe_allow_html=True)
+        else:
+            st.markdown("<div style='color: #d32f2f; font-size: 13px; font-weight: bold; margin-top: 12px; background-color: #ffebee; border: 1px solid #ffcdd2; border-radius: 4px; padding: 6px; text-align: center;'>❌ API 未設定或連線失敗</div>", unsafe_allow_html=True)
+
+        # 2. 測試 API 連線按鈕
+        if st.button("🔌 測試 API 連線", use_container_width=True):
+            if not FUGLE_API_KEY:
+                st.error("❌ 尚未設定 API Key，請先確認程式碼。")
+            else:
+                with st.spinner("連線測試中..."):
+                    try:
+                        # 拿台積電(2330)來測試
+                        test_url = "https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/2330"
+                        headers = {"X-API-KEY": FUGLE_API_KEY}
+                        res = requests.get(test_url, headers=headers, timeout=5)
+                        
+                        if res.status_code == 200:
+                            st.success("✅ API 連線成功！金鑰有效。")
+                        elif res.status_code == 401:
+                            st.error("❌ API 連線失敗 (401)：API Key 錯誤或失效。")
+                        elif res.status_code == 429:
+                            st.warning("⚠️ 呼叫頻率過高 (429)：請稍後再試。")
+                        else:
+                            st.error(f"⚠️ 連線失敗，伺服器回傳代碼：{res.status_code}")
+                    except requests.exceptions.Timeout:
+                        st.error("❌ 連線超時！請檢查您的網路狀態。")
+                    except Exception as e:
+                        st.error(f"❌ 發生未知錯誤：{e}")
             if FUGLE_API_KEY:
                 st.markdown("<div style='color: #2e7d32; font-size: 13px; font-weight: bold; margin-top: 12px; background-color: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 4px; padding: 6px; text-align: center;'>✅ 富果 API 已連線</div>", unsafe_allow_html=True)
             else:
