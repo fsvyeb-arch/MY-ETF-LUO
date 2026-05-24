@@ -592,12 +592,11 @@ def fetch_watchlist_data(wl_list):
     fugle_quotes = {}
     tw_ids = [item['symbol'].split('.')[0] for item in wl_list]
     
-    if 'FUGLE_API_KEY' in globals() and FUGLE_API_KEY and FUGLE_API_KEY != "NTRjNWZiZjAtMWYyMC00Mzc5LWI5Y2UtNWZhZDQ5YWU2MTRjIDhhZWM2NmVjLWEwNzYtNDgxYS04ZGY4LTM3ZjE4N2YzNGIzMA==":
-        headers = {"X-API-KEY": FUGLE_API_KEY}
+    if FUGLE_API_KEY:
         for stock_id in set(tw_ids):
             try:
                 url = f"https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/{stock_id}"
-                res = requests.get(url, headers=headers, timeout=2)
+                res = requests.get(url, headers=headers, timeout=5)
                 if res.status_code == 200:
                     fugle_quotes[stock_id] = res.json()
             except:
