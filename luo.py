@@ -592,7 +592,7 @@ def fetch_watchlist_data(wl_list):
     fugle_quotes = {}
     tw_ids = [item['symbol'].split('.')[0] for item in wl_list]
     
-    if 'FUGLE_API_KEY' in globals() and FUGLE_API_KEY and FUGLE_API_KEY != "請在此填入您的富果API金鑰":
+    if 'FUGLE_API_KEY' in globals() and FUGLE_API_KEY and FUGLE_API_KEY != "NTRjNWZiZjAtMWYyMC00Mzc5LWI5Y2UtNWZhZDQ5YWU2MTRjIDhhZWM2NmVjLWEwNzYtNDgxYS04ZGY4LTM3ZjE4N2YzNGIzMA==":
         headers = {"X-API-KEY": FUGLE_API_KEY}
         for stock_id in set(tw_ids):
             try:
@@ -735,7 +735,7 @@ def fetch_data(etf_list, custom_divs):
                 year_high = float(hist_clean['High'].max())
                 year_low = float(hist_clean['Low'].min()) 
             # 🌟 解析 Fugle API 回傳的資料並覆蓋歷史價格
-            # 🌟 解析 Fugle API 回傳的資料並覆蓋歷史價格
+            
             fg_data = fugle_quotes.get(stock_id, {})
             if fg_data:
                 # 1. 取得即時現價 (優先抓取盤中最後一筆撮合價)
@@ -1222,7 +1222,7 @@ if st.session_state.show_tech:
             st.markdown("<div style='background-color: #f0f7ff; border: 1px solid #cce5ff; border-radius: 8px; padding: 10px 8px; text-align: center; box-shadow: 1px 1px 3px rgba(0,0,0,0.05);'>", unsafe_allow_html=True)
             
             # 🌟 新增：在自動更新上方顯示 API 連線成功提示 (帶有淺綠色底框)
-            if 'FUGLE_API_KEY' in globals() and FUGLE_API_KEY != "請在此填入您的富果API金鑰":
+            if 'FUGLE_API_KEY' in globals() and FUGLE_API_KEY != "NTRjNWZiZjAtMWYyMC00Mzc5LWI5Y2UtNWZhZDQ5YWU2MTRjIDhhZWM2NmVjLWEwNzYtNDgxYS04ZGY4LTM3ZjE4N2YzNGIzMA==":
                 st.markdown("<div style='color: #2e7d32; font-size: 13px; font-weight: bold; margin-bottom: 8px; background-color: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 4px; padding: 4px;'>✅ API 連線成功</div>", unsafe_allow_html=True)
             
             st.markdown("<div style='font-size: 15px; font-weight: bold; color: #1e3c72; margin-bottom: 4px;'>⚡ 自動更新</div>", unsafe_allow_html=True)
