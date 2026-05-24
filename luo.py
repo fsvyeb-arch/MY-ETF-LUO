@@ -340,26 +340,8 @@ def auto_fill_etf_name():
     clean_sym = raw_sym.strip().upper().replace(".TW", "")
     if clean_sym: st.session_state.add_name_bot = ETF_NAME_DB.get(clean_sym, f"{clean_sym} ETF")
     else: st.session_state.add_name_bot = ""
-# ==========================================
-# 💾 步驟 2：修改新增函數，加入存檔指令
-# ==========================================
 def add_new_etf_bot():
-    name = st.session_state.get("add_name_bot", "").strip()
-    h = st.session_state.get("add_h_bot", 0.0)
-    c = st.session_state.get("add_c_bot", 0.0)
     
-    if name:
-        new_item = {"name": name, "holdings": h, "cost": c}
-        # 加進 session_state
-        st.session_state.my_data['etfs'].append(new_item)
-        
-        # ⚡ 關鍵加上這行：寫入 JSON 檔！
-        save_data(st.session_state.my_data)
-        
-        st.toast(f"✅ 已成功新增 {name} 並存檔！")
-    else:
-        st.warning("名稱不能為空")
-# ==========================================    
     raw_sym = st.session_state.get('add_sym_bot', '')
     new_name = st.session_state.get('add_name_bot', '')
     new_h = st.session_state.get('add_h_bot', 0.0)
@@ -1877,40 +1859,15 @@ with bot_c2:
             
             st.write("---")
             st.markdown("#### 📝 庫存修改與刪除")
-            # ==========================================
-        # 💾 步驟 3：修改庫存清單區塊
-        # ==========================================
-        for i, item in enumerate(st.session_state.my_data['etfs']):
-            with st.expander(f"📍 {item['name']}"):
-                col_e1, col_e2 = st.columns(2)
-                
-                # 讓使用者輸入新張數與新均價
-                with col_e1:
-                    new_h = st.number_input("張數", value=float(item['holdings']), step=1.0, key=f"edit_h_{i}")
-                with col_e2:
-                    new_c = st.number_input("均價", value=float(item['cost']), step=0.1, key=f"edit_c_{i}")
-                
-                # 建立兩個按鈕：一個儲存修改，一個刪除
-                col_btn1, col_btn2 = st.columns(2)
-                
-                with col_btn1:
-                    if st.button(f"💾 儲存修改", key=f"save_btn_{i}"):
-                        # 更新資料
-                        st.session_state.my_data['etfs'][i]['holdings'] = new_h
-                        st.session_state.my_data['etfs'][i]['cost'] = new_c
-                        # ⚡ 寫入 JSON 檔！
-                        save_data(st.session_state.my_data)
-                        st.success("修改已儲存！")
-                        st.rerun() # 重新整理畫面
-                        
-                with col_btn2:
-                    if st.button(f"🗑️ 刪除", key=f"del_btn_{i}"):
-                        # 刪除該筆資料
-                        st.session_state.my_data['etfs'].pop(i)
-                        # ⚡ 寫入 JSON 檔！
-                        save_data(st.session_state.my_data)
-                        st.rerun() # 重新整理畫面
-        # ==========================================
+            for i, item in enumerate(st.session_state.my_data['etfs']):
+                with st.expander(f"📍 {item['name']}"):
+                    col_e1, col_e2 = st.columns(2)
+                    with col_e1:
+                        st.number_input("張數", value=float(item['holdings']), step=1.0, key=f"edit_h_{i}")
+                    with col_e2:
+                        st.number_input("均價", value=float(item['cost']), step=0.1, key=f"edit_c_{i}")
+                    st.button(f"🗑️ 刪除 {item['name']}", key=f"del_{i}", on_click=delete_etf, args=(i,), use_container_width=True)
+            st.button("💾 儲存所有修改", use_container_width=True, type="primary", on_click=save_edits)
 # --- 修正後的自動更新區塊 ---
 if st.session_state.get("auto_refresh_mode") == "✅ 開啟" or st.session_state.get("auto_refresh_mode") == "✅ USE (開啟)":
     time.sleep(st.session_state.get("auto_refresh_sec", 30))
