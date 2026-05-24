@@ -625,9 +625,14 @@ def fetch_watchlist_data(wl_list):
                 res = requests.get(url, headers=headers, timeout=5)
                 if res.status_code == 200:
                     fugle_quotes[stock_id] = res.json()
-            except:
-                continue
-
+            except Exception as e:
+                st.error(f"錯誤: {e}")
+        
+            finally:
+                # ⚡ 關鍵防護：不管成功或失敗，每次請求完強制讓程式睡 0.2 秒
+                time.sleep(0.2)
+            
+                
     for item in wl_list:
         sym = item['symbol']
         stock_id = sym.replace('.TW', '')
@@ -1254,9 +1259,16 @@ if st.session_state.show_tech:
             
             if 'auto_refresh_sec' not in st.session_state:
                 st.session_state.auto_refresh_sec = 30
-            auto_sec = st.number_input("更新頻率(秒)", min_value=1, max_value=600, value=st.session_state.auto_refresh_sec)
-            if auto_sec != st.session_state.auto_refresh_sec:
-                st.session_state.auto_refresh_sec = auto_sec
+
+            # ⚡ 關鍵防護：將 min_value 提高到 30 或 60，避免過度消耗
+            auto_sec = st.number_input(
+                "更新頻率(秒)", 
+                min_value=30,  # 強制規定最快只能 30 秒更新一次
+                max_value=600, 
+                value=st.session_state.get('auto_refresh_sec', 30)
+            )
+            st.caption("為保護系統效能，最低更新間隔為 30 秒。")            if auto_sec != st.session_state.auto_refresh_sec:
+            st.session_state.auto_refresh_sec = auto_sec
             if 'auto_refresh_mode' not in st.session_state:
                 st.session_state.auto_refresh_mode = "❌ 關閉"
             auto_update = st.radio(
@@ -1882,4 +1894,3 @@ if st.session_state.get("auto_refresh_mode") == "✅ 開啟" or st.session_state
     time.sleep(st.session_state.get("auto_refresh_sec", 30))
     # 🌟 移除 st.cache_data.clear()，讓 Streamlit 自動依照各函數的 ttl (存活時間) 處理快取
     st.rerun()
-
