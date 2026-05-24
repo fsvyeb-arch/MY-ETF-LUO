@@ -687,25 +687,26 @@ def fetch_data(etf_list, custom_divs):
             # 🌟 解析 Fugle API 回傳的資料並覆蓋歷史價格
             fg_data = fugle_quotes.get(stock_id, {})
             if fg_data:
-                # 取得現價
-                if fg_data.get('lastPrice') is not None: 
-                    curr_p = float(fg_data['lastPrice'])
-                elif fg_data.get('closePrice') is not None: 
+                # 1. 取得即時現價 (優先抓取盤中最後一筆撮合價)
+                last_trade = fg_data.get('lastTrade', {})
+                if last_trade and last_trade.get('price') is not None: 
+                    curr_p = float(last_trade['price'])
+                elif fg_data.get('closePrice') is not None: # 盤後備用
                     curr_p = float(fg_data['closePrice'])
                 
-                # 取得昨收價
-                if fg_data.get('previousClose') is not None: 
-                    prev_close = float(fg_data['previousClose'])
-                elif fg_data.get('referencePrice') is not None: 
+                # 2. 取得平盤價/昨收價 (用於計算精準的今日漲跌)
+                if fg_data.get('referencePrice') is not None: 
                     prev_close = float(fg_data['referencePrice'])
+                elif fg_data.get('previousClose') is not None: 
+                    prev_close = float(fg_data['previousClose'])
                 
-                # 取得最高與最低價
+                # 3. 取得最高與最低價
                 if fg_data.get('highPrice') is not None: 
                     day_high = float(fg_data['highPrice'])
                 if fg_data.get('lowPrice') is not None: 
                     day_low = float(fg_data['lowPrice'])
                 
-                # 取得成交量
+                # 4. 取得總成交量
                 total_data = fg_data.get('total', {})
                 if total_data.get('tradeVolume') is not None:
                     vol = float(total_data['tradeVolume'])
