@@ -645,7 +645,9 @@ if FUGLE_API_KEY:
                 
             finally:
                 import time
-                time.sleep(0.1)        # === Fugle 報價抓取結束 ===                   current_price = trade.get('price', 0.0)
+                time.sleep(0.1)   
+        # === Fugle 報價抓取結束 ===                   
+        # current_price = trade.get('price', 0.0)
                     
                 if current_price > 0:
                     for stock_id in set(tw_ids):
