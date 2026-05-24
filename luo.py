@@ -675,15 +675,18 @@ def fetch_data(etf_list, custom_divs):
             if hist.empty or 'Close' not in hist.columns or hist['Close'].dropna().empty: 
                 continue
                 
-            hist_clean = hist.dropna(subset=['Close'])
-            curr_p = float(hist_clean['Close'].iloc[-1])
-            prev_close = float(hist_clean['Close'].iloc[-2]) if len(hist_clean) >= 2 else curr_p
-            day_high = float(hist_clean['High'].iloc[-1])
-            day_low = float(hist_clean['Low'].iloc[-1])
-            vol = float(hist_clean['Volume'].iloc[-1])
-            year_high = float(hist_clean['High'].max())
-            year_low = float(hist_clean['Low'].min())
+           # --- 🛠️ 修正：預設變數值，避免 Yahoo 當機時直接跳過 ---
+            curr_p, prev_close, day_high, day_low, vol, year_high, year_low = 0, 0, 0, 0, 0, 0, 0
             
+            if not hist.empty and 'Close' in hist.columns and not hist['Close'].dropna().empty:
+                hist_clean = hist.dropna(subset=['Close'])
+                curr_p = float(hist_clean['Close'].iloc[-1])
+                prev_close = float(hist_clean['Close'].iloc[-2]) if len(hist_clean) >= 2 else curr_p
+                day_high = float(hist_clean['High'].iloc[-1])
+                day_low = float(hist_clean['Low'].iloc[-1])
+                vol = float(hist_clean['Volume'].iloc[-1])
+                year_high = float(hist_clean['High'].max())
+                year_low = float(hist_clean['Low'].min()) 
             # 🌟 解析 Fugle API 回傳的資料並覆蓋歷史價格
             fg_data = fugle_quotes.get(stock_id, {})
             if fg_data:
@@ -710,6 +713,9 @@ def fetch_data(etf_list, custom_divs):
                 total_data = fg_data.get('total', {})
                 if total_data.get('tradeVolume') is not None:
                     vol = float(total_data['tradeVolume'])
+                # 確保兩邊 API 都徹底失效時，才略過該檔標的
+                if curr_p == 0:
+                    continue
                     
             status_light = "🔴" if curr_p > prev_close else ("🟢" if curr_p < prev_close else "⚪")
             display_name = f"{status_light} {item['name']}"
