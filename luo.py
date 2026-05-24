@@ -618,7 +618,7 @@ def fetch_watchlist_data(wl_list):
     fugle_quotes = {}
     tw_ids = [item['symbol'].split('.')[0] for item in wl_list]
     
- # === 確保您的 if 寫在對的縮排位置 ===
+     # === 確保您的 if 寫在對的縮排位置 ===
     if FUGLE_API_KEY:
         headers = {"X-API-KEY": FUGLE_API_KEY}
         
@@ -629,44 +629,26 @@ def fetch_watchlist_data(wl_list):
                 
                 if res.status_code == 200:
                     data = res.json()
-                    api_data = data.get('data', {})
-                    quote = api_data.get('quote', {})
-                    trade = quote.get('trade', {})
-                    current_price = trade.get('price', 0.0)
-                    
-                    if current_price > 0:
-                        fugle_quotes[stock_id] = current_price
-            except Exception as e:
-                print(f"獲取 {stock_id} 報價失敗: {e}")
-            finally:
-                time.sleep(0.1)                   
-                if current_price > 0:
-                    for stock_id in set(tw_ids):
-                        try:
-                            url = f"https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/{stock_id}"
-                res = requests.get(url, headers=headers, timeout=5)
-                
-                if res.status_code == 200:
-                    data = res.json()
-                    
                     # ⚡ 安全取值防護
                     api_data = data.get('data', {})
                     quote = api_data.get('quote', {})
                     trade = quote.get('trade', {})
                     current_price = trade.get('price', 0.0)
                     
-                    # 判斷如果有抓到大於 0 的價格，就存起來
+                    # 判斷如果有抓到大於 0 的價格，就把整包 quote 存起來 (因為下方運算需要 dict)
                     if current_price > 0:
-                        fugle_quotes[stock_id] = current_price  # 👈 這一行補上去，Python 就不會報錯了
+                        fugle_quotes[stock_id] = quote
                         
-            
-                url = f"https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/{stock_id}"
-                res = requests.get(url, headers=headers, timeout=5)
-                if res.status_code == 200:
-                    fugle_quotes[stock_id] = res.json()
-            except:
-            continue
+            except Exception as e:
+                print(f"獲取 {stock_id} 報價失敗: {e}")
+                
+            finally:
+                # ⚡ 關鍵防護：不管成功失敗，每次抓完強迫休息 0.1 秒避免被伺服器封鎖
+                time.sleep(0.1)
 
+    # ==========================================
+    # 以下為計算與整合報價區塊
+    # ==========================================
     for item in wl_list:
         sym = item['symbol']
         stock_id = sym.replace('.TW', '')
@@ -690,7 +672,7 @@ def fetch_watchlist_data(wl_list):
         fg_data = fugle_quotes.get(stock_id, {})
         if fg_data:
             # 取得即時現價
-            last_trade = fg_data.get('lastTrade', {})
+            last_trade = fg_data.get('trade', {}) # 修正對應上方的 trade 欄位
             if last_trade and last_trade.get('price') is not None: 
                 curr_p = float(last_trade['price'])
             elif fg_data.get('closePrice') is not None: 
@@ -706,6 +688,7 @@ def fetch_watchlist_data(wl_list):
         if curr_p == 0:
             continue
             
+        # ...(這裡接續您原本的買賣損益或呈現邏輯)...       
         diff = curr_p - prev_close
         pct = (diff / prev_close * 100) if prev_close else 0
         status_light = "🔴" if diff > 0 else ("🟢" if diff < 0 else "⚪")
