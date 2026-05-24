@@ -1761,7 +1761,9 @@ with bot_c2:
                         st.number_input("均價", value=float(item['cost']), step=0.1, key=f"edit_c_{i}")
                     st.button(f"🗑️ 刪除 {item['name']}", key=f"del_{i}", on_click=delete_etf, args=(i,), use_container_width=True)
             st.button("💾 儲存所有修改", use_container_width=True, type="primary", on_click=save_edits)
+# --- 修正後的自動更新區塊 ---
 if st.session_state.get("auto_refresh_mode") == "✅ 開啟" or st.session_state.get("auto_refresh_mode") == "✅ USE (開啟)":
     time.sleep(st.session_state.get("auto_refresh_sec", 30))
-    st.cache_data.clear() 
+    # 🌟 移除 st.cache_data.clear()，讓 Streamlit 自動依照各函數的 ttl (存活時間) 處理快取
     st.rerun()
+
