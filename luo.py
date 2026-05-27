@@ -945,6 +945,7 @@ def fetch_etf_news():
 # --- 📈 抓取美台股大盤指標 ---
 @st.cache_data(ttl=300) 
 @st.cache_data(show_spinner=False)  # 👈 加上這個參數，強制關閉內建的載入動畫
+def fetch_macro_data():  # 👈 就是這一行被您不小心刪掉了，必須補回來！
     tickers = {
         "us": {"道瓊工業": "^DJI", "那斯達克": "^IXIC", "費城半導體": "^SOX", "輝達 NVIDIA": "NVDA", "台積電 ADR": "TSM"},
         "tw": {"台股加權 (大盤)": "^TWII", "台積電 (台股)": "2330.TW", "聯發科 (台股)": "2454.TW", "台指期 (近月)": "WTX&P"}
@@ -987,8 +988,6 @@ def render_macro_cards(data_dict, region_prefix):
         with cols[idx % 3]:
             st.markdown(html, unsafe_allow_html=True)
         idx += 1
-# 用手動的 spinner 包裝，避開系統底層的錯誤
-with st.spinner("⏳ 正在為您抓取最新總經數據，請稍候..."):
 macro_data = fetch_macro_data()
 # --- 5. 介面呈現 ---
 st.title("📈 實戰資產戰情室")
