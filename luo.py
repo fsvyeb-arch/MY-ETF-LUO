@@ -723,9 +723,9 @@ def fetch_watchlist_dividend(wl_list, custom_divs):
             continue
     return pd.DataFrame(results)
 # --- 4. 核心數據計算 ---
-@st.cache_data(ttl=10)
+@st.cache_data(show_spinner=False)  # 👈 加入這個參數，強制關閉內建的載入動畫
 def fetch_data(etf_list, custom_divs):
-    if not etf_list: return pd.DataFrame(), pd.DataFrame(), 0, 0, 0, 0, [], [], [], {i: {"amount": 0, "sources": []} for i in range(1, 13)}
+    # ... 您的抓取資料程式碼 ...    if not etf_list: return pd.DataFrame(), pd.DataFrame(), 0, 0, 0, 0, [], [], [], {i: {"amount": 0, "sources": []} for i in range(1, 13)}
     results, tech_results = [], []
     total_mkt, total_cost, total_div, total_today_pnl = 0, 0, 0, 0
     radar_ex, radar_pay, price_alerts = [], [], []
@@ -1906,4 +1906,3 @@ if st.session_state.get("auto_refresh_mode") == "✅ 開啟" or st.session_state
     time.sleep(st.session_state.get("auto_refresh_sec", 30))
     # 🌟 移除 st.cache_data.clear()，讓 Streamlit 自動依照各函數的 ttl (存活時間) 處理快取
     st.rerun()
-
