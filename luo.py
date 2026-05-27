@@ -919,8 +919,9 @@ def fetch_data(etf_list, custom_divs):
     return pd.DataFrame(results), pd.DataFrame(tech_results), total_mkt, total_cost, total_div, total_today_pnl, radar_ex, radar_pay, price_alerts, monthly_calendar
 df, df_tech, g_mkt, g_cost, g_div, g_today_pnl, radar_ex, radar_pay, price_alerts, monthly_calendar = fetch_data(st.session_state.my_data['etfs'], st.session_state.my_data.get('custom_divs', {}))
 # --- 📡 抓取 ETF 焦點新聞 ---
-@st.cache_data(ttl=3600)
+@st.cache_data(show_spinner=False)  # 👈 加上這句，強制關掉系統內建動畫
 def fetch_etf_news():
+    # ... 您的抓取新聞程式碼 ...
     news_list = []
     today_str = datetime.now().strftime("%m/%d")
     try:
